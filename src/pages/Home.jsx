@@ -1,5 +1,6 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";                // đảm bảo có CSS AOS (có thể để ở main.jsx cũng được)
 
@@ -39,6 +40,13 @@ export default function Home() {
     { img: "/img/testimonial-2.jpg" },
     { img: "/img/testimonial-3.jpg" },
   ];
+
+  const trainers = [
+  { id: 101, name: "John Doe", profession: "Strength Coach", img: "/img/team-1.jpg" },
+  { id: 102, name: "Emily Smith", profession: "Yoga Instructor", img: "/img/team-2.jpg" },
+  { id: 103, name: "Michael Lee", profession: "Boxing Trainer", img: "/img/team-3.jpg" },
+  { id: 104, name: "Sophia Brown", profession: "Cardio Specialist", img: "/img/team-4.jpg" },
+];
 
   return (
     <>
@@ -332,7 +340,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Team */}
+        {/* Trainer */}
         <div className="container-fluid team py-5">
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
@@ -342,11 +350,13 @@ export default function Home() {
             </div>
 
             <div className="row gy-5 gy-lg-4 gx-4">
-              {[1, 2, 3, 4].map((n, i) => (
-                <div className="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay={i * 200} key={i}>
+              {trainers.map((t, i) => (
+                <div className="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay={i * 200} key={t.id}>
                   <div className="team-item">
-                    <div className="team-img">
-                      <img src={`/img/team-${n}.jpg`} className="img-fluid w-100" alt="Team" />
+                    {/* Link to TrainerDetail */}
+                    <Link to={`/trainer/${t.id}`}>
+                      <div className="team-img">
+                        <img src={t.img} className="img-fluid w-100" alt={t.name} />
                       <div className="team-icon">
                         <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-facebook-f"></i></a>
                         <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-twitter"></i></a>
@@ -354,9 +364,10 @@ export default function Home() {
                         <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-linkedin-in"></i></a>
                       </div>
                     </div>
+                    </Link>
                     <div className="team-content">
-                      <h4>Trainer Name</h4>
-                      <p className="mb-0">Profession</p>
+                      <h4>{t.name}</h4>
+                      <p className="mb-0">{t.profession}</p>
                     </div>
                   </div>
                 </div>
