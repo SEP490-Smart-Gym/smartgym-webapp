@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 // Mock data trainers (đồng bộ với Home.jsx)
@@ -96,6 +97,9 @@ const trainers = [
 ];
 
 export default function TrainerDetailPage() {
+    useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const { id } = useParams();
   const trainer = trainers.find((t) => t.id === id);
 
@@ -122,7 +126,7 @@ function TrainerDetail({ trainer }) {
       {/* Top Info */}
       <div className="md:flex">
         {/* Left: Avatar */}
-        <div className="md:w-1/3 p-6 flex items-center justify-center bg-blue-900">
+        <div className="md:w-1/4 p-6 flex items-center justify-center bg-blue-900">
           <div className="w-44 h-44 rounded-xl overflow-hidden shadow-md border-4 border-white">
             <img
               src={trainer.avatar}
@@ -133,7 +137,7 @@ function TrainerDetail({ trainer }) {
         </div>
 
         {/* Right: Info */}
-        <div className="md:w-2/3 p-6">
+        <div className="md:w-3/4 p-6">
           <h1 className="text-2xl font-bold text-blue-900">{trainer.name}</h1>
           <p className="text-sm text-gray-600">
             {trainer.age} years old • {trainer.yearsExperience} years experience
