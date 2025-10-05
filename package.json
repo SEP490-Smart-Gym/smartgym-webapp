@@ -13,6 +13,7 @@
   "dependencies": {
     "aos": "^2.3.4",
     "bootstrap": "^5.3.8",
+    "firebase": "^12.3.0",
     "react": "^19.1.1",
     "react-countup": "^6.5.3",
     "react-dom": "^19.1.1",
