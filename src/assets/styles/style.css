@@ -1394,6 +1394,31 @@
 .swiper-button-prev, .swiper-button-next{ color: var(--bs-primary) !important; }
 
 
+.google-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;                /* khoảng cách giữa logo và text */
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px 12px;       /* thu nhỏ chiều cao + chiều ngang */
+  font-size: 14px;         /* chữ nhỏ lại */
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.google-button:hover {
+  background-color: #f5f5f5;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.google-button svg {
+  width: 18px;             /* icon nhỏ hơn */
+  height: 18px;
+}
 
 
 
