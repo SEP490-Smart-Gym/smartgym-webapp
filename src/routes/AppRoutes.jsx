@@ -35,9 +35,7 @@ function Layout() {
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
-      {/* <ScrollToTop /> */}
-      <Routes>
+    <Routes>
         <Route element={<Layout />}>
           {/* Trang chủ */}
           <Route index element={<Home />} />
@@ -60,6 +58,5 @@ export default function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   );
 }

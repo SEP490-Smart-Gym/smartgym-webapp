@@ -1,6 +1,9 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext"; // 👈 import hook từ AuthContext
 
 export default function Navbar() {
+  const { user, logout } = useAuth(); // 👈 lấy user & logout từ context
+
   return (
     <div className="container-fluid header-top">
       <div className="nav-shaps-2"></div>
@@ -36,16 +39,48 @@ export default function Navbar() {
               </div>
 
               <div className="col-lg-4 text-center text-lg-end">
-                <div className="d-flex justify-content-end">
-                  <div className="d-flex align-items-center small">
-                    <NavLink to="/login" className="login-btn text-body me-3 pe-3">
-                      <span>Login</span>
-                    </NavLink>
-                    <NavLink to="/register" className="text-body me-3">
-                      Register
-                    </NavLink>
-                  </div>
-                  <div className="d-flex pe-3">
+                <div className="d-flex justify-content-end align-items-center small">
+                  {!user ? (
+                    <>
+                      <NavLink to="/login" className="login-btn text-body me-3 pe-3">
+                        <span>Login</span>
+                      </NavLink>
+                      <NavLink to="/register" className="text-body me-3">
+                        Register
+                      </NavLink>
+                    </>
+                  ) : (
+                    <div className="dropdown">
+                      <a
+                        href="#"
+                        className="d-flex align-items-center dropdown-toggle text-body"
+                        id="userMenu"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                      >
+                        <img
+                          src={user.photo || "/img/default-avatar.png"}
+                          alt="avatar"
+                          className="rounded-circle me-2"
+                          style={{ width: "32px", height: "32px", objectFit: "cover" }}
+                        />
+                        <span>{user.name?.split(" ")[0] || "User"}</span>
+                      </a>
+                      <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li>
+                          <span className="dropdown-item-text">{user.email}</span>
+                        </li>
+                        <li><hr className="dropdown-divider" /></li>
+                        <li>
+                          <button className="dropdown-item" onClick={logout}>
+                            Logout
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="d-flex ps-3">
                     <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-facebook-f"></i></a>
                     <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-twitter"></i></a>
                     <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-instagram"></i></a>
@@ -66,7 +101,12 @@ export default function Navbar() {
                 </h1>
               </NavLink>
 
-              <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+              <button
+                className="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarCollapse"
+              >
                 <span className="fa fa-bars"></span>
               </button>
 
@@ -93,8 +133,11 @@ export default function Navbar() {
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
                   <div className="nav-btn ps-3 d-flex align-items-center">
-                    <button className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
-                            data-bs-toggle="modal" data-bs-target="#searchModal">
+                    <button
+                      className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
+                      data-bs-toggle="modal"
+                      data-bs-target="#searchModal"
+                    >
                       <i className="fas fa-search"></i>
                     </button>
                     <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
@@ -111,7 +154,13 @@ export default function Navbar() {
       </div>
 
       {/* Modal Search */}
-      <div className="modal fade" id="searchModal" tabIndex={-1} aria-labelledby="searchLabel" aria-hidden="true">
+      <div
+        className="modal fade"
+        id="searchModal"
+        tabIndex={-1}
+        aria-labelledby="searchLabel"
+        aria-hidden="true"
+      >
         <div className="modal-dialog modal-fullscreen">
           <div className="modal-content rounded-0">
             <div className="modal-header">
@@ -120,7 +169,12 @@ export default function Navbar() {
             </div>
             <div className="modal-body d-flex align-items-center bg-primary">
               <div className="input-group w-75 mx-auto d-flex">
-                <input type="search" className="form-control p-3" placeholder="keywords" aria-describedby="search-icon-1" />
+                <input
+                  type="search"
+                  className="form-control p-3"
+                  placeholder="keywords"
+                  aria-describedby="search-icon-1"
+                />
                 <span id="search-icon-1" className="btn bg-light border input-group-text p-3">
                   <i className="fa fa-search"></i>
                 </span>

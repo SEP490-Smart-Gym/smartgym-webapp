@@ -13,12 +13,16 @@ import './assets/styles/style.css'
 import './index.css'
 
 // Bootstrap JS (bundle có Popper: cần cho navbar, dropdown, modal...)
-// import 'bootstrap/dist/js/bootstrap.bundle.min.js'
+import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 import App from './App.jsx'
+import { BrowserRouter } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <BrowserRouter>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </BrowserRouter>
 )
