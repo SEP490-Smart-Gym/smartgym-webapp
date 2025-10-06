@@ -11,7 +11,11 @@ import About from "../pages/About.jsx";
 import Classes from "../pages/Classes.jsx";
 import Contact from "../pages/Contact.jsx";
 import NotFound from "../pages/NotFound.jsx";
+
 import TrainerDetail from "../pages/TrainerDetail.jsx";
+
+import Login from "../pages/Login.jsx";
+import Register from "../pages/Register.jsx";
 
 // (Tuỳ chọn) Nếu bạn có các trang này, import vào; chưa có thì để tạm về Home hoặc tạo stub sau
 // import Course from "../pages/Course.jsx";
@@ -35,12 +39,12 @@ function Layout() {
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
-      {/* <ScrollToTop /> */}
-      <Routes>
+    <Routes>
         <Route element={<Layout />}>
           {/* Trang chủ */}
           <Route index element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Các trang chính */}
           <Route path="about" element={<About />} />
@@ -62,6 +66,5 @@ export default function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   );
 }
