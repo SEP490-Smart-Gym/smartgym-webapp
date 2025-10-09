@@ -11,6 +11,7 @@ import 'swiper/css'
 // CSS của template (đã copy sang src)
 import './assets/styles/style.css'
 import './index.css'
+// import './App.css'
 
 // Bootstrap JS (bundle có Popper: cần cho navbar, dropdown, modal...)
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'

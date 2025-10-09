@@ -125,19 +125,15 @@ function TrainerDetail({ trainer }) {
     <>
       {/* Top Info */}
       <div className="md:flex">
-        {/* Left: Avatar */}
-        <div className="md:w-1/4 p-6 flex items-center justify-center bg-blue-900">
-          <div className="w-44 h-44 rounded-xl overflow-hidden shadow-md border-4 border-white">
-            <img
-              src={trainer.avatar}
-              alt={trainer.name}
-              className="w-full h-full object-cover"
-            />
+  {/* Left: Avatar */}
+  <div className="md:w-1/4 p-6 flex items-center justify-center bg-blue-900">
+          <div className="trainer-avatar">
+            <img src={trainer.avatar} alt={trainer.name} className="w-full h-full object-cover" />
           </div>
         </div>
 
-        {/* Right: Info */}
-        <div className="md:w-3/4 p-6">
+  {/* Right: Info */}
+  <div className="md:w-3/4 p-6">
           <h1 className="text-2xl font-bold text-blue-900">{trainer.name}</h1>
           <p className="text-sm text-gray-600">
             {trainer.age} years old • {trainer.yearsExperience} years experience
