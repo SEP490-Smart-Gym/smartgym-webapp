@@ -12,10 +12,12 @@ import Classes from "../pages/Classes.jsx";
 import Contact from "../pages/Contact.jsx";
 import NotFound from "../pages/NotFound.jsx";
 
-import TrainerDetail from "../pages/TrainerDetail.jsx";
-
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
+
+import ProfileMember from "../pages/ProfileMember.jsx";
+
+import TrainerDetail from "../pages/TrainerDetail.jsx";
 
 // (Tuỳ chọn) Nếu bạn có các trang này, import vào; chưa có thì để tạm về Home hoặc tạo stub sau
 // import Course from "../pages/Course.jsx";
@@ -58,6 +60,9 @@ export default function AppRoutes() {
           <Route path="team" element={<Home />} />
           <Route path="feature" element={<Home />} />
           <Route path="testimonial" element={<Home />} />
+
+          {/* Profile member */}
+          <Route path="profile/member" element={<ProfileMember />} />
 
           {/* Trainer detail */}
           <Route path="trainer/:id" element={<TrainerDetail />} />

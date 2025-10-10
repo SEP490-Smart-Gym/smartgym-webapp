@@ -84,6 +84,8 @@ export default function Navbar() {
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
                         <li><hr className="dropdown-divider" /></li>
+                        <li><NavLink to="/profile/member" className="dropdown-item">Profile</NavLink></li>
+                        <li><hr className="dropdown-divider" /></li>
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
                     </div>
@@ -129,13 +131,13 @@ export default function Navbar() {
                       <NavLink to="/feature" className="dropdown-item">Our Features</NavLink>
                       <NavLink to="/team" className="dropdown-item">Our team</NavLink>
                       <NavLink to="/testimonial" className="dropdown-item">Testimonial</NavLink>
-                      <NavLink to="/404" className="dropdown-item">404 Page</NavLink>
+                      {/* <NavLink to="/404" className="dropdown-item">404 Page</NavLink> */}
                     </div>
                   </div>
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center">
+                  {/* <div className="nav-btn ps-3 d-flex align-items-center">
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
@@ -146,7 +148,7 @@ export default function Navbar() {
                     <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
                       <span>Get Quote</span>
                     </a>
-                  </div>
+                  </div> */}
 
                   <div className="nav-shaps-1"></div>
                 </div>
