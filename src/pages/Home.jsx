@@ -352,17 +352,17 @@ export default function Home() {
                 <div className="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay={i * 200} key={t.id}>
                   <div className="team-item">
                     {/* Link to TrainerDetail */}
-                    <Link to={`/trainer/${t.id}`}>
-                      <div className="team-img">
-                        <img src={t.img} className="img-fluid w-100" alt={t.name} />
-                      <div className="team-icon">
-                        <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-facebook-f"></i></a>
-                        <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-twitter"></i></a>
-                        <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-instagram"></i></a>
-                        <a href="#" className="btn btn-primary btn-sm-square"><i className="fab fa-linkedin-in"></i></a>
-                      </div>
-                    </div>
-                    </Link>
+                      <Link to={`/trainer/${t.id}`}>
+                        <div className="team-img">
+                          <img src={t.img} className="img-fluid w-100" alt={t.name} />
+                          <div className="team-icon">
+                            <button type="button" aria-label="facebook" className="btn btn-primary btn-sm-square"><i className="fab fa-facebook-f"></i></button>
+                            <button type="button" aria-label="twitter" className="btn btn-primary btn-sm-square"><i className="fab fa-twitter"></i></button>
+                            <button type="button" aria-label="instagram" className="btn btn-primary btn-sm-square"><i className="fab fa-instagram"></i></button>
+                            <button type="button" aria-label="linkedin" className="btn btn-primary btn-sm-square"><i className="fab fa-linkedin-in"></i></button>
+                          </div>
+                        </div>
+                      </Link>
                     <div className="team-content">
                       <h4>{t.name}</h4>
                       <p className="mb-0">{t.profession}</p>
