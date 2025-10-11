@@ -49,9 +49,9 @@ export default function AppRoutes() {
           <Route path="/register" element={<Register />} />
 
           {/* Các trang chính */}
-          <Route path="about" element={<About />} />
-          <Route path="classes" element={<Classes />} />
-          <Route path="contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/classes" element={<Classes />} />
+          <Route path="/contact" element={<Contact />} />
 
           {/* Các link còn lại trong navbar
               -> Khi bạn có trang thật, mở comment và thay <Home /> bằng component tương ứng */}
