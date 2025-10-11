@@ -246,8 +246,6 @@ export default function Home() {
                 </SwiperSlide>
               ))}
             </Swiper>
-
-            <div className="feature-shaps"></div>
           </div>
         </div>
 
