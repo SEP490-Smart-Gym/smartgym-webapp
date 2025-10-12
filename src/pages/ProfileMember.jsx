@@ -22,16 +22,14 @@ const ProfileMember = () => {
           <Col className="order-xl-2 mb-5 mb-xl-0" xl="4">
             <Card className="card-profile shadow">
               <Row className="justify-content-center">
-                <Col className="order-lg-2" lg="3">
-                  <div className="card-profile-image">
+                <Col className="order-lg-2 d-flex justify-content-center align-items-center" lg="3">
+                  <div className="card-profile-image text-center">
                     <a href="#pablo" onClick={(e) => e.preventDefault()}>
                       <img
                         alt="Avatar"
-                        className="rounded-circle"
+                        className="rounded-circle shadow my-2"
                         src={
-                          user?.photo ||
-                          (user?.email
-                            ? `https://www.gravatar.com/avatar/${btoa(user.email)}?d=identicon` : "/img/default-avatar.png")
+                          user?.photo || (user?.email ? `https://www.gravatar.com/avatar/${btoa(user.email)}?d=identicon` : "/img/default-avatar.png")
                         }
                         style={{
                           width: "150px",
@@ -117,7 +115,7 @@ const ProfileMember = () => {
                   </Col>
                 </Row>
               </CardHeader>
-              <CardBody className="text-primary mb-0 rounded-bottom" style={{ backgroundColor: "#19214aff", color: "white", fontWeight: "bold" }}>
+              <CardBody className="text-primary mb-0 rounded-bottom" style={{ backgroundColor: "#0c1844", color: "white", fontWeight: "bold" }}>
                 <Form>
                   <h6
                     className="heading-small mb-4"
