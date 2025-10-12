@@ -1,21 +1,3 @@
-/*!
-
-=========================================================
-* Argon Dashboard React - v1.2.4
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/argon-dashboard-react
-* Copyright 2024 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/argon-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
-
 // reactstrap components
 import {
   Button, Card, CardHeader, CardBody, FormGroup, Form, Input, Container, Row, Col} from "reactstrap";
@@ -35,7 +17,7 @@ const ProfileMember = () => {
   return (
     <>
       {/* Page content */}
-      <Container className="mt--7" fluid>
+      <Container className="mt-5 mb-5" fluid>
         <Row>
           <Col className="order-xl-2 mb-5 mb-xl-0" xl="4">
             <Card className="card-profile shadow">
@@ -119,9 +101,10 @@ const ProfileMember = () => {
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
                   <Col xs="8">
-                    <h3 className="mb-0">My account</h3>
+                    <h3 className="mb-0" style={{ fontWeight: "bold" }}>My account</h3>
                   </Col>
-                  <Col className="text-right" xs="4">
+
+                  <Col className="text-end d-flex justify-content-end align-items-center" xs="4">
                     <Button
                       color="primary"
                       href="#pablo"
@@ -130,13 +113,23 @@ const ProfileMember = () => {
                     >
                       Settings
                     </Button>
+
                   </Col>
                 </Row>
               </CardHeader>
-              <CardBody>
+              <CardBody className="text-primary mb-0 rounded-bottom" style={{ backgroundColor: "#19214aff", color: "white", fontWeight: "bold" }}>
                 <Form>
-                  <h6 className="heading-small text-muted mb-4">
-                    User information
+                  <h6
+                    className="heading-small mb-4"
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
+                      fontWeight: "700",   // in đậm
+                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    User Information
                   </h6>
                   <div className="pl-lg-4">
                     <Row>
@@ -211,9 +204,18 @@ const ProfileMember = () => {
                       </Col>
                     </Row>
                   </div>
-                  <hr className="my-4" />
+
+                  <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
+
                   {/* Address */}
-                  <h6 className="heading-small text-muted mb-4">
+                  <h6 className="heading-small mb-4"
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
+                      fontWeight: "700",   // in đậm
+                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      letterSpacing: "0.5px",
+                    }}>
                     Contact information
                   </h6>
                   <div className="pl-lg-4">
@@ -289,9 +291,18 @@ const ProfileMember = () => {
                       </Col>
                     </Row>
                   </div>
-                  <hr className="my-4" />
+
+                  <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
+
                   {/* Description */}
-                  <h6 className="heading-small text-muted mb-4">About me</h6>
+                  <h6 className="heading-small mb-4"
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
+                      fontWeight: "700",   // in đậm
+                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      letterSpacing: "0.5px",
+                    }}>About me</h6>
                   <div className="pl-lg-4">
                     <FormGroup>
                       <label>About Me</label>
@@ -299,8 +310,7 @@ const ProfileMember = () => {
                         className="form-control-alternative"
                         placeholder="A few words about you ..."
                         rows="4"
-                        defaultValue="A beautiful Dashboard for Bootstrap 4. It is Free and
-                        Open Source."
+                        defaultValue="A beautiful Dashboard for Bootstrap 4. It is Free and Open Source."
                         type="textarea"
                       />
                     </FormGroup>
