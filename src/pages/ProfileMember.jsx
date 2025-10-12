@@ -1,164 +1,318 @@
-import React, { useState } from "react";
+/*!
+
+=========================================================
+* Argon Dashboard React - v1.2.4
+=========================================================
+
+* Product Page: https://www.creative-tim.com/product/argon-dashboard-react
+* Copyright 2024 Creative Tim (https://www.creative-tim.com)
+* Licensed under MIT (https://github.com/creativetimofficial/argon-dashboard-react/blob/master/LICENSE.md)
+
+* Coded by Creative Tim
+
+=========================================================
+
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+*/
+
+// reactstrap components
 import {
-  Bell,
-  CreditCard,
-  Lock,
-  Shapes,
-  Upload,
-  Users,
-  Trash2,
-} from "lucide-react"; // Dùng icon từ lucide-react
+  Button, Card, CardHeader, CardBody, FormGroup, Form, Input, Container, Row, Col} from "reactstrap";
+// core components
+import React, { useEffect, useState } from "react";
 
-function ProfileMember() {
-  const [selected, setSelected] = useState("Account");
+const ProfileMember = () => {
+  const [user, setUser] = useState(null);
 
-  const menuItems = [
-    {
-      title: "Personal",
-      items: [
-        { label: "Account", icon: null },
-        { label: "API Keys", icon: <Lock size={18} /> },
-        { label: "Notifications", icon: <Bell size={18} /> },
-      ],
-    },
-    {
-      title: "Workspace",
-      items: [
-        { label: "Billing", icon: <CreditCard size={18} /> },
-        { label: "Integrations", icon: <Shapes size={18} /> },
-        { label: "Team Members", icon: <Users size={18} /> },
-      ],
-    },
-  ];
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-50 px-4">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-lg p-10 flex flex-col gap-12 mx-auto">
-        {/* PROFILE SECTION */}
-        <section className="flex flex-col gap-6">
-          <h3 className="text-xl font-semibold text-center">Profile</h3>
-
-          {/* Avatar */}
-          <div className="flex flex-col items-center justify-center gap-3 text-center">
-            <div className="flex flex-col items-center justify-center gap-3 text-center">
-                <img
-                    src="https://res.cloudinary.com/subframe/image/upload/v1711417513/shared/kwut7rhuyivweg8tmyzl.jpg"
-                    alt="avatar"
-                    className="w-24 h-24 rounded-full object-cover border shadow-sm"
-                />
-            </div>
-            
-            {/* Nút upload nằm ngay dưới avatar */}
-            <button className="flex items-center justify-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">
-                <Upload size={16} /> Upload
-            </button>
-          </div>
-
-
-          {/* Name + Email */}
-          <div className="flex flex-col items-center justify-center gap-4 text-center bg-white p-6 rounded-xl shadow-md w-full max-w-md text-black">
-            {/* First Name */}
-            <div className="w-full text-left">
-                <label className="block text-sm font-medium text-black mb-1">
-                First name
-                </label>
-                <input
-                type="text"
-                placeholder="Josef"
-                className="w-full border border-gray-300 rounded-lg bg-white p-2.5 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                />
-            </div>
-
-            {/* Last Name */}
-            <div className="w-full text-left">
-                <label className="block text-sm font-medium text-black mb-1">
-                Last name
-                </label>
-                <input
-                type="text"
-                placeholder="Albers"
-                className="w-full border border-gray-300 rounded-lg bg-white p-2.5 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                />
-            </div>
-
-            {/* Email */}
-            <div className="w-full text-left">
-                <label className="block text-sm font-medium text-black mb-1">
-                Email
-                </label>
-                <input
-                type="email"
-                placeholder="josef@subframe.com"
-                className="w-full border border-gray-300 rounded-lg bg-white p-2.5 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                />
-            </div>
-         </div>
-        </section>
-
-        <hr className="border-gray-200" />
-
-        {/* PASSWORD SECTION */}
-        <section className="flex flex-col gap-6">
-          <h3 className="text-xl font-semibold text-center">Password</h3>
-
-          <div>
-            <label className="text-sm font-medium">Current password</label>
-            <input
-              type="password"
-              placeholder="Enter current password"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">New password</label>
-            <input
-              type="password"
-              placeholder="Enter new password"
-              className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Your password must have at least 8 characters, include one
-              uppercase letter, and one number.
-            </p>
-          </div>
-
-          <div>
-            <input
-              type="password"
-              placeholder="Re-type new password"
-              className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mx-auto w-full sm:w-1/2">
-            Change password
-          </button>
-        </section>
-
-        <hr className="border-gray-200" />
-
-        {/* DANGER ZONE */}
-        <section className="flex flex-col gap-4">
-          <h3 className="text-xl font-semibold text-center text-red-600">
-            Danger Zone
-          </h3>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center border border-red-300 bg-red-50 rounded-md p-4 gap-4">
-            <div className="text-center sm:text-left">
-              <h4 className="font-medium text-red-700">Delete account</h4>
-              <p className="text-sm text-red-500">
-                Permanently remove your account. This action cannot be reversed.
-              </p>
-            </div>
-            <button className="flex items-center gap-1 px-4 py-2 border border-red-500 text-red-600 rounded-md hover:bg-red-100">
-              <Trash2 size={16} /> Delete
-            </button>
-          </div>
-        </section>
-      </div>
-    </div>
+    <>
+      {/* Page content */}
+      <Container className="mt--7" fluid>
+        <Row>
+          <Col className="order-xl-2 mb-5 mb-xl-0" xl="4">
+            <Card className="card-profile shadow">
+              <Row className="justify-content-center">
+                <Col className="order-lg-2" lg="3">
+                  <div className="card-profile-image">
+                    <a href="#pablo" onClick={(e) => e.preventDefault()}>
+                      <img
+                        alt="Avatar"
+                        className="rounded-circle"
+                        src={
+                          user?.photo ||
+                          (user?.email
+                            ? `https://www.gravatar.com/avatar/${btoa(user.email)}?d=identicon` : "/img/default-avatar.png")
+                        }
+                        style={{
+                          width: "150px",
+                          height: "150px",
+                          objectFit: "cover",
+                        }}
+                      />
+                    </a>
+                  </div>
+                </Col>
+              </Row>
+              <CardHeader className="text-center border-0 pt-8 pt-md-4 pb-0 pb-md-4">
+                <div className="d-flex justify-content-between">
+                  <Button
+                    className="mr-4"
+                    color="info"
+                    href="#pablo"
+                    onClick={(e) => e.preventDefault()}
+                    size="sm"
+                  >
+                    Connect
+                  </Button>
+                  <Button
+                    className="float-right"
+                    color="default"
+                    href="#pablo"
+                    onClick={(e) => e.preventDefault()}
+                    size="sm"
+                  >
+                    Message
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardBody className="pt-0 pt-md-4">
+                <div className="text-center">
+                  <h3>
+                    Jessica Jones
+                    <span className="font-weight-light">, 27</span>
+                  </h3>
+                  <div className="h5 font-weight-300">
+                    <i className="ni location_pin mr-2" />
+                    Bucharest, Romania
+                  </div>
+                  <div className="h5 mt-4">
+                    <i className="ni business_briefcase-24 mr-2" />
+                    Solution Manager - Creative Tim Officer
+                  </div>
+                  <div>
+                    <i className="ni education_hat mr-2" />
+                    University of Computer Science
+                  </div>
+                  <hr className="my-4" />
+                  <p>
+                    Ryan — the name taken by Melbourne-raised, Brooklyn-based
+                    Nick Murphy — writes, performs and records all of his own
+                    music.
+                  </p>
+                  <a href="#pablo" onClick={(e) => e.preventDefault()}>
+                    Show more
+                  </a>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+          <Col className="order-xl-1" xl="8">
+            <Card className="bg-secondary shadow">
+              <CardHeader className="bg-white border-0">
+                <Row className="align-items-center">
+                  <Col xs="8">
+                    <h3 className="mb-0">My account</h3>
+                  </Col>
+                  <Col className="text-right" xs="4">
+                    <Button
+                      color="primary"
+                      href="#pablo"
+                      onClick={(e) => e.preventDefault()}
+                      size="sm"
+                    >
+                      Settings
+                    </Button>
+                  </Col>
+                </Row>
+              </CardHeader>
+              <CardBody>
+                <Form>
+                  <h6 className="heading-small text-muted mb-4">
+                    User information
+                  </h6>
+                  <div className="pl-lg-4">
+                    <Row>
+                      <Col lg="6">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-username"
+                          >
+                            Username
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="lucky.jesse"
+                            id="input-username"
+                            placeholder="Username"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                      <Col lg="6">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-email"
+                          >
+                            Email address
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            id="input-email"
+                            placeholder="jesse@example.com"
+                            type="email"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col lg="6">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-first-name"
+                          >
+                            First name
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="Lucky"
+                            id="input-first-name"
+                            placeholder="First name"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                      <Col lg="6">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-last-name"
+                          >
+                            Last name
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="Jesse"
+                            id="input-last-name"
+                            placeholder="Last name"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Address */}
+                  <h6 className="heading-small text-muted mb-4">
+                    Contact information
+                  </h6>
+                  <div className="pl-lg-4">
+                    <Row>
+                      <Col md="12">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-address"
+                          >
+                            Address
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="Bld Mihail Kogalniceanu, nr. 8 Bl 1, Sc 1, Ap 09"
+                            id="input-address"
+                            placeholder="Home Address"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col lg="4">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-city"
+                          >
+                            City
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="New York"
+                            id="input-city"
+                            placeholder="City"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                      <Col lg="4">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-country"
+                          >
+                            Country
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            defaultValue="United States"
+                            id="input-country"
+                            placeholder="Country"
+                            type="text"
+                          />
+                        </FormGroup>
+                      </Col>
+                      <Col lg="4">
+                        <FormGroup>
+                          <label
+                            className="form-control-label"
+                            htmlFor="input-country"
+                          >
+                            Postal code
+                          </label>
+                          <Input
+                            className="form-control-alternative"
+                            id="input-postal-code"
+                            placeholder="Postal code"
+                            type="number"
+                          />
+                        </FormGroup>
+                      </Col>
+                    </Row>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Description */}
+                  <h6 className="heading-small text-muted mb-4">About me</h6>
+                  <div className="pl-lg-4">
+                    <FormGroup>
+                      <label>About Me</label>
+                      <Input
+                        className="form-control-alternative"
+                        placeholder="A few words about you ..."
+                        rows="4"
+                        defaultValue="A beautiful Dashboard for Bootstrap 4. It is Free and
+                        Open Source."
+                        type="textarea"
+                      />
+                    </FormGroup>
+                  </div>
+                </Form>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
+    </>
   );
-}
+};
 
 export default ProfileMember;
