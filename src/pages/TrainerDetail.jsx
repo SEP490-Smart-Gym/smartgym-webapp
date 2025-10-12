@@ -1,229 +1,312 @@
 import React from "react";
-import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Grid,
+  Typography,
+  Avatar,
+  Card,
+  Button,
+  Chip,
+  useMediaQuery,
+  Rating,
+  Divider,
 
-// Mock data trainers (đồng bộ với Home.jsx)
+} from "@mui/material";
+import { styled } from "@mui/system";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+
+// ✅ Mock data: Trainers
 const trainers = [
+  { id: 101, name: "John Doe", profession: "Strength Coach", img: "/img/team-1.jpg" },
+  { id: 102, name: "Emily Smith", profession: "Yoga Instructor", img: "/img/team-2.jpg" },
+  { id: 103, name: "Michael Lee", profession: "Boxing Trainer", img: "/img/team-3.jpg" },
+  { id: 104, name: "Sophia Brown", profession: "Cardio Specialist", img: "/img/team-4.jpg" },
+];
+
+// ✅ Mock data: Feedbacks
+const feedbacks = [
   {
-    id: "101",
-    avatar: "/img/team-1.jpg",
-    name: "John Doe",
-    age: 32,
-    certificates: [
-      "Certified Personal Trainer (CPT) - ACE",
-      "Sports Nutrition Certification",
-      "First Aid & CPR",
-    ],
-    yearsExperience: 8,
-    specialties: ["Strength Training", "Weight Loss", "Functional Fitness"],
-    personality:
-      "Friendly, patient, and detail-oriented in coaching. Enjoys motivating clients.",
-    intro:
-      "I specialize in building personalized training programs for both beginners and advanced clients.",
-    rating: 4.7,
-    feedbacks: [
-      {
-        user: "Alice",
-        comment: "Lost 10kg in 3 months!",
-        stars: 5,
-        date: "2025-08-10",
-      },
-      { user: "Mark", comment: "Very patient trainer.", stars: 4, date: "2025-07-22" },
-    ],
+    id: 1,
+    trainerId: 101,
+    name: "Alice Johnson",
+    rating: 5,
+    comment: "John is amazing! He helped me reach my goals faster than I expected.",
   },
   {
-    id: "102",
-    avatar: "/img/team-2.jpg",
-    name: "Emily Smith",
-    age: 28,
-    certificates: ["Certified Yoga Instructor (RYT200)"],
-    yearsExperience: 5,
-    specialties: ["Yoga", "Pilates", "Meditation"],
-    personality: "Calm, supportive, and motivating.",
-    intro:
-      "Helping people improve flexibility, reduce stress, and gain body awareness.",
-    rating: 4.5,
-    feedbacks: [
-      {
-        user: "Sara",
-        comment: "Her yoga classes are amazing!",
-        stars: 5,
-        date: "2025-09-01",
-      },
-    ],
+    id: 2,
+    trainerId: 101,
+    name: "Mark Taylor",
+    rating: 4,
+    comment: "Very professional and motivating. Highly recommended!",
   },
   {
-    id: "103",
-    avatar: "/img/team-3.jpg",
-    name: "Michael Lee",
-    age: 30,
-    certificates: ["Certified Boxing Coach", "Strength & Conditioning Specialist"],
-    yearsExperience: 7,
-    specialties: ["Boxing", "HIIT", "Strength Training"],
-    personality: "Energetic and motivating. Pushes clients to break limits.",
-    intro:
-      "I design programs focusing on boxing technique, stamina, and total body conditioning.",
-    rating: 4.6,
-    feedbacks: [
-      {
-        user: "David",
-        comment: "Best boxing coach I’ve trained with.",
-        stars: 5,
-        date: "2025-08-28",
-      },
-    ],
+    id: 3,
+    trainerId: 101,
+    name: "Sophia Nguyen",
+    rating: 5,
+    comment: "Every session feels personalized and effective. Great trainer!",
   },
   {
-    id: "104",
-    avatar: "/img/team-4.jpg",
-    name: "Sophia Brown",
-    age: 27,
-    certificates: ["Certified Cardio Specialist", "Zumba Instructor"],
-    yearsExperience: 6,
-    specialties: ["Cardio Fitness", "Dance Workout", "Endurance"],
-    personality: "Cheerful, dynamic, and inspiring in every session.",
-    intro:
-      "I focus on fun, engaging cardio workouts that improve endurance and overall health.",
-    rating: 4.8,
-    feedbacks: [
-      {
-        user: "Linda",
-        comment: "Sophia’s classes are so much fun!",
-        stars: 5,
-        date: "2025-09-12",
-      },
-    ],
+    id: 4,
+    trainerId: 101,
+    name: "Sophia Nguyen",
+    rating: 5,
+    comment: "Every session feels personalized and effective. Great trainer!",
+  },
+  {
+    id: 5,
+    trainerId: 101,
+    name: "Sophia Nguyen",
+    rating: 5,
+    comment: "Every session feels personalized and effective. Great trainer!",
   },
 ];
 
-export default function TrainerDetailPage() {
-    useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+// 🎨 Styled Components
+const ProfileContainer = styled(Card)({
+  padding: "2rem",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+  borderRadius: "16px",
+  background: "#ffffff",
+});
+
+const ProfileAvatar = styled(Avatar)({
+  width: "150px",
+  height: "150px",
+  border: "4px solid #fff",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  margin: "20px auto",
+});
+
+const InfoCard = styled(Card)({
+  height: "100%",
+  padding: "1.5rem",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+  borderRadius: "12px",
+});
+
+const ActionButton = styled(Button)({
+  margin: "8px",
+  padding: "8px 24px",
+  borderRadius: "8px",
+  textTransform: "none",
+});
+
+const TrainerDetail = () => {
   const { id } = useParams();
-  const trainer = trainers.find((t) => t.id === id);
+  const navigate = useNavigate();
+  const isMobile = useMediaQuery("(max-width:600px)");
+
+  // 🔍 Tìm trainer theo id
+  const trainer = trainers.find((t) => t.id === Number(id));
+
+  // 🧮 Lấy feedbacks của trainer
+  const trainerFeedbacks = feedbacks.filter((fb) => fb.trainerId === trainer?.id);
+  const averageRating =
+    trainerFeedbacks.length > 0
+      ? trainerFeedbacks.reduce((acc, fb) => acc + fb.rating, 0) / trainerFeedbacks.length
+      : 0;
 
   if (!trainer) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-blue-900 text-lg">
-        Trainer not found.
-      </div>
+      <Container maxWidth="md" sx={{ py: 10, textAlign: "center" }}>
+        <Typography variant="h5" color="error">
+          Trainer not found.
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          sx={{ mt: 3 }}
+        >
+          Back
+        </Button>
+      </Container>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <TrainerDetail trainer={trainer} />
-      </div>
-    </div>
-  );
-}
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Main layout */}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, }}>
+        {/* Left Column */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 100%", md: "1 1 30%" },
+            minWidth: 300,
+          }}
+        >
+          <ProfileContainer sx={{ height: "100%", borderRadius: 3, boxShadow: 3 }}>
+            <Box sx={{ textAlign: "center" }}>
+              <ProfileAvatar src={trainer.img} alt={trainer.name} />
+              <Typography variant="h5" sx={{ mt: 2, fontWeight: "bold" }}>
+                {trainer.name}
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                {trainer.profession}
+              </Typography>
 
-function TrainerDetail({ trainer }) {
-  return (
-    <>
-      {/* Top Info */}
-      <div className="md:flex">
-  {/* Left: Avatar */}
-  <div className="md:w-1/4 p-6 flex items-center justify-center bg-blue-900">
-          <div className="trainer-avatar">
-            <img src={trainer.avatar} alt={trainer.name} className="w-full h-full object-cover" />
-          </div>
-        </div>
-
-  {/* Right: Info */}
-  <div className="md:w-3/4 p-6">
-          <h1 className="text-2xl font-bold text-blue-900">{trainer.name}</h1>
-          <p className="text-sm text-gray-600">
-            {trainer.age} years old • {trainer.yearsExperience} years experience
-          </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {trainer.specialties.map((s) => (
-              <span
-                key={s}
-                className="text-xs px-2 py-1 rounded-full border border-blue-900 text-blue-900"
+              <ActionButton
+                startIcon={<FolderOpenIcon />}
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{ mt: 2 }}
               >
-                {s}
-              </span>
-            ))}
-          </div>
+                View Profile
+              </ActionButton>
 
-          <section className="mt-6">
-            <h2 className="text-sm font-semibold text-blue-900">Introduction</h2>
-            <p className="mt-2 text-sm text-gray-700">{trainer.intro}</p>
-          </section>
+              <Box
+                sx={{
+                  mt: 3,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  justifyContent: "center",
+                }}
+              >
+                <Chip label="5 Years Experience" color="primary" variant="outlined" />
+                <Chip label="Certified Coach" color="primary" variant="outlined" />
+              </Box>
+            </Box>
+          </ProfileContainer>
+        </Box>
 
-          <section className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg border border-gray-200 bg-white">
-              <h3 className="text-xs font-medium text-blue-900">Personality</h3>
-              <p className="mt-2 text-sm text-gray-700">{trainer.personality}</p>
-            </div>
-            <div className="p-4 rounded-lg border border-gray-200 bg-white">
-              <h3 className="text-xs font-medium text-blue-900">Certificates</h3>
-              <ul className="mt-2 text-sm text-gray-700 list-disc pl-5">
-                {trainer.certificates.map((c, i) => (
-                  <li key={i}>{c}</li>
-                ))}
-              </ul>
-            </div>
-          </section>
+        {/* Right Column */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 100%", md: "1 1 65%" },
+            width: "100%",
+          }}
+        >
+          <Grid
+            container
+            spacing={2}
+            sx={{
+              mt: 2,
+              width: "100%",
+            }}
+          >
 
-          <section className="mt-5">
-            <h3 className="text-sm font-semibold text-blue-900">Experience</h3>
-            <p className="mt-2 text-sm text-gray-700">
-              {trainer.yearsExperience} years as a trainer — has coached over 500
-              clients, including weight loss, muscle gain, and injury recovery plans.
-            </p>
-          </section>
+            <Grid item xs={12}>
+              <InfoCard sx={{ height: "100%", borderRadius: 3, boxShadow: 3 }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  About Trainer
+                </Typography>
+                <Typography>
+                  {trainer.name} is a professional {trainer.profession.toLowerCase()} with years of experience helping clients achieve their fitness goals. Passionate, dedicated, and focused on personalized programs for each trainee.
+                </Typography>
+              </InfoCard>
+            </Grid>
 
-          <section className="mt-6 flex gap-3">
-            <button className="px-4 py-2 rounded-lg border border-blue-900 text-blue-900 font-medium hover:bg-blue-900 hover:text-white transition">
-              Send Message
-            </button>
-            <button className="px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-500 transition">
-              View Availability
-            </button>
-          </section>
+            <Grid
+            container
+            spacing={3}
+            sx={{
+              flex: "1 0 auto",
+              height: "40vh", // chiều cao cố định theo tỷ lệ màn hình
+              display: "flex",
+              alignItems: "stretch", // để 3 ô cao bằng nhau
+            }}
+          >
+            <Grid item xs={12} md={4}>
+              <InfoCard sx={{ height: "100%", borderRadius: 3, boxShadow: 3 }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Skills
+                </Typography>
+                <Typography>🏋️ Strength Training</Typography>
+                <Typography>💪 Body Transformation</Typography>
+                <Typography>🥗 Nutrition Guidance</Typography>
+              </InfoCard>
+            </Grid>
 
-          <section className="mt-6 text-xs text-gray-400">
-            <div>Last updated: 20/09/2025</div>
-          </section>
-        </div>
-      </div>
+            <Grid item xs={12} md={4}>
+              <InfoCard sx={{ height: "100%", borderRadius: 3, boxShadow: 3 }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Contact
+                </Typography>
+                <Typography>Email: trainer@fitness.com</Typography>
+                <Typography>Phone: +1 (555) 987-6543</Typography>
+              </InfoCard>
+            </Grid>
 
-      {/* Rating & Feedback */}
-      <div className="p-6 border-t border-gray-100 bg-gray-50">
-        <h2 className="text-lg font-bold text-blue-900">Ratings & Feedback</h2>
-        <div className="flex items-center mt-2">
-          <span className="text-2xl font-bold text-red-600">★</span>
-          <span className="ml-1 text-lg font-semibold text-blue-900">
-            {trainer.rating}
-          </span>
-          <span className="ml-2 text-sm text-gray-600">/ 5.0</span>
-        </div>
+            <Grid item xs={12} md={4}>
+              <InfoCard sx={{ height: "100%", borderRadius: 3, boxShadow: 3 }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Certified
+                </Typography>                
+                <Typography>🏅 Certified Personal Trainer</Typography>
+                <Typography>Phone: +1 (555) 987-6543</Typography>
+              </InfoCard>
+            </Grid>
+          </Grid>
+            {/* Feedback Section */}
+            <Grid item xs={12} sx={{ width: "100%" }}>
+              <InfoCard sx={{ height: "400px", borderRadius: 3, boxShadow: 3, display: "flex", flexDirection: "column" }}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  Feedback
+                </Typography>
 
-        <div className="mt-4 space-y-4">
-          {trainer.feedbacks.map((fb, i) => (
-            <div
-              key={i}
-              className="p-4 bg-white rounded-lg shadow-sm border border-gray-200"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-blue-900">{fb.user}</h4>
-                <span className="text-xs text-gray-400">{fb.date}</span>
-              </div>
-              <div className="flex mt-1 text-red-600">
-                {Array.from({ length: fb.stars }).map((_, idx) => (
-                  <span key={idx}>★</span>
-                ))}
-              </div>
-              <p className="mt-2 text-sm text-gray-700">{fb.comment}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
+                {/* Average Rating */}
+                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                  <Rating value={averageRating} precision={0.5} readOnly />
+                  <Typography sx={{ ml: 1, fontWeight: "bold" }}>
+                    {averageRating.toFixed(1)} / 5.0
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ mb: 2 }} />
+
+                {/* Feedback List */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflowY: "auto",
+                    pr: 1,
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background: "transparent",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: "transparent",
+                    },
+                    "&:hover::-webkit-scrollbar-thumb": {
+                      background: "rgba(0,0,0,0.1)", // chỉ hơi hiện khi hover
+                      borderRadius: "3px",
+                    },
+                  }}
+                >
+                  {trainerFeedbacks.map((fb) => (
+                    <Box key={fb.id} sx={{ mb: 2 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography sx={{ fontWeight: "bold" }}>{fb.name}</Typography>
+                        <Rating value={fb.rating} readOnly size="small" />
+                      </Box>
+                      <Typography sx={{ color: "text.secondary" }}>{fb.comment}</Typography>
+                      <Divider sx={{ my: 1 }} />
+                    </Box>
+                  ))}
+
+                  {/* Nếu không có feedback */}
+                  {trainerFeedbacks.length === 0 && (
+                    <Typography color="text.secondary" sx={{ fontStyle: "italic" }}>
+                      No feedbacks yet.
+                    </Typography>
+                  )}
+                </Box>
+              </InfoCard>
+            </Grid>
+          </Grid>
+        </Box>
+      </Box>
+    </Container>
   );
-}
+
+};
+
+export default TrainerDetail;
