@@ -257,7 +257,7 @@ const TrainerDetail = () => {
                   variant="h6"
                   gutterBottom
                   color="primary"
-                  sx={{ flexShrink: 0 }}
+                  sx={{ flexShrink: 0, fontWeight: "bold" }}
                 >
                   About Trainer
                 </Typography>
@@ -301,7 +301,7 @@ const TrainerDetail = () => {
                 spacing={2}
                 sx={{
                   display: "flex",
-                  flexWrap: "nowrap", // 🔹 không cho xuống hàng
+                  flexWrap: "nowrap",
                   width: "100%",
                 }}
               >
@@ -316,7 +316,7 @@ const TrainerDetail = () => {
                       overflow: "hidden",
                     }}
                   >
-                    <Typography variant="h6" gutterBottom color="primary">
+                    <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold"}}>
                       Skills
                     </Typography>
                     <Box
@@ -356,7 +356,7 @@ const TrainerDetail = () => {
                       overflow: "hidden",
                     }}
                   >
-                    <Typography variant="h6" gutterBottom color="primary">
+                    <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold"}}>
                       Contact
                     </Typography>
                     <Box
@@ -398,7 +398,7 @@ const TrainerDetail = () => {
                   overflow: "hidden",
                 }}
               >
-                <Typography variant="h6" gutterBottom color="primary">
+                <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold"}}>
                   Certified
                 </Typography>
 
@@ -440,7 +440,7 @@ const TrainerDetail = () => {
               >
                 {/* Phần cố định: Tiêu đề + Rating */}
                 <Box sx={{ flexShrink: 0 }}>
-                  <Typography variant="h6" gutterBottom color="primary">
+                  <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold"}}>
                     Feedback
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
