@@ -1,4 +1,4 @@
-import { AiOutlineToTop } from "react-icons/ai";
+import { BsArrowUp } from "react-icons/bs";
 export default function Footer() {
   return (
     <>
@@ -135,7 +135,7 @@ export default function Footer() {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Back to top"
         >
-          <AiOutlineToTop />
+          <BsArrowUp />
         </button>
       </div>
     </>
