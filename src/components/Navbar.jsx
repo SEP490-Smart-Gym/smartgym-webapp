@@ -6,11 +6,21 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
+   
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setUser(storedUser ? JSON.parse(storedUser) : null);
+
+  
+    const handleAuthChange = () => {
+      const updatedUser = localStorage.getItem("user");
+      setUser(updatedUser ? JSON.parse(updatedUser) : null);
+    };
+
+    window.addEventListener("app-auth-changed", handleAuthChange);
+    return () => window.removeEventListener("app-auth-changed", handleAuthChange);
   }, []);
+
+
   useEffect(() => {
     const refreshUser = () => {
       const u = localStorage.getItem("user");
@@ -92,12 +102,12 @@ export default function Navbar() {
                         aria-expanded="false"
                       >
                         <img
-                          src={user?.photo || "/img/default-avatar.png"}
+                          src={user?.photo || "/img/useravt.jpg"}
                           alt="avatar"
                           className="rounded-circle me-2"
                           referrerPolicy="no-referrer"
                           crossOrigin="anonymous"
-                          onError={(e) => { e.currentTarget.src = "/img/default-avatar.png"; }}
+                          onError={(e) => { e.currentTarget.src = "/img/useravt.jpg"; }}
                           style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
 

@@ -35,10 +35,15 @@
     border: none; /* để button không viền */
 }
 
-.back-to-top a i,
-.back-to-top button i {
-    transform: skew(-18deg);
+.back-to-top a svg,
+.back-to-top button svg {
+  transform: skew(-18deg);
+  width: 20px;
+  height: 20px;
+  display: block;        
+  pointer-events: none;  
 }
+
 
 .back-to-top a:hover,
 .back-to-top button:hover {
@@ -115,7 +120,14 @@
     transform: skew(18deg);
     transition: 0.5s;
 }
-
+.btn-add{
+    color: var(--bs-white);
+    background-color: #c80036;
+}
+.btn-add:hover{
+    color: var(--bs-white);
+    background-color: #8f0025;
+}
 .btn.btn-light span,
 .btn.btn-light i {
     display: inline-block;

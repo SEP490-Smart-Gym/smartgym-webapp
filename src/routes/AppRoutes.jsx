@@ -17,6 +17,7 @@ import Forbidden from "../pages/Forbidden.jsx";
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import AdminPackages from "../pages/admin/AdminPackages.jsx";
 
 function Layout() {
   return (
@@ -60,6 +61,7 @@ export default function AppRoutes() {
         {/* Route dành cho admin */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="admin/dashboard" element={<Home />} />
+          <Route path="admin/packages" element={<AdminPackages />} />
         </Route>
 
         {/* Route dành cho manager */}

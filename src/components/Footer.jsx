@@ -1,3 +1,4 @@
+import { AiOutlineToTop } from "react-icons/ai";
 export default function Footer() {
   return (
     <>
@@ -134,7 +135,7 @@ export default function Footer() {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Back to top"
         >
-          <i className="fa fa-arrow-up"></i>
+          <AiOutlineToTop />
         </button>
       </div>
     </>
