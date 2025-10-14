@@ -39,22 +39,49 @@ export default function Login() {
     const loginWithGoogle = async () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
+            const gUser = result.user;
 
-            // lưu thông tin user vào localStorage
-            localStorage.setItem("user", JSON.stringify({
-                name: user.displayName,
-                email: user.email,
-                photo: user.photoURL,
-                uid: user.uid,
-            }));
+            // Lấy link gốc
+            let photo = gUser.photoURL || "/img/default-avatar.png";
 
-            navigate("/"); // quay về home
+            // Giảm kích thước (Google hay có đuôi '=s96-c')
+            if (photo.includes("googleusercontent.com")) {
+                photo = photo.replace(/=s\d+-c$/, "=s64-c");
+            }
+
+            // Thử cache thành base64 để không phải gọi Google mỗi lần render
+            try {
+                const res = await fetch(photo, { credentials: "omit", cache: "no-store" });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const base64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                    photo = base64; // dùng base64 => không bị 429 nữa
+                }
+            } catch (_) {
+                // nếu fetch fail (CORS / 429...), vẫn dùng photo URL, Navbar sẽ fallback
+            }
+
+            const userObj = {
+                uid: gUser.uid,
+                name: gUser.displayName || "Google User",
+                email: gUser.email,
+                photo, // đã cố cache base64, nếu fail sẽ là URL gốc
+            };
+
+            localStorage.setItem("user", JSON.stringify(userObj));
+            window.dispatchEvent(new Event("app-auth-changed"));
+            navigate("/");
         } catch (err) {
             console.error(err);
             setErrors(prev => ({ ...prev, server: "Đăng nhập Google thất bại" }));
         }
     };
+
+
     const handleSubmit = async (ev) => {
         ev.preventDefault();
         setErrors({ phone: "", password: "", server: "" });
@@ -64,7 +91,6 @@ export default function Login() {
         try {
             const phoneDigits = phone.replace(/\D/g, "");
             if (phoneDigits === hardcodedUser.phone && password === hardcodedUser.password) {
-                // giả lập user
                 const fakeUser = {
                     uid: "hardcoded-uid",
                     name: "Test User",
@@ -72,8 +98,10 @@ export default function Login() {
                     photo: "/img/default-avatar.png",
                 };
                 localStorage.setItem("user", JSON.stringify(fakeUser));
+
+                window.dispatchEvent(new Event("app-auth-changed"));
+
                 navigate("/");
-                window.location.reload(); // để context đọc lại user
             } else {
                 setErrors(prev => ({ ...prev, server: "Sai số điện thoại hoặc mật khẩu." }));
             }
@@ -81,7 +109,6 @@ export default function Login() {
             setLoading(false);
         }
     };
-
     // Chỉ cho phép nhập số
     const handlePhoneChange = (e) => {
         const onlyDigits = e.target.value.replace(/\D/g, "");
