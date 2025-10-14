@@ -42,7 +42,6 @@ export default function Navbar() {
                 <div className="d-flex flex-wrap">
                   <div className="pe-4">
                     <a href="mailto:example@gmail.com" className="text-muted small">
-                      <i className="fas fa-envelope text-primary me-2"></i>example@gmail.com
                     </a>
                   </div>
                   <div className="pe-0">

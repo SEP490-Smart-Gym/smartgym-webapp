@@ -1,7 +1,6 @@
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
-// import ScrollToTop from "./ScrollToTop.jsx";
+import { Routes, Route, Outlet } from "react-router-dom";
 
-// Layout chung
+// Layout
 import Navbar from "../components/Navbar.jsx";
 import Footer from "../components/Footer.jsx";
 
@@ -11,24 +10,18 @@ import About from "../pages/About.jsx";
 import Classes from "../pages/Classes.jsx";
 import Contact from "../pages/Contact.jsx";
 import NotFound from "../pages/NotFound.jsx";
-
 import TrainerDetail from "../pages/TrainerDetail.jsx";
-
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
+import Forbidden from "../pages/Forbidden.jsx";
 
-// (Tuỳ chọn) Nếu bạn có các trang này, import vào; chưa có thì để tạm về Home hoặc tạo stub sau
-// import Course from "../pages/Course.jsx";
-// import Blog from "../pages/Blog.jsx";
-// import Team from "../pages/Team.jsx";
-// import Feature from "../pages/Feature.jsx";
-// import Testimonial from "../pages/Testimonial.jsx";
+// Route bảo vệ
+import ProtectedRoute from "./ProtectedRoute.jsx";
 
 function Layout() {
   return (
     <>
       <Navbar />
-      {/* giữ min-vh-100 cho nội dung không “dính” footer */}
       <main className="min-vh-100">
         <Outlet />
       </main>
@@ -40,31 +33,43 @@ function Layout() {
 export default function AppRoutes() {
   return (
     <Routes>
-        <Route element={<Layout />}>
-          {/* Trang chủ */}
-          <Route index element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <Route element={<Layout />}>
+        {/* Trang public */}
+        <Route index element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="about" element={<About />} />
+        <Route path="contact" element={<Contact />} />
+        <Route path="403" element={<Forbidden />} />
 
-          {/* Các trang chính */}
-          <Route path="about" element={<About />} />
+        {/* Route dành cho member (hội viên) */}
+        <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
           <Route path="classes" element={<Classes />} />
-          <Route path="contact" element={<Contact />} />
-
-          {/* Các link còn lại trong navbar
-              -> Khi bạn có trang thật, mở comment và thay <Home /> bằng component tương ứng */}
-          <Route path="course" element={<Home />} />
-          <Route path="blog" element={<Home />} />
-          <Route path="team" element={<Home />} />
-          <Route path="feature" element={<Home />} />
-          <Route path="testimonial" element={<Home />} />
-
-          {/* Trainer detail */}
-          <Route path="trainer/:id" element={<TrainerDetail />} />
-
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
         </Route>
-      </Routes>
+
+        {/* Route dành cho trainer */}
+        <Route element={<ProtectedRoute allowedRoles={["trainer"]} />}>
+          <Route path="trainer/:id" element={<TrainerDetail />} />
+        </Route>
+
+        {/* Route dành cho staff */}
+        <Route element={<ProtectedRoute allowedRoles={["staff"]} />}>
+          <Route path="staff/dashboard" element={<Home />} />
+        </Route>
+
+        {/* Route dành cho admin */}
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="admin/dashboard" element={<Home />} />
+        </Route>
+
+        {/* Route dành cho manager */}
+        <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
+          <Route path="manager/overview" element={<Home />} />
+        </Route>
+
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
   );
 }
