@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { HashLink } from "react-router-hash-link";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -154,18 +155,18 @@ export default function Navbar() {
               <div className="collapse navbar-collapse" id="navbarCollapse">
                 <div className="navbar-nav mx-0 mx-lg-auto">
                   <NavLink end to="/" className="nav-item nav-link">Home</NavLink>
-                  <NavLink to="/about" className="nav-item nav-link">About</NavLink>
-                  <NavLink to="/course" className="nav-item nav-link">Courses</NavLink>
-                  <NavLink to="/blog" className="nav-item nav-link">Blogs</NavLink>
+                  <HashLink smooth to="/#about-section" className="nav-item nav-link">About</HashLink>
+                  <HashLink smooth to="/#package-section" className="nav-item nav-link">Packages</HashLink>
+                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">Blogs</HashLink>
 
                   <div className="nav-item dropdown">
                     <a href="#" className="nav-link" data-bs-toggle="dropdown">
                       <span className="dropdown-toggle">Pages</span>
                     </a>
                     <div className="dropdown-menu">
-                      <NavLink to="/feature" className="dropdown-item">Our Features</NavLink>
-                      <NavLink to="/team" className="dropdown-item">Our team</NavLink>
-                      <NavLink to="/testimonial" className="dropdown-item">Testimonial</NavLink>
+                      <HashLink smooth to="/#features-section" className="dropdown-item">Our Features</HashLink>
+                      <HashLink smooth to="/#trainers-section" className="dropdown-item">Our Trainers</HashLink>
+                      <HashLink smooth to="/#testimonial-section" className="dropdown-item">Testimonial</HashLink>
                       {/* <NavLink to="/404" className="dropdown-item">404 Page</NavLink> */}
                     </div>
                   </div>

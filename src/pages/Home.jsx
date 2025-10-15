@@ -21,6 +21,70 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
+  // src/data/packages.js
+  const packagesData = [
+    {
+      id: 1,
+      iconIndex: 1,                        // sẽ render thành /img/icon-1.png
+      title: "Gym Fitness Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "1 tháng",
+      sessions: "10 buổi",
+      price: 2500000,
+    },
+    {
+      id: 2,
+      iconIndex: 2,
+      title: "Power Lifting Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "2 tháng",
+      sessions: "20 buổi",
+      price: 4500000,
+    },
+    {
+      id: 3,
+      iconIndex: 3,
+      title: "Body Building Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "3 tháng",
+      sessions: "30 buổi",
+      price: 6500000,
+    },
+    {
+      id: 4,
+      iconIndex: 4,
+      title: "Aerobics & Skipping Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "1 tháng",
+      sessions: "12 buổi",
+      price: 3000000,
+    },
+    {
+      id: 5,
+      iconIndex: 5,
+      title: "Boxing Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "2 tháng",
+      sessions: "16 buổi",
+      price: 4000000,
+    },
+    {
+      id: 6,
+      iconIndex: 6,
+      title: "Cardio Class",
+      trainerName: "Paul Flavius",
+      trainerAvatar: "/img/testimonial-3.jpg",
+      duration: "1 tháng",
+      sessions: "8 buổi",
+      price: 2000000,
+    },
+  ];
+
   const featureSlides = [
     { img: "/img/feature-1.jpg", title: "Work Your Butt Off" },
     { img: "/img/feature-2.jpg", title: "Get In The groove" },
@@ -67,7 +131,7 @@ export default function Home() {
         <Header />
 
         {/* About */}
-        <div className="container-fluid about pt-5">
+        <div id="about-section" className="container-fluid about pt-5">
           <div className="container pt-5">
             <div className="row g-5">
               <div className="col-xl-6" data-aos="fade-right">
@@ -208,7 +272,7 @@ export default function Home() {
         </div>
 
         {/* Features (Swiper) */}
-        <div className="container-fluid feature bg-light py-5">
+        <div id="features-section" className="container-fluid feature bg-light py-5">
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
               <h4 className="text-primary"> Why choose us?</h4>
@@ -233,7 +297,13 @@ export default function Home() {
                 { img: "/img/feature-4.jpg", title: "Get Fit Don't Quit" },
               ].map((f, i) => (
                 <SwiperSlide key={i}>
-                  <div className="feature-item" data-aos="fade-up">
+                  <div className="feature-item" data-aos="fade-up"
+                    style={{
+                      color: "#000",
+                      transition: "color 0.3s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#000")}>
                     <div className="feature-img">
                       <img src={f.img} className="img-fluid w-100" alt="" />
                     </div>
@@ -249,56 +319,86 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Courses */}
-        <div className="container-fluid courses overflow-hidden py-5">
+        {/* Package */}
+        <div id="package-section" className="container-fluid courses overflow-hidden py-5">
           <div className="container py-5">
-            <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
-              <h4 className="text-primary"> Our Courses</h4>
+            <div
+              className="text-center mx-auto pb-5"
+              data-aos="fade-up"
+              style={{ maxWidth: 800 }}
+            >
+              <h4 className="text-primary">Our Packages</h4>
               <h1 className="display-4 text-white mb-4">Out Our Highlights Below</h1>
-              <p className="text-white mb-0">Lorem ipsum dolor, sit amet consectetur adipisicing elit...</p>
+              <p className="text-white mb-0">
+                Lorem ipsum dolor, sit amet consectetur adipisicing elit...
+              </p>
             </div>
 
             <div className="row gy-4 gx-0 justify-content-center">
-              {[1, 2, 3, 4, 5, 6].map((_, idx) => (
-                <div className="col-md-6 col-lg-4" data-aos="fade-up" data-aos-delay={(idx % 3) * 200} key={idx}>
-                  <div className="courses-item">
+              {packagesData.map((item, idx) => (
+                <div
+                  className="col-md-6 col-lg-4"
+                  data-aos="fade-up"
+                  data-aos-delay={(idx % 3) * 200}
+                  key={item.id}
+                >
+                  <div className="courses-item"
+                    style={{
+                      color: "#000",
+                      transition: "color 0.3s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#000")}>
                     <div className="courses-item-inner p-4">
                       <div className="d-flex justify-content-between mb-4">
                         <div className="courses-icon-img p-3">
-                          <img src={`/img/icon-${((idx % 6) + 1).toString()}.png`} className="img-fluid" alt="" />
+                          <img
+                            src={`/img/icon-${item.iconIndex}.png`}
+                            className="img-fluid"
+                            alt=""
+                          />
                         </div>
                         <div className="data-info d-flex flex-column">
                           <div className="courses-trainer d-flex align-items-center mb-1">
                             <div className="me-2" style={{ width: 25, height: 25 }}>
-                              <img src="/img/testimonial-3.jpg" className="img-fluid" alt="" />
+                              <img
+                                src={item.trainerAvatar}
+                                className="img-fluid"
+                                alt=""
+                              />
                             </div>
-                            <p className="mb-0">Paul Flavius</p>
+                            <p className="mb-0">{item.trainerName}</p>
                           </div>
                           <div className="courses-date">
-                            <p className="mb-1">Date: Saturday</p>
-                            <p className="mb-0">Time: 06.00 - 07.00</p>
+                            <p className="mb-1">Thời hạn: {item.duration}</p>
+                            <p className="mb-0">Số buổi: {item.sessions}</p>
                           </div>
                         </div>
                       </div>
+
                       <a href="#" className="d-inline-block h4 mb-3">
-                        {["Gym Fitness Class", "Power Lifting Class", "Body Building Class", "Aerobics & Skipping Class", "Boxing Class", "Cardio Class"][idx]}
+                        {item.title}
                       </a>
-                      <p className="mb-4">Lorem ipsum dolor sit amet consectetur adipisicing elit. Atque tempora illo placeat.</p>
-                      <a href="#" className="btn btn-primary py-2 px-4"><span>Read More</span></a>
+                      <p className="mb-4">{Number(item.price).toLocaleString("vi-VN")} ₫</p>
+                      <a href="#" className="btn btn-primary py-2 px-4">
+                        <span>Read More</span>
+                      </a>
                     </div>
                   </div>
                 </div>
               ))}
 
               <div className="col-12 text-center" data-aos="fade-up">
-                <a href="#" className="btn btn-primary py-3 px-5"><span>More Courses</span></a>
+                <a href="#" className="btn btn-primary py-3 px-5">
+                  <span>More Courses</span>
+                </a>
               </div>
             </div>
           </div>
         </div>
 
         {/* Blog */}
-        <div className="container-fluid blog py-5">
+        <div id="blogs-section" className="container-fluid blog py-5">
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
               <h4 className="text-primary">  Our Blogs</h4>
@@ -339,7 +439,7 @@ export default function Home() {
         </div>
 
         {/* Trainer */}
-        <div className="container-fluid team py-5">
+        <div id="trainers-section" className="container-fluid team py-5">
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
               <h4 className="text-primary">Our Trainer</h4>
@@ -350,7 +450,12 @@ export default function Home() {
             <div className="row gy-5 gy-lg-4 gx-4">
               {trainers.map((t, i) => (
                 <div className="col-md-6 col-lg-3" data-aos="fade-up" data-aos-delay={i * 200} key={t.id}>
-                  <div className="team-item">
+                  <div className="team-item" style={{
+                      color: "#000",
+                      transition: "color 0.3s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#000")}>
                     {/* Link to TrainerDetail */}
                       <Link to={`/trainer/${t.id}`}>
                         <div className="team-img">
@@ -363,9 +468,9 @@ export default function Home() {
                           </div>
                         </div>
                       </Link>
-                    <div className="team-content">
+                    <div className="team-content" >
                       <h4>{t.name}</h4>
-                      <p className="mb-0">{t.profession}</p>
+                      <p className="mb-0" >{t.profession}</p>
                     </div>
                   </div>
                 </div>
@@ -375,7 +480,7 @@ export default function Home() {
         </div>
 
         {/* Testimonial */}
-        <div className="container-fluid testimonial bg-dark py-5" style={{ marginBottom: 90 }}>
+        <div id="testimonial-section" className="container-fluid testimonial bg-dark py-5" style={{ marginBottom: 90 }}>
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
               <h4 className="text-primary">Testimonial</h4>

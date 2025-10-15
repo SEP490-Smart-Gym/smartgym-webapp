@@ -26,17 +26,14 @@ const ProfileMember = () => {
                   <div className="card-profile-image text-center">
                     <a href="#pablo" onClick={(e) => e.preventDefault()}>
                       <img
-                        alt="Avatar"
-                        className="rounded-circle shadow my-2"
-                        src={
-                          user?.photo || (user?.email ? `https://www.gravatar.com/avatar/${btoa(user.email)}?d=identicon` : "/img/default-avatar.png")
-                        }
-                        style={{
-                          width: "150px",
-                          height: "150px",
-                          objectFit: "cover",
-                        }}
-                      />
+                          src={user?.photo || "/img/useravt.jpg"}
+                          alt="avatar"
+                          className="rounded-circle shadow my-2"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={(e) => { e.currentTarget.src = "/img/useravt.jpg"; }}
+                          style={{ width: "150px", height: "150px", objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
+                        />
                     </a>
                   </div>
                 </Col>
