@@ -15,16 +15,8 @@ import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
 
-import ProfileMember from "../pages/ProfileMember.jsx";
-
-import TrainerDetail from "../pages/TrainerDetail.jsx";
-
-// (Tuỳ chọn) Nếu bạn có các trang này, import vào; chưa có thì để tạm về Home hoặc tạo stub sau
-// import Course from "../pages/Course.jsx";
-// import Blog from "../pages/Blog.jsx";
-// import Team from "../pages/Team.jsx";
-// import Feature from "../pages/Feature.jsx";
-// import Testimonial from "../pages/Testimonial.jsx";
+import ProfileMember from "../pages/Member/ProfileMember.jsx";
+import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
