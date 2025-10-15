@@ -6,17 +6,46 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
+   
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setUser(storedUser ? JSON.parse(storedUser) : null);
+
+  
+    const handleAuthChange = () => {
+      const updatedUser = localStorage.getItem("user");
+      setUser(updatedUser ? JSON.parse(updatedUser) : null);
+    };
+
+    window.addEventListener("app-auth-changed", handleAuthChange);
+    return () => window.removeEventListener("app-auth-changed", handleAuthChange);
+  }, []);
+
+
+  useEffect(() => {
+    const refreshUser = () => {
+      const u = localStorage.getItem("user");
+      setUser(u ? JSON.parse(u) : null);
+    };
+
+    // custom event trong cùng tab
+    window.addEventListener("app-auth-changed", refreshUser);
+    // storage event cho trường hợp đổi ở tab khác
+    window.addEventListener("storage", (e) => {
+      if (e.key === "user") refreshUser();
+    });
+
+    return () => {
+      window.removeEventListener("app-auth-changed", refreshUser);
+      // không cần remove storage listener với anonymous, nhưng có thể giữ nguyên:
+      // window.removeEventListener("storage", storageHandler);
+    };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setUser(null);
-    navigate("/login");
+    navigate("/");
   };
 
   return (
@@ -42,7 +71,6 @@ export default function Navbar() {
                 <div className="d-flex flex-wrap">
                   <div className="pe-4">
                     <a href="mailto:example@gmail.com" className="text-muted small">
-                      <i className="fas fa-envelope text-primary me-2"></i>example@gmail.com
                     </a>
                   </div>
                   <div className="pe-0">
@@ -74,12 +102,19 @@ export default function Navbar() {
                         aria-expanded="false"
                       >
                         <img
-                          src={user.photo || "/img/default-avatar.png"}
+                          src={user?.photo || "/img/useravt.jpg"}
                           alt="avatar"
                           className="rounded-circle me-2"
-                          style={{ width: "32px", height: "32px", objectFit: "cover" }}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={(e) => { e.currentTarget.src = "/img/useravt.jpg"; }}
+                          style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
-                        <span>{user.name?.split(" ")[0] || "User"}</span>
+
+                        <span className="user-name-text">
+                          {user.name || "User"}
+                        </span>
+
                       </a>
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>

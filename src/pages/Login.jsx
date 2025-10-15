@@ -12,10 +12,24 @@ export default function Login() {
     const [errors, setErrors] = useState({ phone: "", password: "", server: "" });
 
     // Data cứng để test
-    const hardcodedUser = {
-        phone: "0123456789",
-        password: "123456",
-    };
+    const hardcodedUsers = [
+        {
+            phone: "0123456789",
+            password: "123456",
+            role: "user",
+            name: "Test User",
+            email: "test@example.com",
+            photo: "/img/useravt.jpg",
+        },
+        {
+            phone: "0987654321",
+            password: "admin123",
+            role: "admin",
+            name: "Admin User",
+            email: "admin@example.com",
+            photo: "/img/useravt.jpg",
+        },
+    ];
 
     const validate = () => {
         const e = { phone: "", password: "" };
@@ -39,22 +53,50 @@ export default function Login() {
     const loginWithGoogle = async () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
+            const gUser = result.user;
 
-            // lưu thông tin user vào localStorage
-            localStorage.setItem("user", JSON.stringify({
-                name: user.displayName,
-                email: user.email,
-                photo: user.photoURL,
-                uid: user.uid,
-            }));
+            // Lấy link gốc
+            let photo = gUser.photoURL || "/img/default-avatar.png";
 
-            navigate("/"); // quay về home
+            // Giảm kích thước (Google hay có đuôi '=s96-c')
+            if (photo.includes("googleusercontent.com")) {
+                photo = photo.replace(/=s\d+-c$/, "=s64-c");
+            }
+
+            // Thử cache thành base64 để không phải gọi Google mỗi lần render
+            try {
+                const res = await fetch(photo, { credentials: "omit", cache: "no-store" });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const base64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                    photo = base64; // dùng base64 => không bị 429 nữa
+                }
+            } catch (_) {
+                // nếu fetch fail (CORS / 429...), vẫn dùng photo URL, Navbar sẽ fallback
+            }
+
+            const userObj = {
+                uid: gUser.uid,
+                name: gUser.displayName || "Google User",
+                email: gUser.email,
+                photo, // đã cố cache base64, nếu fail sẽ là URL gốc
+                role: "user",
+            };
+
+            localStorage.setItem("user", JSON.stringify(userObj));
+            window.dispatchEvent(new Event("app-auth-changed"));
+            navigate("/");
         } catch (err) {
             console.error(err);
             setErrors(prev => ({ ...prev, server: "Đăng nhập Google thất bại" }));
         }
     };
+
+
     const handleSubmit = async (ev) => {
         ev.preventDefault();
         setErrors({ phone: "", password: "", server: "" });
@@ -63,19 +105,28 @@ export default function Login() {
         setLoading(true);
         try {
             const phoneDigits = phone.replace(/\D/g, "");
-            if (phoneDigits === hardcodedUser.phone && password === hardcodedUser.password) {
-                // giả lập user
-                const fakeUser = {
-                    uid: "hardcoded-uid",
-                    name: "Test User",
-                    email: "test@example.com",
-                    photo: "/img/default-avatar.png",
-                };
-                localStorage.setItem("user", JSON.stringify(fakeUser));
-                navigate("/");
-                window.location.reload(); // để context đọc lại user
+            const matchedUser = hardcodedUsers.find(
+                (u) => u.phone === phoneDigits && u.password === password
+            );
+
+            if (matchedUser) {
+                localStorage.setItem("user", JSON.stringify(matchedUser));
+
+                // Gửi sự kiện để Navbar reload lại
+                // Gửi event 1 lần để Navbar cập nhật
+                window.dispatchEvent(new Event("app-auth-changed"));
+
+                // Điều hướng sau khi login (không reload trang)
+                setTimeout(() => {
+                    if (matchedUser.role === "admin") navigate("/admin/packages");
+                    else navigate("/");
+                }, 100);
+
             } else {
-                setErrors(prev => ({ ...prev, server: "Sai số điện thoại hoặc mật khẩu." }));
+                setErrors((prev) => ({
+                    ...prev,
+                    server: "Sai số điện thoại hoặc mật khẩu.",
+                }));
             }
         } finally {
             setLoading(false);
@@ -193,8 +244,11 @@ export default function Login() {
 
                             {/* Thông tin test nhanh */}
                             <div className="text-center small text-muted mt-3">
-                                Test nhanh: SĐT <code>0123456789</code> / Mật khẩu <code>123456</code>
+                                Test nhanh:<br />
+                                <code>0123456789</code> / <code>123456</code> → User<br />
+                                <code>0987654321</code> / <code>admin123</code> → Admin
                             </div>
+
                         </div>
                     </div>
                 </div>
