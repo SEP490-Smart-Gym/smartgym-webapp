@@ -2,12 +2,13 @@ import { useState } from "react";
 
 export default function AdminPackages() {
   const [packages, setPackages] = useState([
-    { id: 1, name: "Gói 10 buổi", type: "Buổi", price: 800000, hasPT: false },
-    { id: 2, name: "Gói 1 tháng (có PT)", type: "Tháng", price: 1200000, hasPT: true },
+    { id: 1, name: "Gói 10 buổi", limit: "1 tháng", type: "Buổi", price: 800000, hasPT: false },
+    { id: 2, name: "Gói 1 tháng (có PT)", limit: "3 tháng", type: "Tháng", price: 1200000, hasPT: true },
   ]);
 
   const [newPackage, setNewPackage] = useState({
     name: "",
+    limit: "",
     type: "Buổi",
     price: "",
     hasPT: false,
@@ -71,6 +72,19 @@ export default function AdminPackages() {
               </select>
             </div>
             <div className="col-md-3">
+              <label className="form-label">Giới hạn</label>
+              <select
+                name="type"
+                className="form-select"
+                value={newPackage.type}
+                onChange={handleInput}
+              >
+                <option value="Buổi">1 tháng</option>
+                <option value="Tháng">3 tháng</option>
+                <option value="Tháng">6 tháng</option>
+              </select>
+            </div>
+            <div className="col-md-3">
               <label className="form-label">Giá (VNĐ)</label>
               <input
                 name="price"
@@ -114,6 +128,7 @@ export default function AdminPackages() {
               <thead className="table-light">
                 <tr>
                   <th>Tên gói</th>
+                  <th>Giới hạn</th>
                   <th>Loại</th>
                   <th>Giá</th>
                   <th>PT</th>
@@ -125,6 +140,7 @@ export default function AdminPackages() {
                   packages.map((pkg) => (
                     <tr key={pkg.id}>
                       <td>{pkg.name}</td>
+                      <td>{pkg.limit}</td>
                       <td>{pkg.type}</td>
                       <td>{pkg.price.toLocaleString()} đ</td>
                       <td>

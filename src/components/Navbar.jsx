@@ -1,16 +1,17 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import AdminPackages from "../pages/admin/AdminPackages";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-   
+
     const storedUser = localStorage.getItem("user");
     setUser(storedUser ? JSON.parse(storedUser) : null);
 
-  
+
     const handleAuthChange = () => {
       const updatedUser = localStorage.getItem("user");
       setUser(updatedUser ? JSON.parse(updatedUser) : null);
@@ -119,6 +120,17 @@ export default function Navbar() {
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
                         <li><hr className="dropdown-divider" /></li>
+                        {user.role === "admin" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/packages")}
+                            >
+                              Quản lý gói tập
+                            </button>
+                          </li>
+                        )}
+                        <li><hr className="dropdown-divider" /></li>
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
                     </div>
@@ -150,13 +162,14 @@ export default function Navbar() {
               </button>
 
               <div className="collapse navbar-collapse" id="navbarCollapse">
-                <div className="navbar-nav mx-0 mx-lg-auto">
+                <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
                   <NavLink end to="/" className="nav-item nav-link">Home</NavLink>
                   <NavLink to="/about" className="nav-item nav-link">About</NavLink>
                   <NavLink to="/course" className="nav-item nav-link">Courses</NavLink>
                   <NavLink to="/blog" className="nav-item nav-link">Blogs</NavLink>
 
                   <div className="nav-item dropdown">
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a href="#" className="nav-link" data-bs-toggle="dropdown">
                       <span className="dropdown-toggle">Pages</span>
                     </a>
@@ -170,7 +183,8 @@ export default function Navbar() {
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center">
+                  {/* CTA bên phải */}
+                  <div className="nav-btn ps-3 d-flex align-items-center nav-cta">
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
@@ -186,6 +200,7 @@ export default function Navbar() {
                   <div className="nav-shaps-1"></div>
                 </div>
               </div>
+
             </nav>
           </div>
         </div>
