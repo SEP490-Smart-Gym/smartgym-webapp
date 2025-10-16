@@ -1,8 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import AdminPackages from "../pages/admin/AdminPackages";
 import { HashLink } from "react-router-hash-link";
-
+import { FaSearch } from "react-icons/fa";
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
@@ -171,18 +170,19 @@ export default function Navbar() {
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center">
+                  <div className="nav-btn ps-3 d-flex align-items-center" style={{marginLeft: 100}}>
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
+                      
                     >
-                      <i className="fas fa-search"></i>
+                      <i className="fas fa-search" ><FaSearch /></i>
                     </button>
-                    <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
+                    {/* <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
                       <span>Get Quote</span>
-                    </a>
-                  </div> */}
+                    </a> */}
+                  </div> 
 
                   <div className="nav-shaps-1"></div>
                 </div>
