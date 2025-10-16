@@ -170,7 +170,7 @@ export default function Navbar() {
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center" style={{marginLeft: 100}}>
+                  <div className="nav-btn ps-3 d-flex align-items-center" style={{marginLeft: 300}}>
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
