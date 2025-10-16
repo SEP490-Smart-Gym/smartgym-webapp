@@ -66,30 +66,28 @@ export default function Navbar() {
         {/* Phần phải */}
         <div className="w-100 h-100">
           {/* Topbar */}
-          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45 }}>
+          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45 , position: "relative",zIndex:10}}>
             <div className="row gx-0 align-items-center">
               <div className="col-lg-8 text-center text-lg-center mb-lg-0">
                 <div className="d-flex flex-wrap">
                   <div className="pe-4">
-                    <a href="mailto:example@gmail.com" className="text-muted small">
-                    </a>
                   </div>
                   <div className="pe-0">
-                    <span className="text-muted small">
-                      <i className="fa fa-clock text-primary me-2"></i>Mon - Sat: 8.00 am-7.00 pm
+                    <span className=" small" style={{color: "white"}}>
+                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sat: 8.00 am-7.00 pm
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="col-lg-4 text-center text-lg-end">
-                <div className="d-flex justify-content-end align-items-center small">
+                <div className="d-flex justify-content-end align-items-center small" >
                   {!user ? (
                     <>
-                      <NavLink to="/login" className="login-btn text-body me-3 pe-3">
+                      <NavLink to="/login" className="login-btn  me-3 pe-3" style={{color: "white"}}>
                         <span>Login</span>
                       </NavLink>
-                      <NavLink to="/register" className="text-body me-3">
+                      <NavLink to="/register" className=" me-3" style={{color: "white"}}>
                         Register
                       </NavLink>
                     </>
@@ -112,7 +110,7 @@ export default function Navbar() {
                           style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
 
-                        <span className="user-name-text">
+                        <span className="user-name-text" style={{color: "white"}}>
                           {user.name || "User"}
                         </span>
 

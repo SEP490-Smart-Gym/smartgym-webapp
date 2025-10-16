@@ -108,13 +108,13 @@ export default function Footer() {
           <div className="row g-4 align-items-center">
             <div className="col-md-6 text-center text-md-start mb-md-0">
               <span className="text-body">
-                <a href="#" className="border-bottom text-white">
+                {/* <a href="#" className="border-bottom text-white">
                   <i className="fas fa-copyright text-light me-2"></i>Your Site Name
-                </a>
+                </a> */}
                 , All right reserved.
               </span>
             </div>
-            <div className="col-md-6 text-center text-md-end text-body">
+            {/* <div className="col-md-6 text-center text-md-end text-body">
               Designed By{" "}
               <a className="border-bottom text-white" href="https://htmlcodex.com" target="_blank" rel="noreferrer">
                 HTML Codex
@@ -123,7 +123,7 @@ export default function Footer() {
               <a href="https://themewagon.com/" target="_blank" rel="noreferrer">
                 ThemeWagon
               </a>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
