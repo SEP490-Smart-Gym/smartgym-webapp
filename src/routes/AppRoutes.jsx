@@ -10,10 +10,13 @@ import About from "../pages/About.jsx";
 import Classes from "../pages/Classes.jsx";
 import Contact from "../pages/Contact.jsx";
 import NotFound from "../pages/NotFound.jsx";
-import TrainerDetail from "../pages/TrainerDetail.jsx";
+
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
+
+import ProfileMember from "../pages/Member/ProfileMember.jsx";
+import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -43,9 +46,32 @@ export default function AppRoutes() {
         <Route path="contact" element={<Contact />} />
         <Route path="403" element={<Forbidden />} />
 
+          {/* Các trang chính */}
+          <Route path="/about" element={<About />} />
+          <Route path="/classes" element={<Classes />} />
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Các link còn lại trong navbar
+              -> Khi bạn có trang thật, mở comment và thay <Home /> bằng component tương ứng */}
+          <Route path="course" element={<Home />} />
+          <Route path="blog" element={<Home />} />
+          <Route path="team" element={<Home />} />
+          <Route path="feature" element={<Home />} />
+          <Route path="testimonial" element={<Home />} />
+
+          {/* Profile member */}
+          <Route path="profile/member" element={<ProfileMember />} />
+
+          {/* Trainer detail */}
+          <Route path="trainer/:id" element={<TrainerDetail />} />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
+
         {/* Route dành cho member (hội viên) */}
         <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
           <Route path="classes" element={<Classes />} />
+
         </Route>
 
         {/* Route dành cho trainer */}

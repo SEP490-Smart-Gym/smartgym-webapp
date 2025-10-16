@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AdminPackages from "../pages/admin/AdminPackages";
+import { HashLink } from "react-router-hash-link";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -118,17 +119,6 @@ export default function Navbar() {
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
                         <li><hr className="dropdown-divider" /></li>
-                        {user.role === "admin" && (
-                          <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/admin/packages")}
-                            >
-                              Quản lý gói tập
-                            </button>
-                          </li>
-                        )}
-                        <li><hr className="dropdown-divider" /></li>
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
                     </div>
@@ -162,9 +152,9 @@ export default function Navbar() {
               <div className="collapse navbar-collapse" id="navbarCollapse">
                 <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
                   <NavLink end to="/" className="nav-item nav-link">Home</NavLink>
-                  <NavLink to="/about" className="nav-item nav-link">About</NavLink>
-                  <NavLink to="/course" className="nav-item nav-link">Courses</NavLink>
-                  <NavLink to="/blog" className="nav-item nav-link">Blogs</NavLink>
+                  <HashLink smooth to="/#about-section" className="nav-item nav-link">About</HashLink>
+                  <HashLink smooth to="/#package-section" className="nav-item nav-link">Packages</HashLink>
+                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">Blogs</HashLink>
 
                   <div className="nav-item dropdown">
                     {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
@@ -172,17 +162,16 @@ export default function Navbar() {
                       <span className="dropdown-toggle">Pages</span>
                     </a>
                     <div className="dropdown-menu">
-                      <NavLink to="/feature" className="dropdown-item">Our Features</NavLink>
-                      <NavLink to="/team" className="dropdown-item">Our team</NavLink>
-                      <NavLink to="/testimonial" className="dropdown-item">Testimonial</NavLink>
-                      <NavLink to="/404" className="dropdown-item">404 Page</NavLink>
+                      <HashLink smooth to="/#features-section" className="dropdown-item">Our Features</HashLink>
+                      <HashLink smooth to="/#trainers-section" className="dropdown-item">Our Trainers</HashLink>
+                      <HashLink smooth to="/#testimonial-section" className="dropdown-item">Testimonial</HashLink>
+                      {/* <NavLink to="/404" className="dropdown-item">404 Page</NavLink> */}
                     </div>
                   </div>
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  {/* CTA bên phải */}
-                  <div className="nav-btn ps-3 d-flex align-items-center nav-cta">
+                  <div className="nav-btn ps-3 d-flex align-items-center">
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
@@ -193,7 +182,7 @@ export default function Navbar() {
                     <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
                       <span>Get Quote</span>
                     </a>
-                  </div>
+                  </div> */}
 
                   <div className="nav-shaps-1"></div>
                 </div>
