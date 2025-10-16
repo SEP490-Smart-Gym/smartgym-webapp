@@ -10,7 +10,78 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
+import { AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
+
 import Header from "../components/Header.jsx";  // chú ý đuôi .jsx cho chắc
+
+export const packagesData = [
+  {
+    id: 1,
+    iconIndex: 1,
+    title: "Gói Cơ Bản",
+    duration: 1,
+    sessions: 10,
+    price: 2500000,
+    hasPT: false,
+    description:
+      "Phù hợp cho người mới bắt đầu, làm quen máy và các bài tập nền tảng cơ bản.",
+  },
+  {
+    id: 2,
+    iconIndex: 2,
+    title: "Gói Nâng Cao",
+    duration: 2,
+    sessions: 20,
+    price: 4500000,
+    hasPT: true,
+    description:
+      "Dành cho người đã có kinh nghiệm tập, có huấn luyện viên hướng dẫn cải thiện kỹ thuật và thể hình.",
+  },
+  {
+    id: 3,
+    iconIndex: 3,
+    title: "Gói Chuyên Sâu",
+    duration: 3,
+    sessions: 30,
+    price: 6500000,
+    hasPT: true,
+    description:
+      "Lộ trình chuyên sâu 1-1 với huấn luyện viên cá nhân, bao gồm theo dõi dinh dưỡng và đánh giá InBody định kỳ.",
+  },
+  {
+    id: 4,
+    iconIndex: 4,
+    title: "Gói Linh Hoạt",
+    duration: 1,
+    sessions: 12,
+    price: 3000000,
+    hasPT: false,
+    description:
+      "Lựa chọn linh hoạt cho người bận rộn, có thể sắp xếp thời gian tập tuỳ lịch cá nhân.",
+  },
+  {
+    id: 5,
+    iconIndex: 5,
+    title: "Gói Tăng Tốc",
+    duration: 2,
+    sessions: 16,
+    price: 4000000,
+    hasPT: true,
+    description:
+      "Gói tập cường độ cao cùng PT, giúp đạt kết quả nhanh trong thời gian ngắn.",
+  },
+  {
+    id: 6,
+    iconIndex: 6,
+    title: "Gói Tiết Kiệm",
+    duration: 1,
+    sessions: 8,
+    price: 2000000,
+    hasPT: false,
+    description:
+      "Gói cơ bản giá tốt, phù hợp người muốn duy trì sức khoẻ và hình thể.",
+  },
+];
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -21,69 +92,74 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
-  // src/data/packages.js
   const packagesData = [
-    {
-      id: 1,
-      iconIndex: 1,                        // sẽ render thành /img/icon-1.png
-      title: "Gym Fitness Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "1 tháng",
-      sessions: "10 buổi",
-      price: 2500000,
-    },
-    {
-      id: 2,
-      iconIndex: 2,
-      title: "Power Lifting Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "2 tháng",
-      sessions: "20 buổi",
-      price: 4500000,
-    },
-    {
-      id: 3,
-      iconIndex: 3,
-      title: "Body Building Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "3 tháng",
-      sessions: "30 buổi",
-      price: 6500000,
-    },
-    {
-      id: 4,
-      iconIndex: 4,
-      title: "Aerobics & Skipping Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "1 tháng",
-      sessions: "12 buổi",
-      price: 3000000,
-    },
-    {
-      id: 5,
-      iconIndex: 5,
-      title: "Boxing Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "2 tháng",
-      sessions: "16 buổi",
-      price: 4000000,
-    },
-    {
-      id: 6,
-      iconIndex: 6,
-      title: "Cardio Class",
-      trainerName: "Paul Flavius",
-      trainerAvatar: "/img/testimonial-3.jpg",
-      duration: "1 tháng",
-      sessions: "8 buổi",
-      price: 2000000,
-    },
-  ];
+  {
+    id: 1,
+    iconIndex: 1,
+    title: "Gói Cơ Bản",
+    duration: 1,
+    sessions: 10,
+    price: 2500000,
+    hasPT: false,
+    description:
+      "Phù hợp cho người mới bắt đầu, làm quen máy và các bài tập nền tảng cơ bản.",
+  },
+  {
+    id: 2,
+    iconIndex: 2,
+    title: "Gói Nâng Cao",
+    duration: 2,
+    sessions: 20,
+    price: 4500000,
+    hasPT: true,
+    description:
+      "Dành cho người đã có kinh nghiệm tập, có huấn luyện viên hướng dẫn cải thiện kỹ thuật và thể hình.",
+  },
+  {
+    id: 3,
+    iconIndex: 3,
+    title: "Gói Chuyên Sâu",
+    duration: 3,
+    sessions: 30,
+    price: 6500000,
+    hasPT: true,
+    description:
+      "Lộ trình chuyên sâu 1-1 với huấn luyện viên cá nhân, bao gồm theo dõi dinh dưỡng và đánh giá InBody định kỳ.",
+  },
+  {
+    id: 4,
+    iconIndex: 4,
+    title: "Gói Linh Hoạt",
+    duration: 1,
+    sessions: 12,
+    price: 3000000,
+    hasPT: false,
+    description:
+      "Lựa chọn linh hoạt cho người bận rộn, có thể sắp xếp thời gian tập tuỳ lịch cá nhân.",
+  },
+  {
+    id: 5,
+    iconIndex: 5,
+    title: "Gói Tăng Tốc",
+    duration: 2,
+    sessions: 16,
+    price: 4000000,
+    hasPT: true,
+    description:
+      "Gói tập cường độ cao cùng PT, giúp đạt kết quả nhanh trong thời gian ngắn.",
+  },
+  {
+    id: 6,
+    iconIndex: 6,
+    title: "Gói Tiết Kiệm",
+    duration: 1,
+    sessions: 8,
+    price: 2000000,
+    hasPT: false,
+    description:
+      "Gói cơ bản giá tốt, phù hợp người muốn duy trì sức khoẻ và hình thể.",
+  },
+];
 
   const featureSlides = [
     { img: "/img/feature-1.jpg", title: "Work Your Butt Off" },
@@ -359,27 +435,29 @@ export default function Home() {
                           />
                         </div>
                         <div className="data-info d-flex flex-column">
-                          <div className="courses-trainer d-flex align-items-center mb-1">
-                            <div className="me-2" style={{ width: 25, height: 25 }}>
-                              <img
-                                src={item.trainerAvatar}
-                                className="img-fluid"
-                                alt=""
-                              />
-                            </div>
-                            <p className="mb-0">{item.trainerName}</p>
-                          </div>
-                          <div className="courses-date">
-                            <p className="mb-1">Thời hạn: {item.duration}</p>
-                            <p className="mb-0">Số buổi: {item.sessions}</p>
+                          <div className="courses-date" style={{ fontSize: "1rem" }}>
+                            <p className="mb-1">Thời hạn: {item.duration} tháng</p>
+                            <p className="mb-0">Số buổi: {item.sessions} buổi</p>
+                            <p className="mb-0 d-flex align-items-center">
+                              PT:&nbsp;
+                              {item.hasPT ? (
+                                <>
+                                  Không < AiOutlineClose className="icon-close" style={{ marginLeft: 4 }} />      
+                                </>
+                              ) : (
+                                <>
+                                  Có < AiOutlineCheck className="icon-check" style={{ marginLeft: 4 }} />      
+                                </>
+                              )}
+                            </p>
                           </div>
                         </div>
                       </div>
 
-                      <a href="#" className="d-inline-block h4 mb-3">
+                      <a href="#" className="d-inline-block h4 mb-3" style={{ letterSpacing: "0.2px", fontSize: "2rem", fontWeight: "bold" }}>
                         {item.title}
                       </a>
-                      <p className="mb-4">{Number(item.price).toLocaleString("vi-VN")} ₫</p>
+                      <p className="mb-4" style={{ letterSpacing: "0.2px", fontSize: "1.3rem"}}>{Number(item.price).toLocaleString("vi-VN")} ₫</p>
                       <a href="#" className="btn btn-primary py-2 px-4">
                         <span>Read More</span>
                       </a>
@@ -389,10 +467,11 @@ export default function Home() {
               ))}
 
               <div className="col-12 text-center" data-aos="fade-up">
-                <a href="#" className="btn btn-primary py-3 px-5">
+                <Link to="/packages" className="btn btn-primary py-3 px-5">
                   <span>More Courses</span>
-                </a>
+                </Link>
               </div>
+
             </div>
           </div>
         </div>
