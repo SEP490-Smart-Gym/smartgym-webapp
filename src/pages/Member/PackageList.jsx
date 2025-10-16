@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
-import "../../assets/styles/style.css"; // ✅ import CSS ngoài
+import "../../assets/styles/style.css";
 import { packagesData } from "../Home.jsx";
 import { AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
+import { Link } from "react-router-dom";
 
 const PackageList = () => {
   const fmtVND = (n) => Number(n).toLocaleString("vi-VN");
@@ -15,7 +16,6 @@ const PackageList = () => {
       <div className="packages">
         {packagesData.map((pkg) => (
           <div className="package" key={pkg.name}>
-            {/* Tên gói */}
             <div
               className="package-name"
               style={{
@@ -29,7 +29,6 @@ const PackageList = () => {
               {pkg.title}
             </div>
 
-            {/* Giá */}
             <div
               className="package-price"
               style={{
@@ -58,15 +57,15 @@ const PackageList = () => {
                   {pkg.hasPT ? <AiOutlineCheck className="icon-check" /> : <AiOutlineClose className="icon-close"/>}
                   <span>PT kèm: {pkg.hasPT ? "Có" : "Không"}</span>
                 </div>
-                <div className="info-item">
+                {/* <div className="info-item">
                   <AiOutlineCheck className="icon-check" />
                   <span>{pkg.description}</span>
-                </div>
+                </div> */}
               </div>
 
-              <button className="btn" type="button">
-                Đăng ký ngay
-              </button>
+              <Link to={`/packages/${pkg.id}`} className="btn">
+                Read More
+              </Link>
             </div>
           </div>
         ))}

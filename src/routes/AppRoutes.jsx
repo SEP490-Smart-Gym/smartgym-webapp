@@ -19,6 +19,7 @@ import ProfileMember from "../pages/Member/ProfileMember.jsx";
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 
 import PackageList from "../pages/Member/PackageList.jsx";
+import PackageDetail from "../pages/Member/PackageDetail.jsx";
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -62,6 +63,7 @@ export default function AppRoutes() {
 
           {/* Packages */}
           <Route path="/packages" element={<PackageList />} />
+          <Route path="/packages/:id" element={<PackageDetail />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

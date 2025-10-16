@@ -21,7 +21,7 @@
   display: flex;
   flex-direction: column;
   width: 20rem;                /* giữ kích thước card như cũ */
-  min-height: 24rem;
+  min-height: 20rem;
   background: #0c1844;
   color: #fff;
   padding: 1.25rem;

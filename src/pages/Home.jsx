@@ -458,9 +458,9 @@ export default function Home() {
                         {item.title}
                       </a>
                       <p className="mb-4" style={{ letterSpacing: "0.2px", fontSize: "1.3rem"}}>{Number(item.price).toLocaleString("vi-VN")} ₫</p>
-                      <a href="#" className="btn btn-primary py-2 px-4">
+                      <Link to={`/packages/${item.id}`} className="btn btn-primary py-2 px-4">
                         <span>Read More</span>
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>
