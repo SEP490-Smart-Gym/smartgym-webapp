@@ -1,17 +1,17 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
-
+import { FaSearch } from "react-icons/fa";
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-   
+
     const storedUser = localStorage.getItem("user");
     setUser(storedUser ? JSON.parse(storedUser) : null);
 
-  
+
     const handleAuthChange = () => {
       const updatedUser = localStorage.getItem("user");
       setUser(updatedUser ? JSON.parse(updatedUser) : null);
@@ -66,30 +66,28 @@ export default function Navbar() {
         {/* Phần phải */}
         <div className="w-100 h-100">
           {/* Topbar */}
-          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45 }}>
+          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45, position: "relative", zIndex: 10 }}>
             <div className="row gx-0 align-items-center">
               <div className="col-lg-8 text-center text-lg-center mb-lg-0">
                 <div className="d-flex flex-wrap">
                   <div className="pe-4">
-                    <a href="mailto:example@gmail.com" className="text-muted small">
-                    </a>
                   </div>
                   <div className="pe-0">
-                    <span className="text-muted small">
-                      <i className="fa fa-clock text-primary me-2"></i>Mon - Sat: 8.00 am-7.00 pm
+                    <span className=" small" style={{ color: "white" }}>
+                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sat: 8.00 am-7.00 pm
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="col-lg-4 text-center text-lg-end">
-                <div className="d-flex justify-content-end align-items-center small">
+                <div className="d-flex justify-content-end align-items-center small" >
                   {!user ? (
                     <>
-                      <NavLink to="/login" className="login-btn text-body me-3 pe-3">
+                      <NavLink to="/login" className="login-btn  me-3 pe-3" style={{ color: "white" }}>
                         <span>Login</span>
                       </NavLink>
-                      <NavLink to="/register" className="text-body me-3">
+                      <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
                         Register
                       </NavLink>
                     </>
@@ -112,7 +110,7 @@ export default function Navbar() {
                           style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
 
-                        <span className="user-name-text">
+                        <span className="user-name-text" style={{ color: "white" }}>
                           {user.name || "User"}
                         </span>
 
@@ -120,7 +118,16 @@ export default function Navbar() {
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
                         <li><hr className="dropdown-divider" /></li>
-                        <li><NavLink to="/profile/member" className="dropdown-item">Profile</NavLink></li>
+                        {user.role === "admin" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/packages")}
+                            >
+                              Quản lý gói tập
+                            </button>
+                          </li>
+                        )}
                         <li><hr className="dropdown-divider" /></li>
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
@@ -153,13 +160,14 @@ export default function Navbar() {
               </button>
 
               <div className="collapse navbar-collapse" id="navbarCollapse">
-                <div className="navbar-nav mx-0 mx-lg-auto">
+                <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
                   <NavLink end to="/" className="nav-item nav-link">Home</NavLink>
                   <HashLink smooth to="/#about-section" className="nav-item nav-link">About</HashLink>
                   <HashLink smooth to="/#package-section" className="nav-item nav-link">Packages</HashLink>
                   <HashLink smooth to="/#blogs-section" className="nav-item nav-link">Blogs</HashLink>
 
                   <div className="nav-item dropdown">
+                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a href="#" className="nav-link" data-bs-toggle="dropdown">
                       <span className="dropdown-toggle">Pages</span>
                     </a>
@@ -173,22 +181,24 @@ export default function Navbar() {
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  {/* <div className="nav-btn ps-3 d-flex align-items-center">
+                  <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
+
                     >
-                      <i className="fas fa-search"></i>
+                      <i className="fas fa-search" ><FaSearch /></i>
                     </button>
-                    <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
+                    {/* <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
                       <span>Get Quote</span>
-                    </a>
-                  </div> */}
+                    </a> */}
+                  </div>
 
                   <div className="nav-shaps-1"></div>
                 </div>
               </div>
+
             </nav>
           </div>
         </div>

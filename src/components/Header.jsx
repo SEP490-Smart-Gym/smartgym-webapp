@@ -48,7 +48,7 @@ export default function Header() {
               <div className="container">
                 <div className="row g-4 align-items-center">
                   <div className="col-lg-7">
-                    <h4 className="text-primary text-uppercase fw-bold mb-4">Wellcome to our fitness Center</h4>
+                    <h4 className="text-primary text-uppercase fw-bold mb-4">Welcome to our fitness Center</h4>
                     <h1 className="display-2 text-white mb-4">Stay healthy by exercising at the best gym center</h1>
                     <p className="mb-5 fs-5 text-white-50">Lorem Ipsum is simply dummy text...</p>
                     <div className="d-flex flex-wrap">

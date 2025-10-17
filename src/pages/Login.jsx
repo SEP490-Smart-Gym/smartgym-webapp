@@ -140,7 +140,15 @@ export default function Login() {
     };
 
     return (
-        <div className="container py-5">
+        <div
+            className="login-bg container-fluid py-5"
+            style={{
+                backgroundImage: 'url("/img/header-1.jpg")',
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                minHeight: "100vh",
+            }}>
             <div className="row justify-content-center">
                 <div className="col-sm-10 col-md-8 col-lg-5">
                     <div className="card shadow-sm">
