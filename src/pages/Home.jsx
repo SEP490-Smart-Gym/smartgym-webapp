@@ -83,6 +83,13 @@ export const packagesData = [
   },
 ];
 
+export const trainers = [
+  { id: 101, name: "John Doe", profession: "Strength Coach", img: "/img/team-1.jpg" },
+  { id: 102, name: "Emily Smith", profession: "Yoga Instructor", img: "/img/team-2.jpg" },
+  { id: 103, name: "Michael Lee", profession: "Boxing Trainer", img: "/img/team-3.jpg" },
+  { id: 104, name: "Sophia Brown", profession: "Cardio Specialist", img: "/img/team-4.jpg" },
+];
+
 export default function Home() {
   const [loading, setLoading] = useState(true);
 
@@ -180,13 +187,6 @@ export default function Home() {
     { img: "/img/testimonial-2.jpg" },
     { img: "/img/testimonial-3.jpg" },
   ];
-
-  const trainers = [
-  { id: 101, name: "John Doe", profession: "Strength Coach", img: "/img/team-1.jpg" },
-  { id: 102, name: "Emily Smith", profession: "Yoga Instructor", img: "/img/team-2.jpg" },
-  { id: 103, name: "Michael Lee", profession: "Boxing Trainer", img: "/img/team-3.jpg" },
-  { id: 104, name: "Sophia Brown", profession: "Cardio Specialist", img: "/img/team-4.jpg" },
-];
 
   return (
     <>
@@ -554,6 +554,12 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="col-12 text-center" data-aos="fade-up" style={{ marginTop: 40 }}>
+              <Link to="/trainers" className="btn btn-primary py-3 px-5">
+                <span>More Trainers</span>
+              </Link>
             </div>
           </div>
         </div>

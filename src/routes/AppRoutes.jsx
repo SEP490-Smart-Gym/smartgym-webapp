@@ -17,6 +17,7 @@ import Forbidden from "../pages/Forbidden.jsx";
 
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
+import TrainerList from "../pages/Member/TrainerList.jsx";
 
 import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
@@ -58,6 +59,7 @@ export default function AppRoutes() {
           <Route path="profile/member" element={<ProfileMember />} />
 
           {/* Trainer */}
+          <Route path="/trainers" element={<TrainerList />} />
           <Route path="trainer/:id" element={<TrainerDetail />} />
 
 

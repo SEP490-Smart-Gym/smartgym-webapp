@@ -1,12 +1,28 @@
-/** Package List **/
+.trainer {
+  display: flex;
+  flex-direction: column;
+  background: #0c1844;
+  padding: 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(254, 254, 254);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
 
+.trainer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(153, 11, 11);
+}
+
+.trainer:hover { color: #ffebc0; }
+
+/** Package List **/
 /* ---------- Container (Grid) ---------- */
 .packages {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); /* tự co giãn */
   gap: 1.5rem;
   padding: 0 3rem;
-  justify-items: center; /* canh giữa card khi cột thưa */
+  justify-items: center;
 }
 
 /* Max 4 cột trên màn lớn */
@@ -35,7 +51,7 @@
   box-shadow: 0 10px 24px rgb(153, 11, 11);
 }
 
-.package:hover .package-price { color: #ffebc0; }
+.package:hover .package-price .trainer-name { color: #ffebc0; }
 
 /* ---------- Body ---------- */
 .package-body {
