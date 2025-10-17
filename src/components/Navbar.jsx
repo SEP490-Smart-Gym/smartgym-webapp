@@ -66,14 +66,14 @@ export default function Navbar() {
         {/* Phần phải */}
         <div className="w-100 h-100">
           {/* Topbar */}
-          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45 , position: "relative",zIndex:10}}>
+          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45, position: "relative", zIndex: 10 }}>
             <div className="row gx-0 align-items-center">
               <div className="col-lg-8 text-center text-lg-center mb-lg-0">
                 <div className="d-flex flex-wrap">
                   <div className="pe-4">
                   </div>
                   <div className="pe-0">
-                    <span className=" small" style={{color: "white"}}>
+                    <span className=" small" style={{ color: "white" }}>
                       <i className="fa fa-clock text-primary me-2" ></i>Mon - Sat: 8.00 am-7.00 pm
                     </span>
                   </div>
@@ -84,10 +84,10 @@ export default function Navbar() {
                 <div className="d-flex justify-content-end align-items-center small" >
                   {!user ? (
                     <>
-                      <NavLink to="/login" className="login-btn  me-3 pe-3" style={{color: "white"}}>
+                      <NavLink to="/login" className="login-btn  me-3 pe-3" style={{ color: "white" }}>
                         <span>Login</span>
                       </NavLink>
-                      <NavLink to="/register" className=" me-3" style={{color: "white"}}>
+                      <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
                         Register
                       </NavLink>
                     </>
@@ -110,13 +110,24 @@ export default function Navbar() {
                           style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
 
-                        <span className="user-name-text" style={{color: "white"}}>
+                        <span className="user-name-text" style={{ color: "white" }}>
                           {user.name || "User"}
                         </span>
 
                       </a>
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
+                        <li><hr className="dropdown-divider" /></li>
+                        {user.role === "admin" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/packages")}
+                            >
+                              Quản lý gói tập
+                            </button>
+                          </li>
+                        )}
                         <li><hr className="dropdown-divider" /></li>
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
@@ -170,19 +181,19 @@ export default function Navbar() {
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center" style={{marginLeft: 300}}>
+                  <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
-                      
+
                     >
                       <i className="fas fa-search" ><FaSearch /></i>
                     </button>
                     {/* <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
                       <span>Get Quote</span>
                     </a> */}
-                  </div> 
+                  </div>
 
                   <div className="nav-shaps-1"></div>
                 </div>
