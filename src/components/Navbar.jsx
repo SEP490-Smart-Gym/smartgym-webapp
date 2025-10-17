@@ -128,7 +128,17 @@ export default function Navbar() {
                             </button>
                           </li>
                         )}
-                        <li><hr className="dropdown-divider" /></li>
+                        {user.role === "user" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/member")}
+                            >
+                              Profile
+                            </button>
+                            <hr className="dropdown-divider" />
+                          </li>
+                        )}
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
                     </div>
