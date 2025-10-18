@@ -1486,4 +1486,12 @@
 @media (max-width: 991.98px){
   .admin-content{ margin-left: 0; }
 }
-
+/*trainer img admin page*/
+.trainer-photo-preview img{
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid #eee;
+  background: #fff;
+}
