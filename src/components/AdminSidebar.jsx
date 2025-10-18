@@ -57,6 +57,12 @@ export default function AdminSidebar() {
             <span className="label">Huấn luyện viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
+          <NavLink to="/admin/equipments" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <span className="label">Thiết bị</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
+
           <NavLink to="/admin/members" className="admin-side-item">
             <i className="fa fa-users icon" />
             <span className="label">Hội viên</span>

@@ -143,7 +143,7 @@
 .btn.btn-dark {
     color: var(--bs-primary);
     border: none;
-    transform: skew(18deg);
+    /* transform: skew(18deg); */
     transition: 0.5s;
 }
 
@@ -1486,8 +1486,8 @@
 @media (max-width: 991.98px){
   .admin-content{ margin-left: 0; }
 }
-/*trainer img admin page*/
-.trainer-photo-preview img{
+/* img admin page*/
+.photo-preview img{
   width: 64px;
   height: 64px;
   object-fit: cover;

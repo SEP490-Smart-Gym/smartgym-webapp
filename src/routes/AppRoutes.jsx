@@ -22,6 +22,7 @@ import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
 import AdminTrainerList from "../pages/admin/AdminTrainerList.jsx";
+import EquipmentList from "../pages/admin/EquipmentList.jsx";
 
 function Layout() {
   return (
@@ -90,6 +91,7 @@ export default function AppRoutes() {
           <Route path="admin/dashboard" element={<Home />} />
           <Route path="admin/packages" element={<AdminPackages />} />
           <Route path="/admin/trainers" element={<AdminTrainerList />} />
+          <Route path="/admin/equipments" element={<EquipmentList />} />
         </Route>
 
         {/* Route dành cho manager */}
