@@ -15,7 +15,13 @@ import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
 
+// Profiles
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
+import ProfileManager from "../pages/Manager/ProfileManager.jsx";
+import ProfileStaff from "../pages/Staff/Profile.jsx";
+import ProfileTrainer from "../pages/Trainer/Profile.jsx";
+import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
+
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
 
@@ -55,8 +61,13 @@ export default function AppRoutes() {
           <Route path="/classes" element={<Classes />} />
           <Route path="/contact" element={<Contact />} />
 
-          {/* Profile member */}
+          {/* Profile */}
           <Route path="profile/member" element={<ProfileMember />} />
+          <Route path="profile/manager" element={<ProfileManager />} />
+          <Route path="profile/staff" element={<ProfileStaff />} />
+          <Route path="profile/trainer" element={<ProfileTrainer />} />
+          <Route path="profile/admin" element={<ProfileAdmin />} />
+
 
           {/* Trainer */}
           <Route path="/trainers" element={<TrainerList />} />

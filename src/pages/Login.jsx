@@ -215,7 +215,7 @@ export default function Login() {
                             </form>
 
                             {/* Nút đăng nhập bằng Google */}
-                            <div className="d-flex align-items-center mt-2">
+                            <div className="d-flex align-items-center mt-2 justify-content-center">
                                 <span className="me-3 text-muted fw-semibold">Hoặc</span>
                                 <button onClick={loginWithGoogle} className="google-button" >
                                     <svg
