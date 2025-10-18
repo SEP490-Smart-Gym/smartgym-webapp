@@ -209,7 +209,7 @@ export default function Login() {
                                     <a href="/forgot" className="small">Quên mật khẩu?</a>
                                 </div>
 
-                                <button className="btn btn-primary w-100" type="submit" disabled={loading}>
+                                <button className="btn btn-primary w-100" type="submit" disabled={loading}  style={{ transform: "none", }}>
                                     {loading ? "Đang xử lý..." : "Đăng nhập"}
                                 </button>
                             </form>
@@ -217,7 +217,7 @@ export default function Login() {
                             {/* Nút đăng nhập bằng Google */}
                             <div className="d-flex align-items-center mt-2 justify-content-center">
                                 <span className="me-3 text-muted fw-semibold">Hoặc</span>
-                                <button onClick={loginWithGoogle} className="google-button" >
+                                <button onClick={loginWithGoogle} className="google-button">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         preserveAspectRatio="xMidYMid"
