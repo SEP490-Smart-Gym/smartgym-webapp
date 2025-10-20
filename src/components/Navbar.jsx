@@ -2,9 +2,12 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
+import { HiChevronDown, HiChevronUp  } from "react-icons/hi2";
+
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
 
@@ -224,18 +227,34 @@ export default function Navbar() {
                   <HashLink smooth to="/#package-section" className="nav-item nav-link">Packages</HashLink>
                   <HashLink smooth to="/#blogs-section" className="nav-item nav-link">Blogs</HashLink>
 
-                  <div className="nav-item dropdown">
-                    {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                    <a href="#" className="nav-link" data-bs-toggle="dropdown">
-                      <span className="dropdown-toggle">Pages</span>
-                    </a>
-                    <div className="dropdown-menu">
-                      <HashLink smooth to="/#features-section" className="dropdown-item">Our Features</HashLink>
-                      <HashLink smooth to="/#trainers-section" className="dropdown-item">Our Trainers</HashLink>
-                      <HashLink smooth to="/#testimonial-section" className="dropdown-item">Testimonial</HashLink>
-                      {/* <NavLink to="/404" className="dropdown-item">404 Page</NavLink> */}
-                    </div>
+                <div
+                  className={`nav-item dropdown ${isOpen ? "show" : ""}`}
+                  onMouseEnter={() => setIsOpen(true)}
+                  onMouseLeave={() => setIsOpen(false)}
+                >
+                  <a
+                    href="#"
+                    className="nav-link"
+                    data-bs-toggle="dropdown"
+                    aria-expanded={isOpen}
+                  >
+                    <span style={{ display: "flex", alignItems: "center" }}>
+                      Pages {isOpen ? <HiChevronUp /> : <HiChevronDown />}
+                    </span>
+                  </a>
+
+                  <div className={`dropdown-menu${isOpen ? " show" : ""}`} >
+                    <HashLink smooth to="/#features-section" className="dropdown-item">
+                      Our Features
+                    </HashLink>
+                    <HashLink smooth to="/#trainers-section" className="dropdown-item">
+                      Our Trainers
+                    </HashLink>
+                    <HashLink smooth to="/#testimonial-section" className="dropdown-item">
+                      Testimonial
+                    </HashLink>
                   </div>
+                </div>
 
                   <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
 
@@ -248,9 +267,6 @@ export default function Navbar() {
                     >
                       <i className="fas fa-search" ><FaSearch /></i>
                     </button>
-                    {/* <a href="#" className="btn btn-primary py-2 px-4 ms-0 ms-lg-3">
-                      <span>Get Quote</span>
-                    </a> */}
                   </div>
 
                   <div className="nav-shaps-1"></div>

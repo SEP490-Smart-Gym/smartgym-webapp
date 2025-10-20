@@ -16,6 +16,8 @@ import {
 import React, { useEffect, useState, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { HiArrowUpTray } from "react-icons/hi2";
+import { FcPhone } from "react-icons/fc";
 
 const ProfileMember = () => {
   const [user, setUser] = useState(null);
@@ -108,20 +110,124 @@ const ProfileMember = () => {
     if (isNaN(value)) return "";
     if (age !== "" && age < 20) return "Cần đánh giá theo biểu đồ tăng trưởng (BMI-for-age)";
 
-    if (gender === "Nữ") {
-      if (value < 18.5) return "Cân nặng thấp (Gầy)";
-      if (value < 23) return "Bình thường";
-      if (value < 25) return "Thừa cân";
-      if (value < 30) return "Béo phì độ I";
-      return "Béo phì độ II";
-    } else {
-      if (value < 18.5) return "Cân nặng thấp (Gầy)";
-      if (value < 23) return "Bình thường";
-      if (value < 25) return "Thừa cân";
-      if (value < 30) return "Béo phì độ I";
-      return "Béo phì độ II";
-    }
+    // Phân loại BMI theo chuẩn châu Á
+    if (value < 16) return "🚨Gầy độ III";
+    if (value < 17) return "⚠️ Gầy độ II";
+    if (value < 18.5) return "⚠️ Gầy độ I";
+    if (value < 25) return "✅ Bình thường";
+    if (value < 30) return "⚠️ Thừa cân";
+    if (value < 35) return "⚠️ Béo phì độ I";
+    if (value < 40) return "⚠️ Béo phì độ II";
+    return "🚨 Béo phì độ III";
   };
+
+  const getBmiSuggestions = (bmiValue) => {
+  const bmi = parseFloat(bmiValue);
+  if (isNaN(bmi)) return { category: "", workout: "", meal: "" };
+
+  if (bmi < 16)
+    return {
+      category: "🚨 Gầy độ III",
+      workout:
+        "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. \
+        Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
+      meal:
+        "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. \
+        Hạn chế đồ uống có gas và cà phê quá mức.",
+    };
+
+  if (bmi < 17)
+    return {
+      category: "⚠️ Gầy độ II",
+      workout:
+        "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). \
+        Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
+      meal:
+        "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. \
+        Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
+    };
+
+  if (bmi < 18.5)
+    return {
+      category: "⚠️ Gầy độ I",
+      workout:
+        "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). \
+        Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
+      meal:
+        "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). \
+        Uống đủ 2–2.5L nước/ngày.",
+    };
+
+  if (bmi < 25)
+    return {
+      category: "✅ Bình thường",
+      workout:
+        "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). \
+        Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
+      meal:
+        "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. \
+        Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
+    };
+
+  if (bmi < 30)
+    return {
+      category: "⚠️ Thừa cân",
+      workout:
+        "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. \
+        Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
+      meal:
+        "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. \
+        Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
+    };
+
+  if (bmi < 35)
+    return {
+      category: "⚠️ Béo phì độ I",
+      workout:
+        "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. \
+        Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
+      meal:
+        "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. \
+        Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
+    };
+
+  if (bmi < 40)
+    return {
+      category: "⚠️ Béo phì độ II",
+      workout:
+        "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. \
+        Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
+      meal:
+        "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. \
+        Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
+    };
+
+  return {
+    category: "🚨 Béo phì độ III",
+    workout:
+      "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. \
+      Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
+    meal:
+      "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. \
+      Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
+  };
+};
+
+
+  
+  const suggestions = getBmiSuggestions(userInfo.bmi);
+
+// (tuỳ chọn) màu viền theo mức BMI
+const bmiColor =
+  !userInfo.bmi ? "#6c757d" :
+  userInfo.bmi < 16 ? "#0059ffff" :
+  userInfo.bmi < 17 ? "#0080ffff" :
+  userInfo.bmi < 18.5 ? "#00bfff" :
+  userInfo.bmi < 25   ? "#00c853" :
+  userInfo.bmi < 30   ? "#ffd54f" :
+  userInfo.bmi < 35   ? "#ff9800" :
+  userInfo.bmi < 40   ? "#ff6200ff" :
+                        "#e53935";
 
   const handleButtonClick = () => {
     fileInputRef.current.click();
@@ -191,7 +297,7 @@ const ProfileMember = () => {
                   }}
                   onClick={handleButtonClick}
                 >
-                  Upload Image
+                  Upload Image <HiArrowUpTray />
                 </Button>
 
                 {/* Input ẩn */}
@@ -261,7 +367,7 @@ const ProfileMember = () => {
                       <Col lg="6">
                         <FormGroup>
                           <label className="form-control-label" htmlFor="input-fullname">
-                            Full Name
+                            👤 Full Name
                           </label>
                           <Input
                             className="form-control-alternative"
@@ -278,7 +384,7 @@ const ProfileMember = () => {
                       <Col lg="6">
                         <FormGroup>
                           <label className="form-control-label" htmlFor="input-birthday-visible">
-                            Birthday
+                            🎂 Birthday
                           </label>
 
                           <div style={{ position: "relative", width: "100%" }}>
@@ -315,7 +421,7 @@ const ProfileMember = () => {
                       <Col lg="6">
                         <FormGroup>
                           <label className="form-control-label" htmlFor="input-email">
-                            Email Address
+                            ✉️ Email Address
                           </label>
                           <Input
                             className="form-control-alternative"
@@ -332,7 +438,7 @@ const ProfileMember = () => {
                       <Col lg="6">
                         <FormGroup>
                           <label className="form-control-label" htmlFor="input-phone">
-                            Phone Number
+                            <FcPhone /> Phone Number
                           </label>
                           <Input
                             className="form-control-alternative"
@@ -369,7 +475,7 @@ const ProfileMember = () => {
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-weight">
-                            Cân nặng (kg)
+                            ⚖️ Cân nặng (kg)
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -386,7 +492,7 @@ const ProfileMember = () => {
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-height">
-                            Chiều cao (cm)
+                            📏 Chiều cao (cm)
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -403,7 +509,7 @@ const ProfileMember = () => {
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-gender">
-                            Giới tính
+                            🚻 Giới tính
                           </Label>
                           <Input
                             type="select"
@@ -415,8 +521,9 @@ const ProfileMember = () => {
                             }
                           >
                             <option value="">-- Chọn giới tính --</option>
-                            <option value="Nam">Nam</option>
-                            <option value="Nữ">Nữ</option>
+                            <option value="Nam">♂️ Nam</option>
+                            <option value="Nữ">♀️ Nữ</option>
+                            <option value="Khác">⚧️ Khác</option>
                           </Input>
                         </FormGroup>
                       </Col>
@@ -427,7 +534,7 @@ const ProfileMember = () => {
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-bmi">
-                            BMI
+                            🧍 BMI
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -436,31 +543,13 @@ const ProfileMember = () => {
                             readOnly
                             value={userInfo.bmi}
                           />
-
-                          {/* Diễn giải BMI theo tuổi & giới tính */}
-                          <div
-                            className="mt-1"
-                            style={{
-                              color:
-                                parseFloat(userInfo.bmi) < 18.5
-                                  ? "#00bfff"
-                                  : parseFloat(userInfo.bmi) < 23
-                                  ? "#00ff7f"
-                                  : parseFloat(userInfo.bmi) < 25
-                                  ? "#ffd700"
-                                  : "#ff6347",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {getBmiCategory(userInfo.bmi, age, userInfo.gioiTinh)}
-                          </div>
                         </FormGroup>
                       </Col>
 
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-goal">
-                            Mục tiêu
+                            💪 Mục tiêu
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -477,7 +566,7 @@ const ProfileMember = () => {
                       <Col lg="4">
                         <FormGroup>
                           <Label className="form-control-label" htmlFor="input-health">
-                            Tình trạng sức khỏe
+                            ❤️ Tình trạng sức khỏe
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -511,15 +600,28 @@ const ProfileMember = () => {
 
                   <div className="pl-lg-4">
                     <FormGroup>
-                      <label>About Me</label>
-                      <Input
-                        className="form-control-alternative"
-                        placeholder="A few words about you ..."
-                        rows="4"
-                        defaultValue="A beautiful Dashboard for Bootstrap 4. It is Free and Open Source."
-                        type="textarea"
-                      />
+                      <label>Kế hoạch gợi ý theo BMI</label>
+                      <div
+                        className="p-3 rounded"
+                        style={{
+                          background: "#fff",
+                          color: "#333",
+                          borderLeft: `6px solid ${bmiColor}`,
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                          Trạng thái: <span>{suggestions.category || "—"}</span>
+                        </div>
+                        <div className="mt-1">
+                          🏋️ <strong>Workout:</strong> {suggestions.workout || "—"}
+                        </div>
+                        <div className="mt-2">
+                          🍽️ <strong>Meal:</strong> {suggestions.meal || "—"}
+                        </div>
+                      </div>
                     </FormGroup>
+
                   </div>
 
                   <Col className="d-flex justify-content-center align-items-center">
