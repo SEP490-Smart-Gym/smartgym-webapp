@@ -1,11 +1,26 @@
 // reactstrap components
 import {
-  Button, Card, CardHeader, CardBody, FormGroup, Form, Input, Container, Row, Col} from "reactstrap";
+  Button,
+  Card,
+  CardHeader,
+  CardBody,
+  FormGroup,
+  Form,
+  Input,
+  Container,
+  Row,
+  Col,
+  Label,
+} from "reactstrap";
 // core components
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const ProfileMember = () => {
   const [user, setUser] = useState(null);
+  const fileInputRef = useRef(null);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -14,186 +29,319 @@ const ProfileMember = () => {
     }
   }, []);
 
+  // Dữ liệu người dùng mẫu
+  const mockUserData = {
+    fullName: "Nguyễn Văn A",
+    birthday: "20/08/1995", // dd/MM/yyyy
+    email: "nguyenvana@example.com",
+    phone: "0912345678",
+    canNang: 68,
+    chieuCao: 172,
+    gioiTinh: "Nam",
+    mucTieu: "Giảm cân",
+    sucKhoe: "Tốt",
+  };
+
+  const [userInfo, setUserInfo] = useState({
+    ...mockUserData,
+    bmi: "",
+  });
+
+  // 🧮 Tự động tính BMI khi cân nặng/chiều cao thay đổi
+  useEffect(() => {
+    const { canNang, chieuCao } = userInfo;
+    if (canNang && chieuCao) {
+      const heightInMeters = chieuCao / 100;
+      const bmi = (canNang / (heightInMeters * heightInMeters)).toFixed(1);
+      setUserInfo((prev) => ({ ...prev, bmi }));
+    }
+  }, [userInfo.canNang, userInfo.chieuCao]);
+
+  // 👉 Chuyển string dd/MM/yyyy -> Date (cho react-datepicker)
+  const toDateFromDDMMYYYY = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+    return isNaN(d) ? null : d;
+  };
+
+  // 👉 Chuyển Date -> string dd/MM/yyyy (lưu state)
+  const toDDMMYYYY = (d) => {
+    if (!(d instanceof Date) || isNaN(d)) return "";
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  // 👉 (optional) Chuẩn hoá chuỗi người dùng gõ tay dd/MM/yyyy
+  const normalizeDDMMYYYY = (s) => {
+    if (!s) return "";
+    const cleaned = s.replace(/[-.]/g, "/").replace(/\s+/g, "");
+    const parts = cleaned.split("/");
+    if (parts.length !== 3) return cleaned;
+    let [d, m, y] = parts;
+    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return cleaned;
+    d = Math.min(Math.max(parseInt(d, 10), 1), 31);
+    m = Math.min(Math.max(parseInt(m, 10), 1), 12);
+    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
+  };
+
+  // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
+  const calculateAge = (birthdayString) => {
+    if (!birthdayString) return "";
+    const [day, month, year] = birthdayString.split("/").map(Number);
+    if (!day || !month || !year) return "";
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    const hasHadBirthday =
+      today.getMonth() + 1 > month ||
+      (today.getMonth() + 1 === month && today.getDate() >= day);
+    if (!hasHadBirthday) age--;
+    return age >= 0 ? age : "";
+  };
+
+  // 👉 Phân loại BMI theo tuổi & giới tính (chuẩn châu Á cho người lớn)
+  const getBmiCategory = (bmi, age, gender) => {
+    const value = parseFloat(bmi);
+    if (isNaN(value)) return "";
+    if (age !== "" && age < 20) return "Cần đánh giá theo biểu đồ tăng trưởng (BMI-for-age)";
+
+    if (gender === "Nữ") {
+      if (value < 18.5) return "Cân nặng thấp (Gầy)";
+      if (value < 23) return "Bình thường";
+      if (value < 25) return "Thừa cân";
+      if (value < 30) return "Béo phì độ I";
+      return "Béo phì độ II";
+    } else {
+      if (value < 18.5) return "Cân nặng thấp (Gầy)";
+      if (value < 23) return "Bình thường";
+      if (value < 25) return "Thừa cân";
+      if (value < 30) return "Béo phì độ I";
+      return "Béo phì độ II";
+    }
+  };
+
+  const handleButtonClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const imageUrl = URL.createObjectURL(file);
+      setPreview(imageUrl);
+    }
+  };
+
+  const age = calculateAge(userInfo.birthday);
+
   return (
     <>
       {/* Page content */}
       <Container className="mt-5 mb-5" fluid>
         <Row>
-          <Col className="order-xl-2 mb-5 mb-xl-0" xl="4">
-            <Card className="card-profile shadow">
-              <Row className="justify-content-center">
-                <Col className="order-lg-2 d-flex justify-content-center align-items-center" lg="3">
-                  <div className="card-profile-image text-center">
-                    <a href="#pablo" onClick={(e) => e.preventDefault()}>
-                      <img
-                          src={user?.photo || "/img/useravt.jpg"}
-                          alt="avatar"
-                          className="rounded-circle shadow my-2"
-                          referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
-                          onError={(e) => { e.currentTarget.src = "/img/useravt.jpg"; }}
-                          style={{ width: "150px", height: "150px", objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
-                        />
-                    </a>
-                  </div>
-                </Col>
-              </Row>
-              <CardHeader className="text-center border-0 pt-8 pt-md-4 pb-0 pb-md-4">
-                <div className="d-flex justify-content-between">
-                  <Button
-                    className="mr-4"
-                    color="info"
-                    href="#pablo"
-                    onClick={(e) => e.preventDefault()}
-                    size="sm"
-                  >
-                    Connect
-                  </Button>
-                  <Button
-                    className="float-right"
-                    color="default"
-                    href="#pablo"
-                    onClick={(e) => e.preventDefault()}
-                    size="sm"
-                  >
-                    Message
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardBody className="pt-0 pt-md-4">
-                <div className="text-center">
-                  <h3>
-                    Jessica Jones
-                    <span className="font-weight-light">, 27</span>
-                  </h3>
-                  <div className="h5 font-weight-300">
-                    <i className="ni location_pin mr-2" />
-                    Bucharest, Romania
-                  </div>
-                  <div className="h5 mt-4">
-                    <i className="ni business_briefcase-24 mr-2" />
-                    Solution Manager - Creative Tim Officer
-                  </div>
-                  <div>
-                    <i className="ni education_hat mr-2" />
-                    University of Computer Science
-                  </div>
-                  <hr className="my-4" />
-                  <p>
-                    Ryan — the name taken by Melbourne-raised, Brooklyn-based
-                    Nick Murphy — writes, performs and records all of his own
-                    music.
-                  </p>
+          <Col className="mb-5 mb-xl-0" xl="4">
+            <Row className="justify-content-center mt-2 mb-2">
+              <Col
+                lg="3"
+                className="d-flex flex-column justify-content-center align-items-center text-center"
+              >
+                {/* Ảnh đại diện */}
+                <div className="card-profile-image mb-3">
                   <a href="#pablo" onClick={(e) => e.preventDefault()}>
-                    Show more
+                    <img
+                      src={user?.photo || preview || "/img/useravt.jpg"}
+                      alt="avatar"
+                      className="rounded-circle shadow"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        e.currentTarget.src = "/img/useravt.jpg";
+                      }}
+                      style={{
+                        width: "300px",
+                        height: "300px",
+                        objectFit: "cover",
+                        border: "1px solid #ddd",
+                        background: "#f8f9fa",
+                      }}
+                    />
                   </a>
                 </div>
-              </CardBody>
-            </Card>
+
+                {/* Nút Upload */}
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  style={{
+                    backgroundColor: "#0c1844",
+                    border: "none",
+                    width: "fit-content",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#9fd1ffff";
+                    e.currentTarget.style.color = "#0c1844";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#0c1844";
+                    e.currentTarget.style.color = "#fff";
+                  }}
+                  onClick={handleButtonClick}
+                >
+                  Upload Image
+                </Button>
+
+                {/* Input ẩn */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                />
+
+                <div
+                  className="text-center"
+                  style={{ whiteSpace: "nowrap", marginTop: "10px" }}
+                >
+                  <h3
+                    style={{
+                      position: "relative",
+                      fontSize: "2rem",
+                      fontWeight: 800,
+                      color: "#0c1844",
+                      textTransform: "uppercase",
+                      letterSpacing: "2px",
+                      fontFamily: "'Rubik Glitch', cursive",
+                    }}
+                  >
+                    Jessica Jones
+                  </h3>
+
+                </div>
+              </Col>
+            </Row>
           </Col>
-          <Col className="order-xl-1" xl="8">
-            <Card className="bg-secondary shadow">
+
+          <Col xl="8">
+            <Card className="bg-secondary shadow" style={{ marginRight: "5%", marginLeft: "5%" }}>
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
-                  <Col xs="8">
-                    <h3 className="mb-0" style={{ fontWeight: "bold" }}>My account</h3>
-                  </Col>
-
-                  <Col className="text-end d-flex justify-content-end align-items-center" xs="4">
-                    <Button
-                      color="primary"
-                      href="#pablo"
-                      onClick={(e) => e.preventDefault()}
-                      size="sm"
-                    >
-                      Settings
-                    </Button>
-
+                  <Col>
+                    <h3 className="mb-0" style={{ fontWeight: "bold" }}>
+                      My account
+                    </h3>
                   </Col>
                 </Row>
               </CardHeader>
-              <CardBody className="text-primary mb-0 rounded-bottom" style={{ backgroundColor: "#0c1844", color: "white", fontWeight: "bold" }}>
+
+              <CardBody
+                className="text-primary mb-0 rounded-bottom"
+                style={{ backgroundColor: "#0c1844", color: "white", fontWeight: "bold" }}
+              >
                 <Form>
                   <h6
                     className="heading-small mb-4"
                     style={{
                       color: "#ffffff",
-                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
-                      fontWeight: "700",   // in đậm
-                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      fontSize: "1.25rem",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
                       letterSpacing: "0.5px",
                     }}
                   >
                     User Information
                   </h6>
+
                   <div className="pl-lg-4">
                     <Row>
                       <Col lg="6">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-username"
-                          >
-                            Username
+                          <label className="form-control-label" htmlFor="input-fullname">
+                            Full Name
                           </label>
                           <Input
                             className="form-control-alternative"
-                            defaultValue="lucky.jesse"
-                            id="input-username"
-                            placeholder="Username"
+                            id="input-fullname"
+                            value={userInfo.fullName}
                             type="text"
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, fullName: e.target.value })
+                            }
                           />
                         </FormGroup>
                       </Col>
+
                       <Col lg="6">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-email"
-                          >
-                            Email address
+                          <label className="form-control-label" htmlFor="input-birthday-visible">
+                            Birthday
+                          </label>
+
+                          <div style={{ position: "relative", width: "100%" }}>
+                            <DatePicker
+                              id="birthday-picker"
+                              selected={toDateFromDDMMYYYY(userInfo.birthday)}
+                              onChange={(date) =>
+                                setUserInfo({
+                                  ...userInfo,
+                                  birthday: date ? toDDMMYYYY(date) : "",
+                                })
+                              }
+                              dateFormat="dd/MM/yyyy"
+                              placeholderText="dd/mm/yyyy"
+                              showMonthDropdown
+                              showYearDropdown
+                              dropdownMode="select"
+                              isClearable
+                              maxDate={new Date()}
+                              className="form-control"
+                              wrapperClassName="w-100" // đảm bảo full width
+                            />
+                          </div>
+
+                          {/* Hiển thị tuổi dưới Birthday */}
+                          <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
+                            Tuổi: {age !== "" ? age : "--"}
+                          </div>
+                        </FormGroup>
+                      </Col>
+                    </Row>
+
+                    <Row>
+                      <Col lg="6">
+                        <FormGroup>
+                          <label className="form-control-label" htmlFor="input-email">
+                            Email Address
                           </label>
                           <Input
                             className="form-control-alternative"
                             id="input-email"
-                            placeholder="jesse@example.com"
+                            value={userInfo.email}
                             type="email"
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, email: e.target.value })
+                            }
                           />
                         </FormGroup>
                       </Col>
-                    </Row>
-                    <Row>
+
                       <Col lg="6">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-first-name"
-                          >
-                            First name
+                          <label className="form-control-label" htmlFor="input-phone">
+                            Phone Number
                           </label>
                           <Input
                             className="form-control-alternative"
-                            defaultValue="Lucky"
-                            id="input-first-name"
-                            placeholder="First name"
-                            type="text"
-                          />
-                        </FormGroup>
-                      </Col>
-                      <Col lg="6">
-                        <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-last-name"
-                          >
-                            Last name
-                          </label>
-                          <Input
-                            className="form-control-alternative"
-                            defaultValue="Jesse"
-                            id="input-last-name"
-                            placeholder="Last name"
-                            type="text"
+                            id="input-phone"
+                            type="tel"
+                            value={userInfo.phone}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, phone: e.target.value })
+                            }
                           />
                         </FormGroup>
                       </Col>
@@ -202,85 +350,143 @@ const ProfileMember = () => {
 
                   <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
 
-                  {/* Address */}
-                  <h6 className="heading-small mb-4"
+                  {/* Thông tin thể chất và sức khỏe */}
+                  <h6
+                    className="heading-small mb-4"
                     style={{
                       color: "#ffffff",
-                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
-                      fontWeight: "700",   // in đậm
-                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      fontSize: "1.25rem",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                    }}>
-                    Contact information
+                    }}
+                  >
+                    Physical & Health Information
                   </h6>
+
                   <div className="pl-lg-4">
                     <Row>
-                      <Col md="12">
+                      <Col lg="4">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-address"
-                          >
-                            Address
-                          </label>
+                          <Label className="form-control-label" htmlFor="input-weight">
+                            Cân nặng (kg)
+                          </Label>
                           <Input
                             className="form-control-alternative"
-                            defaultValue="Bld Mihail Kogalniceanu, nr. 8 Bl 1, Sc 1, Ap 09"
-                            id="input-address"
-                            placeholder="Home Address"
-                            type="text"
+                            id="input-weight"
+                            type="number"
+                            value={userInfo.canNang}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, canNang: Number(e.target.value) })
+                            }
                           />
+                        </FormGroup>
+                      </Col>
+
+                      <Col lg="4">
+                        <FormGroup>
+                          <Label className="form-control-label" htmlFor="input-height">
+                            Chiều cao (cm)
+                          </Label>
+                          <Input
+                            className="form-control-alternative"
+                            id="input-height"
+                            type="number"
+                            value={userInfo.chieuCao}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, chieuCao: Number(e.target.value) })
+                            }
+                          />
+                        </FormGroup>
+                      </Col>
+
+                      <Col lg="4">
+                        <FormGroup>
+                          <Label className="form-control-label" htmlFor="input-gender">
+                            Giới tính
+                          </Label>
+                          <Input
+                            type="select"
+                            id="input-gender"
+                            className="form-control-alternative"
+                            value={userInfo.gioiTinh}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, gioiTinh: e.target.value })
+                            }
+                          >
+                            <option value="">-- Chọn giới tính --</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                          </Input>
                         </FormGroup>
                       </Col>
                     </Row>
+
+                    {/* Hàng 2 */}
                     <Row>
                       <Col lg="4">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-city"
-                          >
-                            City
-                          </label>
+                          <Label className="form-control-label" htmlFor="input-bmi">
+                            BMI
+                          </Label>
                           <Input
                             className="form-control-alternative"
-                            defaultValue="New York"
-                            id="input-city"
-                            placeholder="City"
+                            id="input-bmi"
                             type="text"
+                            readOnly
+                            value={userInfo.bmi}
+                          />
+
+                          {/* Diễn giải BMI theo tuổi & giới tính */}
+                          <div
+                            className="mt-1"
+                            style={{
+                              color:
+                                parseFloat(userInfo.bmi) < 18.5
+                                  ? "#00bfff"
+                                  : parseFloat(userInfo.bmi) < 23
+                                  ? "#00ff7f"
+                                  : parseFloat(userInfo.bmi) < 25
+                                  ? "#ffd700"
+                                  : "#ff6347",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {getBmiCategory(userInfo.bmi, age, userInfo.gioiTinh)}
+                          </div>
+                        </FormGroup>
+                      </Col>
+
+                      <Col lg="4">
+                        <FormGroup>
+                          <Label className="form-control-label" htmlFor="input-goal">
+                            Mục tiêu
+                          </Label>
+                          <Input
+                            className="form-control-alternative"
+                            id="input-goal"
+                            type="text"
+                            value={userInfo.mucTieu}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, mucTieu: e.target.value })
+                            }
                           />
                         </FormGroup>
                       </Col>
+
                       <Col lg="4">
                         <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-country"
-                          >
-                            Country
-                          </label>
+                          <Label className="form-control-label" htmlFor="input-health">
+                            Tình trạng sức khỏe
+                          </Label>
                           <Input
                             className="form-control-alternative"
-                            defaultValue="United States"
-                            id="input-country"
-                            placeholder="Country"
+                            id="input-health"
                             type="text"
-                          />
-                        </FormGroup>
-                      </Col>
-                      <Col lg="4">
-                        <FormGroup>
-                          <label
-                            className="form-control-label"
-                            htmlFor="input-country"
-                          >
-                            Postal code
-                          </label>
-                          <Input
-                            className="form-control-alternative"
-                            id="input-postal-code"
-                            placeholder="Postal code"
-                            type="number"
+                            value={userInfo.sucKhoe}
+                            onChange={(e) =>
+                              setUserInfo({ ...userInfo, sucKhoe: e.target.value })
+                            }
                           />
                         </FormGroup>
                       </Col>
@@ -290,14 +496,19 @@ const ProfileMember = () => {
                   <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
 
                   {/* Description */}
-                  <h6 className="heading-small mb-4"
+                  <h6
+                    className="heading-small mb-4"
                     style={{
                       color: "#ffffff",
-                      fontSize: "1.25rem", // cỡ chữ to hơn (~20px)
-                      fontWeight: "700",   // in đậm
-                      textTransform: "uppercase", // viết hoa cho mạnh mẽ hơn (tuỳ chọn)
+                      fontSize: "1.25rem",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
                       letterSpacing: "0.5px",
-                    }}>About me</h6>
+                    }}
+                  >
+                    About me
+                  </h6>
+
                   <div className="pl-lg-4">
                     <FormGroup>
                       <label>About Me</label>
@@ -310,6 +521,18 @@ const ProfileMember = () => {
                       />
                     </FormGroup>
                   </div>
+
+                  <Col className="d-flex justify-content-center align-items-center">
+                    <Button
+                      color="primary"
+                      style={{
+                        transform: "none",
+                      }}
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      Settings
+                    </Button>
+                  </Col>
                 </Form>
               </CardBody>
             </Card>

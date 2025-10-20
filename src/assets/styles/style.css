@@ -1,3 +1,120 @@
+.trainer {
+  display: flex;
+  flex-direction: column;
+  background: #0c1844;
+  padding: 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgb(254, 254, 254);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.trainer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(153, 11, 11);
+}
+
+.trainer:hover { color: #ffebc0; }
+
+/** Package List **/
+/* ---------- Container (Grid) ---------- */
+.packages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); /* tự co giãn */
+  gap: 1.5rem;
+  padding: 0 3rem;
+  justify-items: center;
+}
+
+/* Max 4 cột trên màn lớn */
+@media (min-width: 1200px) {
+  .packages {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ---------- Package Card ---------- */
+.package {
+  display: flex;
+  flex-direction: column;
+  width: 20rem;                /* giữ kích thước card như cũ */
+  min-height: 20rem;
+  background: #0c1844;
+  color: #fff;
+  padding: 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.package:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(153, 11, 11);
+}
+
+.package:hover .package-price .trainer-name { color: #ffebc0; }
+
+/* ---------- Body ---------- */
+.package-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.package-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  flex: 1;
+  overflow: hidden;
+}
+
+.info-item { display: flex; align-items: center; gap: 0.6rem; }
+.info-item > svg { width: 16px; height: 16px; min-width: 16px }
+
+.icon-check {
+  color: #059742; /* xanh mặc định */
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+.icon-close {
+  color: #dd1c1c; /* đỏ mặc định */
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+/* Khi hover toàn card, icon đổi sáng */
+.package:hover .icon-check {
+  color: #4fff98;
+}
+
+.package:hover .icon-close {
+  color: #ff8383;
+}
+
+/* ---------- Button (scoped) ---------- */
+.package .btn {
+  background: #c80036;
+  color: #dbdbdb;
+}
+.package .btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  background: #dbdbdb;
+  color: #c80036;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .package {
+    width: 100%;
+    max-width: 20rem; /* card full-width, vẫn đẹp */
+  }
+}
+
+
 
 /*** Spinner Start ***/
 #spinner {

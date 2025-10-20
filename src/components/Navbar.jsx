@@ -74,7 +74,7 @@ export default function Navbar() {
                   </div>
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
-                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sat: 8.00 am-7.00 pm
+                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sun: 8.00 am-7.00 pm
                     </span>
                   </div>
                 </div>
@@ -118,6 +118,8 @@ export default function Navbar() {
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><span className="dropdown-item-text">{user.email}</span></li>
                         <li><hr className="dropdown-divider" /></li>
+
+                        {/* Admin */}
                         {user.role === "admin" && (
                           <li>
                             <button
@@ -126,9 +128,65 @@ export default function Navbar() {
                             >
                               Quản lý 
                             </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/admin")}
+                            >
+                              Profile
+                            </button>
                           </li>
                         )}
-                        <li><hr className="dropdown-divider" /></li>
+
+                        {/* Member */}
+                        {user.role === "user" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/member")}
+                            >
+                              Profile
+                            </button>
+                          </li>
+                        )}
+
+                        {/* Staff */}
+                        {user.role === "staff" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/staff")}
+                            >
+                              Profile
+                            </button>
+                          </li>
+                        )}
+
+                        {/* Manager */}
+                        {user.role === "manager" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/manager")}
+                            >
+                              Profile
+                            </button>
+                          </li>
+                        )}
+
+                        {/* Trainer */}
+                        {user.role === "trainer" && (
+                          <li>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("profile/trainer")}
+                            >
+                              Profile
+                            </button>
+                          </li>
+                        )}
+
+                        <hr className="dropdown-divider" />
                         <li><button className="dropdown-item" onClick={handleLogout}>Logout</button></li>
                       </ul>
                     </div>

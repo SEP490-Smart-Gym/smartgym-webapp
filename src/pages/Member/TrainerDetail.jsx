@@ -18,7 +18,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 // import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 // 🧩 Mock data: Trainers
-const trainers = [
+export const trainers = [
   {
     id: 101,
     avatar: "/img/team-1.jpg",

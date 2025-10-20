@@ -15,8 +15,18 @@ import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
 
+// Profiles
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
+import ProfileManager from "../pages/Manager/ProfileManager.jsx";
+import ProfileStaff from "../pages/Staff/Profile.jsx";
+import ProfileTrainer from "../pages/Trainer/Profile.jsx";
+import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
+
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
+import TrainerList from "../pages/Member/TrainerList.jsx";
+
+import PackageList from "../pages/Member/PackageList.jsx";
+import PackageDetail from "../pages/Member/PackageDetail.jsx";
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -44,7 +54,7 @@ export default function AppRoutes() {
         <Route index element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="about" element={<About />} />
+        
         <Route path="contact" element={<Contact />} />
         <Route path="403" element={<Forbidden />} />
 
@@ -53,19 +63,22 @@ export default function AppRoutes() {
           <Route path="/classes" element={<Classes />} />
           <Route path="/contact" element={<Contact />} />
 
-          {/* Các link còn lại trong navbar
-              -> Khi bạn có trang thật, mở comment và thay <Home /> bằng component tương ứng */}
-          <Route path="course" element={<Home />} />
-          <Route path="blog" element={<Home />} />
-          <Route path="team" element={<Home />} />
-          <Route path="feature" element={<Home />} />
-          <Route path="testimonial" element={<Home />} />
-
-          {/* Profile member */}
+          {/* Profile */}
           <Route path="profile/member" element={<ProfileMember />} />
+          <Route path="profile/manager" element={<ProfileManager />} />
+          <Route path="profile/staff" element={<ProfileStaff />} />
+          <Route path="profile/trainer" element={<ProfileTrainer />} />
+          <Route path="profile/admin" element={<ProfileAdmin />} />
 
-          {/* Trainer detail */}
+
+          {/* Trainer */}
+          <Route path="/trainers" element={<TrainerList />} />
           <Route path="trainer/:id" element={<TrainerDetail />} />
+
+
+          {/* Packages */}
+          <Route path="/packages" element={<PackageList />} />
+          <Route path="/packages/:id" element={<PackageDetail />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
