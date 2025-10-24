@@ -539,12 +539,6 @@ export default function Home() {
                       <Link to={`/trainer/${t.id}`}>
                         <div className="team-img">
                           <img src={t.img} className="img-fluid w-100" alt={t.name} />
-                          <div className="team-icon">
-                            <button type="button" aria-label="facebook" className="btn btn-primary btn-sm-square"><i className="fab fa-facebook-f"></i></button>
-                            <button type="button" aria-label="twitter" className="btn btn-primary btn-sm-square"><i className="fab fa-twitter"></i></button>
-                            <button type="button" aria-label="instagram" className="btn btn-primary btn-sm-square"><i className="fab fa-instagram"></i></button>
-                            <button type="button" aria-label="linkedin" className="btn btn-primary btn-sm-square"><i className="fab fa-linkedin-in"></i></button>
-                          </div>
                         </div>
                       </Link>
                     <div className="team-content" >

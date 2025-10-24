@@ -28,6 +28,10 @@ import TrainerList from "../pages/Member/TrainerList.jsx";
 import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
 
+// import TrainerSchedule from "../pages/Trainer/Schedule.jsx";
+import TrainerSchedule from "../pages/Member/Schedule.jsx";
+
+
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -72,6 +76,9 @@ export default function AppRoutes() {
           {/* Trainer */}
           <Route path="/trainers" element={<TrainerList />} />
           <Route path="trainer/:id" element={<TrainerDetail />} />
+
+          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
+          <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
 
 
           {/* Packages */}

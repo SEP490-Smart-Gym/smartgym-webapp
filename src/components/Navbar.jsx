@@ -150,6 +150,15 @@ export default function Navbar() {
                             >
                               Profile
                             </button>
+
+                            <hr className="dropdown-divider" />
+
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/id/schedule")}
+                            >
+                              My Schedule
+                            </button>
                           </li>
                         )}
 
@@ -185,6 +194,12 @@ export default function Navbar() {
                               onClick={() => navigate("profile/trainer")}
                             >
                               Profile
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/trainer/id/schedule")}
+                            >
+                              My Schedule
                             </button>
                           </li>
                         )}
