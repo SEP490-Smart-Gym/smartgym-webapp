@@ -1,12 +1,8 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
+import { Table, Button, Space, Tag, Input, Select } from "antd";
 
-const STATUS_OPTIONS = [
-  "Đang hoạt động",
-  "Đang bảo trì",
-  "Hư hỏng",
-  "Tồn kho",
-];
+const STATUS_OPTIONS = ["Đang hoạt động", "Đang bảo trì", "Hư hỏng", "Tồn kho"];
 
 export default function EquipmentList() {
   const [equipments, setEquipments] = useState([
@@ -28,16 +24,14 @@ export default function EquipmentList() {
     },
   ]);
 
-  // Form thêm mới
   const [form, setForm] = useState({
     name: "",
     code: "",
     brand: "",
-    status: STATUS_OPTIONS[3], // mặc định: Tồn kho
+    status: STATUS_OPTIONS[3],
     photo: "",
   });
 
-  // Sửa inline
   const [editingId, setEditingId] = useState(null);
   const [editRow, setEditRow] = useState({
     name: "",
@@ -47,6 +41,7 @@ export default function EquipmentList() {
     photo: "",
   });
 
+  // ======== CRUD Handlers ========
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
@@ -81,13 +76,7 @@ export default function EquipmentList() {
 
   const startEdit = (item) => {
     setEditingId(item.id);
-    setEditRow({
-      name: item.name,
-      code: item.code,
-      brand: item.brand,
-      status: item.status,
-      photo: item.photo,
-    });
+    setEditRow({ ...item });
   };
 
   const cancelEdit = () => {
@@ -128,19 +117,140 @@ export default function EquipmentList() {
     }
   };
 
-  const statusBadge = (s) => {
-    switch (s) {
-      case "Đang hoạt động":
-        return "bg-success";
-      case "Đang bảo trì":
-        return "bg-warning text-dark";
-      case "Hư hỏng":
-        return "bg-danger";
-      case "Tồn kho":
-      default:
-        return "bg-secondary";
-    }
+  const statusColor = {
+    "Đang hoạt động": "green",
+    "Đang bảo trì": "gold",
+    "Hư hỏng": "red",
+    "Tồn kho": "gray",
   };
+
+  // ======== Table Columns ========
+  const columns = [
+    {
+      title: "Ảnh",
+      dataIndex: "photo",
+      key: "photo",
+      width: 90,
+      fixed: "left",
+      render: (src, record) => (
+        <img
+          src={editingId === record.id ? editRow.photo || "/img/useravt.jpg" : src || "/img/useravt.jpg"}
+          alt={record.name}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 8,
+            objectFit: "cover",
+            border: "1px solid #ddd",
+          }}
+          onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+        />
+      ),
+    },
+    {
+      title: "Tên máy",
+      dataIndex: "name",
+      key: "name",
+      width: 220,
+      render: (_, record) =>
+        editingId === record.id ? (
+          <Input
+            size="small"
+            value={editRow.name}
+            onChange={(e) => setEditRow((p) => ({ ...p, name: e.target.value }))}
+          />
+        ) : (
+          record.name
+        ),
+    },
+    {
+      title: "Mã máy",
+      dataIndex: "code",
+      key: "code",
+      width: 150,
+      render: (_, record) =>
+        editingId === record.id ? (
+          <Input
+            size="small"
+            value={editRow.code}
+            onChange={(e) => setEditRow((p) => ({ ...p, code: e.target.value }))}
+          />
+        ) : (
+          record.code
+        ),
+    },
+    {
+      title: "Thương hiệu",
+      dataIndex: "brand",
+      key: "brand",
+      width: 160,
+      render: (_, record) =>
+        editingId === record.id ? (
+          <Input
+            size="small"
+            value={editRow.brand}
+            onChange={(e) => setEditRow((p) => ({ ...p, brand: e.target.value }))}
+          />
+        ) : (
+          record.brand
+        ),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      width: 150,
+      render: (_, record) =>
+        editingId === record.id ? (
+          <Select
+            size="small"
+            value={editRow.status}
+            style={{ width: "100%" }}
+            onChange={(v) => setEditRow((p) => ({ ...p, status: v }))}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <Select.Option key={s} value={s}>
+                {s}
+              </Select.Option>
+            ))}
+          </Select>
+        ) : (
+          <Tag color={statusColor[record.status] || "default"}>{record.status}</Tag>
+        ),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      fixed: "right",
+      width: 180,
+      render: (_, record) => {
+        const isEditing = editingId === record.id;
+        return (
+          <Space>
+            {isEditing ? (
+              <>
+                <Button size="small" type="primary" onClick={saveEdit}>
+                  Lưu
+                </Button>
+                <Button size="small" onClick={cancelEdit}>
+                  Hủy
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button size="small" onClick={() => startEdit(record)}>
+                  Sửa
+                </Button>
+                <Button danger size="small" onClick={() => handleDelete(record.id)}>
+                  Xóa
+                </Button>
+              </>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="container-fluid py-5">
@@ -202,7 +312,9 @@ export default function EquipmentList() {
                     onChange={handleFormChange}
                   >
                     {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -227,6 +339,7 @@ export default function EquipmentList() {
                       <img
                         src={form.photo || "/img/useravt.jpg"}
                         alt="preview"
+                        style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover" }}
                         onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
                       />
                     </div>
@@ -239,146 +352,19 @@ export default function EquipmentList() {
             </div>
           </div>
 
-          {/* Danh sách thiết bị */}
+          {/* Danh sách thiết bị (AntD Table) */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách thiết bị</h5>
-
-              <div className="table-responsive">
-                <table className="table table-bordered align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Ảnh</th>
-                      <th>Tên máy</th>
-                      <th>Mã máy</th>
-                      <th>Thương hiệu</th>
-                      <th>Trạng thái</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {equipments.length ? (
-                      equipments.map((it) => {
-                        const isEditing = editingId === it.id;
-                        return (
-                          <tr key={it.id}>
-                            <td style={{ width: 72 }}>
-                              <img
-                                src={(isEditing ? editRow.photo : it.photo) || "/img/useravt.jpg"}
-                                alt={it.name}
-                                className="rounded"
-                                style={{ width: 56, height: 56, objectFit: "cover" }}
-                                onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
-                              />
-                            </td>
-
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  className="form-control form-control-sm"
-                                  value={editRow.name}
-                                  onChange={(e) =>
-                                    setEditRow((p) => ({ ...p, name: e.target.value }))
-                                  }
-                                />
-                              ) : (
-                                it.name
-                              )}
-                            </td>
-
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  className="form-control form-control-sm"
-                                  value={editRow.code}
-                                  onChange={(e) =>
-                                    setEditRow((p) => ({ ...p, code: e.target.value }))
-                                  }
-                                />
-                              ) : (
-                                it.code
-                              )}
-                            </td>
-
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  className="form-control form-control-sm"
-                                  value={editRow.brand}
-                                  onChange={(e) =>
-                                    setEditRow((p) => ({ ...p, brand: e.target.value }))
-                                  }
-                                />
-                              ) : (
-                                it.brand
-                              )}
-                            </td>
-
-                            <td>
-                              {isEditing ? (
-                                <select
-                                  className="form-select form-select-sm"
-                                  value={editRow.status}
-                                  onChange={(e) =>
-                                    setEditRow((p) => ({ ...p, status: e.target.value }))
-                                  }
-                                >
-                                  {STATUS_OPTIONS.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span className={`badge ${statusBadge(it.status)}`}>
-                                  {it.status}
-                                </span>
-                              )}
-                            </td>
-
-                            <td style={{ whiteSpace: "nowrap" }}>
-                              {isEditing ? (
-                                <>
-                                  <button className="btn btn-sm btn-primary me-2" onClick={saveEdit}>
-                                    <i className="fa fa-save me-1" /> Lưu
-                                  </button>
-                                  <button className="btn btn-sm btn-secondary" onClick={cancelEdit}>
-                                    <i className="fa fa-times me-1" /> Hủy
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    className="btn btn-sm btn-dark me-2"
-                                    onClick={() => startEdit(it)}
-                                   
-                                  >
-                                    <i className="fa fa-edit me-1" /> Sửa
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-danger"
-                                    onClick={() => handleDelete(it.id)}
-                                  >
-                                    <i className="fa fa-trash me-1" /> Xoá
-                                  </button>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="text-center text-muted py-3">
-                          Chưa có thiết bị nào
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
+              <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={equipments}
+                pagination={{ pageSize: 8 }}
+                scroll={{ x: "max-content" }}
+              />
             </div>
           </div>
-
         </div>
       </div>
     </div>

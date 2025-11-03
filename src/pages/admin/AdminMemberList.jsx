@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
+import { Table, Space, Button } from "antd";
 
 export default function AdminMemberList() {
   const [members, setMembers] = useState([
@@ -36,14 +37,14 @@ export default function AdminMemberList() {
   // Dữ liệu đang chỉnh sửa (mở modal khi khác null)
   const [editingMember, setEditingMember] = useState(null);
 
-  // yyyy-mm-dd -> dd/mm/yyyy (hiển thị bảng)
+  // yyyy-mm-dd -> dd/mm/yyyy
   const formatDateDisplay = (dateStr) => {
     if (!dateStr) return "—";
     const [y, m, d] = dateStr.split("-");
     return `${d}/${m}/${y}`;
   };
 
-  // Thêm member
+  // Thêm hội viên
   const handleAdd = (e) => {
     e.preventDefault();
     if (!newMember.name || !newMember.phone || !newMember.email) {
@@ -51,7 +52,7 @@ export default function AdminMemberList() {
       return;
     }
     const entry = { ...newMember, id: Date.now() };
-    setMembers((prev) => [...prev, entry]);
+    setMembers((prev) => [entry, ...prev]);
     setNewMember({
       name: "",
       gender: "Nam",
@@ -62,14 +63,14 @@ export default function AdminMemberList() {
     });
   };
 
-  // Xóa member
+  // Xóa hội viên
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc muốn xóa hội viên này?")) {
       setMembers((prev) => prev.filter((m) => m.id !== id));
     }
   };
 
-  // Cập nhật member (trong modal)
+  // Cập nhật hội viên
   const handleUpdate = (e) => {
     e.preventDefault();
     setMembers((prev) =>
@@ -77,6 +78,90 @@ export default function AdminMemberList() {
     );
     setEditingMember(null);
   };
+
+  // ===== AntD Table Columns =====
+  const columns = [
+    {
+      title: "Ảnh",
+      dataIndex: "photo",
+      key: "photo",
+      width: 90,
+      fixed: "left",
+      render: (src, record) => (
+        <img
+          src={src || "/img/useravt.jpg"}
+          alt={record.name}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: "50%",
+            objectFit: "cover",
+            border: "1px solid #ddd",
+          }}
+          onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+        />
+      ),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Tên",
+      dataIndex: "name",
+      key: "name",
+      width: 220,
+      fixed: "left",
+      ellipsis: true,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Giới tính",
+      dataIndex: "gender",
+      key: "gender",
+      width: 120,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Ngày sinh",
+      dataIndex: "dob",
+      key: "dob",
+      width: 140,
+      render: (v) => formatDateDisplay(v),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "SĐT",
+      dataIndex: "phone",
+      key: "phone",
+      width: 150,
+      render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      width: 220,
+      render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
+      ellipsis: true,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      fixed: "right",
+      width: 160,
+      render: (_, record) => (
+        <Space>
+          <Button size="small" onClick={() => setEditingMember(record)}>
+            Sửa
+          </Button>
+          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+            Xoá
+          </Button>
+        </Space>
+      ),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+  ];
 
   return (
     <div className="container-fluid py-5">
@@ -90,7 +175,7 @@ export default function AdminMemberList() {
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý hội viên</h2>
 
-          {/* Form thêm mới */}
+          {/* Form thêm mới (giữ nguyên) */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm hội viên mới</h5>
@@ -182,77 +267,21 @@ export default function AdminMemberList() {
             </div>
           </div>
 
-          {/* Danh sách hội viên */}
+          {/* Danh sách hội viên (AntD Table) */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách hội viên</h5>
-
-              <div className="table-responsive">
-                <table className="table table-bordered align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Ảnh</th>
-                      <th>Tên</th>
-                      <th>Giới tính</th>
-                      <th>Ngày sinh</th>
-                      <th>SĐT</th>
-                      <th>Email</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.length > 0 ? (
-                      members.map((m) => (
-                        <tr key={m.id}>
-                          <td>
-                            <img
-                              src={m.photo || "/img/useravt.jpg"}
-                              alt="avatar"
-                              style={{
-                                width: 50,
-                                height: 50,
-                                borderRadius: "50%",
-                                objectFit: "cover",
-                                border: "1px solid #ddd",
-                              }}
-                              onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
-                            />
-                          </td>
-                          <td>{m.name}</td>
-                          <td>{m.gender}</td>
-                          <td>{formatDateDisplay(m.dob)}</td>
-                          <td>{m.phone}</td>
-                          <td>{m.email}</td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-warning me-2"
-                              onClick={() => setEditingMember(m)}
-                            >
-                              <i className="fas fa-edit me-1"></i>Sửa
-                            </button>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleDelete(m.id)}
-                            >
-                              <i className="fas fa-trash me-1"></i>Xóa
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center text-muted py-3">
-                          Chưa có hội viên nào
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={members}
+                pagination={{ pageSize: 8 }}
+                scroll={{ x: "max-content" }}
+              />
             </div>
           </div>
 
-          {/* Modal cập nhật hội viên */}
+          {/* Modal chỉnh sửa hội viên (giữ nguyên Bootstrap modal) */}
           {editingMember && (
             <div
               className="modal fade show"
@@ -279,7 +308,10 @@ export default function AdminMemberList() {
                             className="form-control"
                             value={editingMember.name}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, name: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                name: e.target.value,
+                              }))
                             }
                           />
                         </div>
@@ -290,7 +322,10 @@ export default function AdminMemberList() {
                             className="form-select"
                             value={editingMember.gender}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, gender: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                gender: e.target.value,
+                              }))
                             }
                           >
                             <option value="Nam">Nam</option>
@@ -306,7 +341,10 @@ export default function AdminMemberList() {
                             className="form-control"
                             value={editingMember.dob}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, dob: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                dob: e.target.value,
+                              }))
                             }
                           />
                         </div>
@@ -318,7 +356,10 @@ export default function AdminMemberList() {
                             className="form-control"
                             value={editingMember.email}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, email: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                email: e.target.value,
+                              }))
                             }
                           />
                         </div>
@@ -329,7 +370,10 @@ export default function AdminMemberList() {
                             className="form-control"
                             value={editingMember.phone}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, phone: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                phone: e.target.value,
+                              }))
                             }
                           />
                         </div>
@@ -340,7 +384,10 @@ export default function AdminMemberList() {
                             className="form-control"
                             value={editingMember.photo || ""}
                             onChange={(e) =>
-                              setEditingMember((p) => ({ ...p, photo: e.target.value }))
+                              setEditingMember((p) => ({
+                                ...p,
+                                photo: e.target.value,
+                              }))
                             }
                             placeholder="Dán link ảnh hoặc để trống"
                           />
