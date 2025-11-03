@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
+import { Table, Tag, Space, Button, message } from "antd";
 
 export default function AdminPackages() {
   const [packages, setPackages] = useState([
@@ -74,15 +75,17 @@ export default function AdminPackages() {
       description: "",
       hasPT: false,
     });
+    message.success("Đã thêm gói tập");
   };
 
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc muốn xóa gói này?")) {
       setPackages((prev) => prev.filter((pkg) => pkg.id !== id));
+      message.success("Đã xoá gói");
     }
   };
 
-  // ------ Modal cập nhật ------
+  // ------ Modal cập nhật (giữ nguyên luồng CRUD) ------
   const [editingPkg, setEditingPkg] = useState(null);
 
   const handleUpdate = (e) => {
@@ -91,10 +94,91 @@ export default function AdminPackages() {
     if (!editingPkg.price || +editingPkg.price <= 0) return alert("Giá phải lớn hơn 0!");
 
     setPackages((prev) =>
-      prev.map((p) => (p.id === editingPkg.id ? { ...editingPkg, price: +editingPkg.price } : p))
+      prev.map((p) =>
+        p.id === editingPkg.id ? { ...editingPkg, price: +editingPkg.price } : p
+      )
     );
     setEditingPkg(null);
+    message.success("Cập nhật gói thành công");
   };
+
+  // ======= AntD Table columns (chỉ thay phần bảng) =======
+  const columns = [
+    {
+      title: "Tên gói",
+      dataIndex: "name",
+      key: "name",
+      fixed: "left",
+      width: 220,
+      ellipsis: true,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Giới hạn",
+      dataIndex: "limit",
+      key: "limit",
+      width: 140,
+      render: (v) => v || "—",
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Loại",
+      dataIndex: "type",
+      key: "type",
+      width: 110,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Số buổi",
+      dataIndex: "amount",
+      key: "amount",
+      width: 110,
+      render: (v) => (v || v === 0 ? v : "—"),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Giá",
+      dataIndex: "price",
+      key: "price",
+      width: 150,
+      render: (v) => `${Number(v).toLocaleString("vi-VN")} đ`,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      width: 280,
+      ellipsis: true,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "PT",
+      dataIndex: "hasPT",
+      key: "hasPT",
+      width: 100,
+      render: (v) =>
+        v ? <Tag color="green">Có</Tag> : <Tag color="default">Không</Tag>,
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      fixed: "right",
+      width: 170,
+      render: (_, record) => (
+        <Space>
+          <Button size="small" onClick={() => setEditingPkg(record)}>
+            Sửa
+          </Button>
+          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+            Xoá
+          </Button>
+        </Space>
+      ),
+      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+  ];
 
   return (
     <div className="container-fluid py-5">
@@ -108,7 +192,7 @@ export default function AdminPackages() {
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý gói tập</h2>
 
-          {/* Form thêm gói mới */}
+          {/* Form thêm gói mới (giữ nguyên) */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm gói tập mới</h5>
@@ -213,71 +297,21 @@ export default function AdminPackages() {
             </div>
           </div>
 
-          {/* Danh sách gói */}
+          {/* Danh sách gói (AntD Table) */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách gói tập</h5>
-              <div className="table-responsive">
-                <table className="table table-bordered align-middle">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Tên gói</th>
-                      <th>Giới hạn</th>
-                      <th>Loại</th>
-                      <th>Số buổi</th>
-                      <th>Giá</th>
-                      <th>Mô tả</th>
-                      <th>PT</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {packages.length ? (
-                      packages.map((pkg) => (
-                        <tr key={pkg.id}>
-                          <td>{pkg.name}</td>
-                          <td>{pkg.limit || "—"}</td>
-                          <td>{pkg.type}</td>
-                          <td>{pkg.amount || "—"}</td>
-                          <td>{pkg.price.toLocaleString()} đ</td>
-                          <td>{pkg.description}</td>
-                          <td>
-                            {pkg.hasPT ? (
-                              <span className="badge bg-success">Có</span>
-                            ) : (
-                              <span className="badge bg-secondary">Không</span>
-                            )}
-                          </td>
-                          <td>
-                            <button
-                              className="btn btn-sm btn-warning me-2"
-                              onClick={() => setEditingPkg(pkg)}
-                            >
-                              <i className="fa fa-edit me-1" /> Sửa
-                            </button>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleDelete(pkg.id)}
-                            >
-                              <i className="fa fa-trash me-1" /> Xóa
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="8" className="text-center text-muted py-3">
-                          Chưa có gói tập nào
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={packages}
+                pagination={{ pageSize: 8 }}
+                scroll={{ x: "max-content" }}
+              />
             </div>
           </div>
 
-          {/* Modal chỉnh sửa */}
+          {/* Modal chỉnh sửa (giữ nguyên bootstrap modal) */}
           {editingPkg && (
             <div
               className="modal fade show"
@@ -291,7 +325,7 @@ export default function AdminPackages() {
                       type="button"
                       className="btn-close"
                       onClick={() => setEditingPkg(null)}
-                    ></button>
+                    />
                   </div>
                   <form onSubmit={handleUpdate}>
                     <div className="modal-body">
@@ -302,10 +336,7 @@ export default function AdminPackages() {
                             className="form-control"
                             value={editingPkg.name}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({
-                                ...p,
-                                name: e.target.value,
-                              }))
+                              setEditingPkg((p) => ({ ...p, name: e.target.value }))
                             }
                           />
                         </div>
@@ -316,10 +347,7 @@ export default function AdminPackages() {
                             className="form-select"
                             value={editingPkg.type}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({
-                                ...p,
-                                type: e.target.value,
-                              }))
+                              setEditingPkg((p) => ({ ...p, type: e.target.value }))
                             }
                           >
                             <option value="Buổi">Buổi</option>
@@ -334,10 +362,7 @@ export default function AdminPackages() {
                             className="form-control"
                             value={editingPkg.amount || ""}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({
-                                ...p,
-                                amount: e.target.value,
-                              }))
+                              setEditingPkg((p) => ({ ...p, amount: e.target.value }))
                             }
                             disabled={editingPkg.type !== "Buổi"}
                           />
@@ -349,10 +374,7 @@ export default function AdminPackages() {
                             className="form-select"
                             value={editingPkg.limit}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({
-                                ...p,
-                                limit: e.target.value,
-                              }))
+                              setEditingPkg((p) => ({ ...p, limit: e.target.value }))
                             }
                           >
                             <option value="">-- Chọn thời hạn --</option>
@@ -369,10 +391,7 @@ export default function AdminPackages() {
                             className="form-control"
                             value={editingPkg.price}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({
-                                ...p,
-                                price: e.target.value,
-                              }))
+                              setEditingPkg((p) => ({ ...p, price: e.target.value }))
                             }
                           />
                         </div>
@@ -398,10 +417,7 @@ export default function AdminPackages() {
                               type="checkbox"
                               checked={editingPkg.hasPT}
                               onChange={(e) =>
-                                setEditingPkg((p) => ({
-                                  ...p,
-                                  hasPT: e.target.checked,
-                                }))
+                                setEditingPkg((p) => ({ ...p, hasPT: e.target.checked }))
                               }
                               id="editPT"
                             />
