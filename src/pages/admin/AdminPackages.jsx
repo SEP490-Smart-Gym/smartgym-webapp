@@ -3,8 +3,26 @@ import AdminSidebar from "../../components/AdminSidebar";
 
 export default function AdminPackages() {
   const [packages, setPackages] = useState([
-    { id: 1, name: "Gói 10 buổi", limit: "1 tháng", type: "Buổi", amount: 10, price: 800000, description: "Gói siêu ưu đãi cho người mới", hasPT: false },
-    { id: 2, name: "Gói 1 tháng (có PT)", limit: "1 tháng", type: "Tháng", amount: "", price: 1200000, description: "Gói siêu ưu đãi cho người mới", hasPT: true },
+    {
+      id: 1,
+      name: "Gói 10 buổi",
+      limit: "1 tháng",
+      type: "Buổi",
+      amount: 10,
+      price: 800000,
+      description: "Gói siêu ưu đãi cho người mới",
+      hasPT: false,
+    },
+    {
+      id: 2,
+      name: "Gói 1 tháng (có PT)",
+      limit: "1 tháng",
+      type: "Tháng",
+      amount: "",
+      price: 1200000,
+      description: "Gói siêu ưu đãi cho người mới",
+      hasPT: true,
+    },
   ]);
 
   // ------ Form thêm mới ------
@@ -20,28 +38,17 @@ export default function AdminPackages() {
 
   const handleInput = (e) => {
     const { name, value, type, checked } = e.target;
-    if (name === "type") {
-      setNewPackage((prev) => ({
-        ...prev,
-        type: value,
-        // reset field không dùng
-        amount: value === "Buổi" ? prev.amount : "",
-        limit: value === "Tháng" ? prev.limit : "",
-      }));
-      return;
-    }
-    setNewPackage((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setNewPackage((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const validateAdd = () => {
     if (!newPackage.name.trim()) return alert("Vui lòng nhập tên gói!");
     if (!newPackage.price || +newPackage.price <= 0) return alert("Giá phải lớn hơn 0!");
-    if (newPackage.type === "Buổi" && (!newPackage.amount || +newPackage.amount <= 0)) {
+    if (newPackage.type === "Buổi" && (!newPackage.amount || +newPackage.amount <= 0))
       return alert("Số buổi phải > 0 với gói Buổi!");
-    }
-    if (newPackage.type === "Tháng" && !newPackage.limit) {
-      return alert("Vui lòng chọn thời hạn cho gói Tháng!");
-    }
     return true;
   };
 
@@ -50,7 +57,7 @@ export default function AdminPackages() {
     const newPkg = {
       id: Date.now(),
       name: newPackage.name.trim(),
-      limit: newPackage.type === "Tháng" ? newPackage.limit : "",
+      limit: newPackage.limit,
       type: newPackage.type,
       amount: newPackage.type === "Buổi" ? Number(newPackage.amount) : "",
       price: parseInt(newPackage.price, 10),
@@ -58,43 +65,7 @@ export default function AdminPackages() {
       hasPT: !!newPackage.hasPT,
     };
     setPackages((prev) => [newPkg, ...prev]);
-    setNewPackage({ name: "", limit: "", type: "Buổi", amount: "", price: "", description: "", hasPT: false });
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa gói này?")) {
-      setPackages((prev) => prev.filter((pkg) => pkg.id !== id));
-    }
-  };
-
-  // ------ Sửa (Update) ------
-  const [editingId, setEditingId] = useState(null);
-  const [editRow, setEditRow] = useState({
-    name: "",
-    limit: "",
-    type: "Buổi",
-    amount: "",
-    price: "",
-    description: "",
-    hasPT: false,
-  });
-
-  const startEdit = (pkg) => {
-    setEditingId(pkg.id);
-    setEditRow({
-      name: pkg.name,
-      limit: pkg.limit || "",
-      type: pkg.type,
-      amount: pkg.amount ?? "",
-      price: String(pkg.price ?? ""),
-      description: pkg.description || "",
-      hasPT: !!pkg.hasPT,
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditRow({
+    setNewPackage({
       name: "",
       limit: "",
       type: "Buổi",
@@ -105,37 +76,24 @@ export default function AdminPackages() {
     });
   };
 
-  const validateEdit = () => {
-    if (!editRow.name.trim()) return alert("Tên gói không được trống!");
-    if (!editRow.price || +editRow.price <= 0) return alert("Giá phải lớn hơn 0!");
-    if (editRow.type === "Buổi" && (!editRow.amount || +editRow.amount <= 0)) {
-      return alert("Số buổi phải > 0 với gói Buổi!");
+  const handleDelete = (id) => {
+    if (window.confirm("Bạn có chắc muốn xóa gói này?")) {
+      setPackages((prev) => prev.filter((pkg) => pkg.id !== id));
     }
-    if (editRow.type === "Tháng" && !editRow.limit) {
-      return alert("Vui lòng chọn thời hạn cho gói Tháng!");
-    }
-    return true;
   };
 
-  const saveEdit = () => {
-    if (!validateEdit()) return;
+  // ------ Modal cập nhật ------
+  const [editingPkg, setEditingPkg] = useState(null);
+
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    if (!editingPkg.name.trim()) return alert("Tên gói không được trống!");
+    if (!editingPkg.price || +editingPkg.price <= 0) return alert("Giá phải lớn hơn 0!");
+
     setPackages((prev) =>
-      prev.map((p) =>
-        p.id === editingId
-          ? {
-            ...p,
-            name: editRow.name.trim(),
-            type: editRow.type,
-            amount: editRow.type === "Buổi" ? Number(editRow.amount) : "",
-            limit: editRow.type === "Tháng" ? editRow.limit : "",
-            price: Number(editRow.price),
-            description: editRow.description.trim(),
-            hasPT: !!editRow.hasPT,
-          }
-          : p
-      )
+      prev.map((p) => (p.id === editingPkg.id ? { ...editingPkg, price: +editingPkg.price } : p))
     );
-    cancelEdit();
+    setEditingPkg(null);
   };
 
   return (
@@ -168,7 +126,12 @@ export default function AdminPackages() {
 
                 <div className="col-md-2">
                   <label className="form-label">Loại gói</label>
-                  <select name="type" className="form-select" value={newPackage.type} onChange={handleInput}>
+                  <select
+                    name="type"
+                    className="form-select"
+                    value={newPackage.type}
+                    onChange={handleInput}
+                  >
                     <option value="Buổi">Buổi</option>
                     <option value="Tháng">Tháng</option>
                   </select>
@@ -195,6 +158,7 @@ export default function AdminPackages() {
                     value={newPackage.limit}
                     onChange={handleInput}
                   >
+                    <option value="">-- Chọn thời hạn --</option>
                     <option value="1 tháng">1 tháng</option>
                     <option value="3 tháng">3 tháng</option>
                     <option value="6 tháng">6 tháng</option>
@@ -234,13 +198,17 @@ export default function AdminPackages() {
                       onChange={handleInput}
                       id="ptCheck"
                     />
-                    <label className="form-check-label" htmlFor="ptCheck">Có PT</label>
+                    <label className="form-check-label" htmlFor="ptCheck">
+                      Có PT
+                    </label>
                   </div>
                 </div>
               </div>
 
               <div className="mt-3 text-end">
-                <button className="btn btn-add" onClick={handleAdd}>Thêm gói</button>
+                <button className="btn btn-add" onClick={handleAdd}>
+                  Thêm gói
+                </button>
               </div>
             </div>
           </div>
@@ -249,7 +217,6 @@ export default function AdminPackages() {
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách gói tập</h5>
-
               <div className="table-responsive">
                 <table className="table table-bordered align-middle">
                   <thead className="table-light">
@@ -266,148 +233,203 @@ export default function AdminPackages() {
                   </thead>
                   <tbody>
                     {packages.length ? (
-                      packages.map((pkg) => {
-                        const isEditing = editingId === pkg.id;
-                        return (
-                          <tr key={pkg.id}>
-                            {/* Tên */}
-                            <td style={{ minWidth: 180 }}>
-                              {isEditing ? (
-                                <input
-                                  className="form-control form-control-sm"
-                                  value={editRow.name}
-                                  onChange={(e) => setEditRow((p) => ({ ...p, name: e.target.value }))}
-                                />
-                              ) : pkg.name}
-                            </td>
-
-                            {/* Giới hạn */}
-                            <td style={{ minWidth: 120 }}>
-                              {isEditing ? (
-                                <select
-                                  className="form-select form-select-sm"
-                                  value={editRow.limit}
-                                  onChange={(e) => setEditRow((p) => ({ ...p, limit: e.target.value }))}
-                                >
-                                  <option value="1 tháng">1 tháng</option>
-                                  <option value="3 tháng">3 tháng</option>
-                                  <option value="6 tháng">6 tháng</option>
-                                </select>
-                              ) : (pkg.limit || "—")}
-                            </td>
-
-                            {/* Loại */}
-                            <td style={{ width: 120 }}>
-                              {isEditing ? (
-                                <select
-                                  className="form-select form-select-sm"
-                                  value={editRow.type}
-                                  onChange={(e) => {
-                                    const v = e.target.value;
-                                    setEditRow((p) => ({
-                                      ...p,
-                                      type: v,
-                                      amount: v === "Buổi" ? p.amount : "",
-                                      limit: v === "Tháng" ? p.limit : "",
-                                    }));
-                                  }}
-                                >
-                                  <option value="Buổi">Buổi</option>
-                                  <option value="Tháng">Tháng</option>
-                                </select>
-                              ) : pkg.type}
-                            </td>
-
-                            {/* Số buổi */}
-                            <td style={{ width: 110 }}>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  className="form-control form-control-sm"
-                                  value={editRow.amount}
-                                  onChange={(e) => setEditRow((p) => ({ ...p, amount: e.target.value }))}
-                                  disabled={editRow.type !== "Buổi"}
-                                />
-                              ) : (pkg.amount || "—")}
-                            </td>
-
-                            {/* Giá */}
-                            <td style={{ minWidth: 120 }}>
-                              {isEditing ? (
-                                <input
-                                  type="number"
-                                  className="form-control form-control-sm"
-                                  value={editRow.price}
-                                  onChange={(e) => setEditRow((p) => ({ ...p, price: e.target.value }))}
-                                />
-                              ) : `${pkg.price.toLocaleString()} đ`}
-                            </td>
-
-                            {/* Mô tả */}
-                            <td style={{ minWidth: 220 }}>
-                              {isEditing ? (
-                                <input
-                                  className="form-control form-control-sm"
-                                  value={editRow.description}
-                                  onChange={(e) => setEditRow((p) => ({ ...p, description: e.target.value }))}
-                                />
-                              ) : pkg.description}
-                            </td>
-
-                            {/* PT */}
-                            <td style={{ width: 90 }}>
-                              {isEditing ? (
-                                <div className="form-check d-flex justify-content-center">
-                                  <input
-                                    className="form-check-input"
-                                    type="checkbox"
-                                    checked={!!editRow.hasPT}
-                                    onChange={(e) => setEditRow((p) => ({ ...p, hasPT: e.target.checked }))}
-                                  />
-                                </div>
-                              ) : (
-                                pkg.hasPT
-                                  ? <span className="badge bg-success">Có</span>
-                                  : <span className="badge bg-secondary">Không</span>
-                              )}
-                            </td>
-
-                            {/* Thao tác */}
-                            <td style={{ whiteSpace: "nowrap" }}>
-                              {isEditing ? (
-                                <>
-                                  <button className="btn btn-sm btn-primary me-2" onClick={saveEdit}>
-                                    <i className="fa fa-save me-1" /> Lưu
-                                  </button>
-                                  <button className="btn btn-sm btn-secondary" onClick={cancelEdit}>
-                                    <i className="fa fa-times me-1" /> Hủy
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button className="btn btn-sm btn-dark me-2" onClick={() => startEdit(pkg)}>
-                                    <i className="fa fa-edit me-1" /> Sửa
-                                  </button>
-                                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(pkg.id)}>
-                                    <i className="fa fa-trash me-1" /> Xoá
-                                  </button>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
+                      packages.map((pkg) => (
+                        <tr key={pkg.id}>
+                          <td>{pkg.name}</td>
+                          <td>{pkg.limit || "—"}</td>
+                          <td>{pkg.type}</td>
+                          <td>{pkg.amount || "—"}</td>
+                          <td>{pkg.price.toLocaleString()} đ</td>
+                          <td>{pkg.description}</td>
+                          <td>
+                            {pkg.hasPT ? (
+                              <span className="badge bg-success">Có</span>
+                            ) : (
+                              <span className="badge bg-secondary">Không</span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-sm btn-warning me-2"
+                              onClick={() => setEditingPkg(pkg)}
+                            >
+                              <i className="fa fa-edit me-1" /> Sửa
+                            </button>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleDelete(pkg.id)}
+                            >
+                              <i className="fa fa-trash me-1" /> Xóa
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     ) : (
                       <tr>
-                        <td colSpan="8" className="text-center text-muted py-3">Chưa có gói tập nào</td>
+                        <td colSpan="8" className="text-center text-muted py-3">
+                          Chưa có gói tập nào
+                        </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-
             </div>
           </div>
+
+          {/* Modal chỉnh sửa */}
+          {editingPkg && (
+            <div
+              className="modal fade show"
+              style={{ display: "block", background: "rgba(0,0,0,.4)" }}
+            >
+              <div className="modal-dialog modal-lg modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Cập nhật gói tập</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => setEditingPkg(null)}
+                    ></button>
+                  </div>
+                  <form onSubmit={handleUpdate}>
+                    <div className="modal-body">
+                      <div className="row g-3">
+                        <div className="col-md-6">
+                          <label className="form-label">Tên gói</label>
+                          <input
+                            className="form-control"
+                            value={editingPkg.name}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                name: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="col-md-3">
+                          <label className="form-label">Loại gói</label>
+                          <select
+                            className="form-select"
+                            value={editingPkg.type}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                type: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="Buổi">Buổi</option>
+                            <option value="Tháng">Tháng</option>
+                          </select>
+                        </div>
+
+                        <div className="col-md-3">
+                          <label className="form-label">Số buổi</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={editingPkg.amount || ""}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                amount: e.target.value,
+                              }))
+                            }
+                            disabled={editingPkg.type !== "Buổi"}
+                          />
+                        </div>
+
+                        <div className="col-md-4">
+                          <label className="form-label">Thời hạn</label>
+                          <select
+                            className="form-select"
+                            value={editingPkg.limit}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                limit: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">-- Chọn thời hạn --</option>
+                            <option value="1 tháng">1 tháng</option>
+                            <option value="3 tháng">3 tháng</option>
+                            <option value="6 tháng">6 tháng</option>
+                          </select>
+                        </div>
+
+                        <div className="col-md-4">
+                          <label className="form-label">Giá (VNĐ)</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={editingPkg.price}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                price: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="col-md-12">
+                          <label className="form-label">Mô tả</label>
+                          <input
+                            className="form-control"
+                            value={editingPkg.description}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                description: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="col-md-12">
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              checked={editingPkg.hasPT}
+                              onChange={(e) =>
+                                setEditingPkg((p) => ({
+                                  ...p,
+                                  hasPT: e.target.checked,
+                                }))
+                              }
+                              id="editPT"
+                            />
+                            <label className="form-check-label" htmlFor="editPT">
+                              Có PT
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="modal-footer">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setEditingPkg(null)}
+                      >
+                        Hủy
+                      </button>
+                      <button type="submit" className="btn btn-add">
+                        Lưu thay đổi
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

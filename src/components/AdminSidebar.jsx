@@ -46,7 +46,7 @@ export default function AdminSidebar() {
         </div>
 
         <nav className="admin-sidebar-nav">
-          <div className="admin-side-section">Management</div>
+          <div className="admin-side-section">Quản Lý</div>
           <NavLink to="/admin/packages" className="admin-side-item" end>
             <i className="fa fa-box icon" />
             <span className="label">Gói tập</span>
@@ -57,18 +57,21 @@ export default function AdminSidebar() {
             <span className="label">Huấn luyện viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-          <NavLink to="/admin/equipments" className="admin-side-item">
-            <i className="fa fa-users icon" />
-            <span className="label">Thiết bị</span>
+          <NavLink to="/admin/staffs" className="admin-side-item">
+            <i className="fa fa-user-tie icon" />
+            <span className="label">Nhân viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-
           <NavLink to="/admin/members" className="admin-side-item">
             <i className="fa fa-users icon" />
             <span className="label">Hội viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-
+          <NavLink to="/admin/equipments" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <span className="label">Thiết bị</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
           <div className="admin-side-section">System</div>
           <NavLink to="/admin/settings" className="admin-side-item">
             <i className="fa fa-cog icon" />

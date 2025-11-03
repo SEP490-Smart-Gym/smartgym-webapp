@@ -126,7 +126,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/admin/packages")}
                             >
-                              Quản lý 
+                              Quản lý
                             </button>
                             <hr className="dropdown-divider" />
                             <button
