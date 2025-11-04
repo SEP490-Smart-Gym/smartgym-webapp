@@ -1,5 +1,47 @@
 import React, { useEffect, useRef } from "react";
 
+/** ========= Mock data (mỗi ngày chỉ 1 event) ========= */
+const mockData = [
+  { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
+  { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
+  { date: "2025-11-20", time: "08:00-09:00", title: "Training session", status: "not yet" },
+  { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
+  { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
+  { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
+];
+
+function parseTimeRange(timeStr) {
+  if (!timeStr) return [0, 0, 0, 0];
+  const [start, end] = timeStr.split("-");
+  const [sh, sm] = start.split(":").map((v) => +v);
+  const [eh, em] = end ? end.split(":").map((v) => +v) : [sh, sm];
+  return [sh, sm, eh, em];
+}
+function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+
+function normalizeMockData(arr) {
+  const today = startOfDay(new Date());
+  const seen = new Set();
+  const out = [];
+  for (const it of arr) {
+    const d = new Date(it.date);
+    const k = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const [sh, sm, eh, em] = parseTimeRange(it.time);
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm, 0, 0);
+    const end = eh || em ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em, 0, 0) : null;
+    const dateOnly = startOfDay(d);
+    const status = dateOnly.getTime() > today.getTime() ? "not yet" : (it.status || "present");
+    out.push({
+      title: it.title, start, end, allDay:false, status,
+      text: `<div><strong>${it.title}</strong><br/>${it.time||""}<br/><em>Status: ${status}</em></div>`
+    });
+  }
+  out.sort((a,b)=>+a.start-+b.start);
+  return out;
+}
+
 function loadCSS(href) {
   return new Promise((resolve, reject) => {
     const existing = Array.from(document.styleSheets).find(s => s.href && s.href.includes(href));
@@ -7,20 +49,18 @@ function loadCSS(href) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
-    link.onload = () => resolve();
+    link.onload = resolve;
     link.onerror = () => reject(new Error(`Failed to load CSS: ${href}`));
     document.head.appendChild(link);
   });
 }
-
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    // If already present, resolve
     if (document.querySelector(`script[src*="${src}"]`)) return resolve();
     const s = document.createElement("script");
     s.src = src;
     s.async = false;
-    s.onload = () => resolve();
+    s.onload = resolve;
     s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
     document.body.appendChild(s);
   });
@@ -32,32 +72,18 @@ export default function Calendar() {
 
   useEffect(() => {
     (async () => {
-      // 1) Load CSS/JS deps (Bootstrap 4 + jQuery) matching the original snippet
-      await loadCSS("https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css");
-      await loadScript("https://code.jquery.com/jquery-3.3.1.min.js");
-      await loadScript("https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.bundle.min.js");
+      // 🔁 DÙNG BOOTSTRAP 5 + POPPER v2 — KHÔNG NẠP BS4
+      await loadCSS("https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css");
+      // jQuery chỉ để delegate & templating (không phụ thuộc vào BS)
+      await loadScript("https://code.jquery.com/jquery-3.6.4.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js");
 
       const $ = window.jQuery;
-      if (!$) return;
+      const bootstrap = window.bootstrap;
+      if (!bootstrap) return;
 
-      // Keep only one open popover at a time
-      let $currentPopover = null;
-      $(document)
-        .on("shown.bs.popover", function (ev) {
-          const $target = $(ev.target);
-          if ($currentPopover && $currentPopover.get(0) !== $target.get(0)) {
-            $currentPopover.popover("toggle");
-          }
-          $currentPopover = $target;
-        })
-        .on("hidden.bs.popover", function (ev) {
-          const $target = $(ev.target);
-          if ($currentPopover && $currentPopover.get(0) === $target.get(0)) {
-            $currentPopover = null;
-          }
-        });
-
-      // quicktmpl — simple micro-templating (unchanged)
+      // quicktmpl
       $.extend({
         quicktmpl: function (template) {
           return new Function(
@@ -65,260 +91,253 @@ export default function Calendar() {
             "var p=[],print=function(){p.push.apply(p,arguments);};with(obj){p.push('" +
               template
                 .replace(/[\r\t\n]/g, " ")
-                .split("{{")
-                .join("\t")
+                .split('{{').join('\t')
                 .replace(/((^|\}\})[^\t]*)'/g, "$1\r")
                 .replace(/\t:(.*?)\}\}/g, "',$1,'")
-                .split("\t")
-                .join("');")
-                .split("}}")
-                .join("p.push('")
-                .split("\r")
-                .join("\\'") +
+                .split('}}').join("p.push('")
+                .split('\t').join("');")
+                .split('\r').join("\\'") +
               "');}return p.join('');"
           );
         },
       });
 
-      // Date helpers (unchanged)
+      // Date helpers
       $.extend(Date.prototype, {
-        toDateCssClass: function () {
-          return '_' + this.getFullYear() + '_' + (this.getMonth() + 1) + '_' + this.getDate();
-        },
-        toDateInt: function () {
-          return ((this.getFullYear() * 12) + this.getMonth()) * 32 + this.getDate();
-        },
+        toDateCssClass: function () { return "_" + this.getFullYear() + "_" + (this.getMonth()+1) + "_" + this.getDate(); },
+        toDateInt: function () { return (this.getFullYear()*12 + this.getMonth())*32 + this.getDate(); },
         toTimeString: function () {
-          const hours = this.getHours();
-          const minutes = this.getMinutes();
-          const hour = hours > 12 ? hours - 12 : hours;
-          const ampm = hours >= 12 ? ' CH' : ' SA';
-          if (hours === 0 && minutes === 0) return '';
-          if (minutes > 0) return hour + ':' + minutes + ampm;
-          return hour + ampm;
+          const h=this.getHours(), m=this.getMinutes();
+          const hh = h>12? h-12 : h; const ampm = h>=12? " CH":" SA";
+          if (h===0 && m===0) return "";
+          return m>0? `${hh}:${String(m).padStart(2,"0")}${ampm}` : `${hh}${ampm}`;
         },
       });
 
-      // Build template function from the <script type="text/tmpl"/>
       const tmplEl = tmplRef.current;
       const t = $.quicktmpl(tmplEl ? tmplEl.innerHTML : "");
 
+      // === Popover helpers (BS5) ===
+      let currentPopover = null;
+      const POPOVER_OPTS = {
+        html: true,
+        container: "body",
+        placement: "auto",  // <— hợp lệ với Popper v2
+        trigger: "manual",
+        sanitize: false     // cho phép HTML content do ta tạo
+      };
+      function getOrCreatePopover(elem, opts) {
+        let instance = bootstrap.Popover.getInstance(elem);
+        if (!instance) instance = new bootstrap.Popover(elem, { ...POPOVER_OPTS, ...opts });
+        return instance;
+      }
+      function hideCurrent() {
+        if (currentPopover) {
+          try { currentPopover.hide(); } catch {}
+          currentPopover = null;
+        }
+      }
+      // Đóng khi click ra ngoài
+      $(document).on("click", (e) => {
+        if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event").length) {
+          hideCurrent();
+        }
+      });
+
       function calendar($el, options) {
+        // ===== Prev/Next =====
         $el
-          .on('click', '.js-cal-prev', function () {
-            switch (options.mode) {
-              case 'year': options.date.setFullYear(options.date.getFullYear() - 1); break;
-              case 'month': options.date.setMonth(options.date.getMonth() - 1); break;
-              case 'week': options.date.setDate(options.date.getDate() - 7); break;
-              case 'day': options.date.setDate(options.date.getDate() - 1); break;
-            }
+          .on("click", ".js-cal-prev", function () {
+            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() - 1);
+            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() - 1);
+            else if (options.mode === "week") options.date.setDate(options.date.getDate() - 7);
+            else options.date.setDate(options.date.getDate() - 1);
+            hideCurrent();
             draw();
           })
-          .on('click', '.js-cal-next', function () {
-            switch (options.mode) {
-              case 'year': options.date.setFullYear(options.date.getFullYear() + 1); break;
-              case 'month': options.date.setMonth(options.date.getMonth() + 1); break;
-              case 'week': options.date.setDate(options.date.getDate() + 7); break;
-              case 'day': options.date.setDate(options.date.getDate() + 1); break;
-            }
+          .on("click", ".js-cal-next", function () {
+            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() + 1);
+            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() + 1);
+            else if (options.mode === "week") options.date.setDate(options.date.getDate() + 7);
+            else options.date.setDate(options.date.getDate() + 1);
+            hideCurrent();
             draw();
           })
-          .on('click', '.js-cal-option', function () {
-            const $t = $(this), o = $t.data();
-            if (o.date) { o.date = new Date(o.date); }
-            $.extend(options, o);
-            draw();
-          })
-          .on('click', '.js-cal-years', function () {
-            const $t = $(this);
-            const haspop = $t.data('popover');
-            let s = '';
-            let y = options.date.getFullYear() - 2;
-            const l = y + 5;
-            if (haspop) { return true; }
-            for (; y < l; y++) {
-              s += '<button type="button" class="btn btn-default btn-lg btn-block js-cal-option" data-date="' + (new Date(y, 1, 1)).toISOString() + '" data-mode="year">' + y + '</button>';
+
+          // ===== Click MONTH label -> popover 12 tháng (BS5) =====
+          .on("click", ".js-cal-months", function (e) {
+            e.preventDefault(); e.stopPropagation();
+            const btn = this;
+            let s = '<div class="list-group">';
+            for (let m = 0; m < 12; m++) {
+              const label = `${options.months[m]}`;
+              s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
+                         data-date="${new Date(options.date.getFullYear(), m, 1).toISOString()}"
+                         data-mode="month">${label}</button>`;
             }
-            $t.popover({ content: s, html: true, placement: 'auto top' }).popover('toggle');
+            s += "</div>";
+            const pop = getOrCreatePopover(btn, { content: s });
+            if (currentPopover && currentPopover === pop) { pop.hide(); currentPopover=null; return false; }
+            hideCurrent();
+            pop.show();
+            currentPopover = pop;
             return false;
           })
-          .on('click', '.event', function () {
-            const $t = $(this);
-            const index = +($t.attr('data-index'));
-            const haspop = $t.data('popover');
-            if (haspop || isNaN(index)) { return true; }
-            const data = options.data[index];
-            let time = data.start.toTimeString();
-            if (time && data.end) { time = time + ' - ' + data.end.toTimeString(); }
-            $t.data('popover', true);
-            $t.popover({ content: '<p><strong>' + time + '</strong></p>' + data.text, html: true, placement: 'auto left' }).popover('toggle');
+
+          // ===== Click YEAR label -> popover dải năm (±6) (BS5) =====
+          .on("click", ".js-cal-years", function (e) {
+            e.preventDefault(); e.stopPropagation();
+            const btn = this;
+            const base = options.date.getFullYear();
+            const start = base - 6, end = base + 6;
+            let s = '<div class="list-group">';
+            for (let y = start; y <= end; y++) {
+              s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
+                         data-date="${new Date(y, options.date.getMonth(), 1).toISOString()}"
+                         data-mode="month">${y}</button>`;
+            }
+            s += "</div>";
+            const pop = getOrCreatePopover(btn, { content: s });
+            if (currentPopover && currentPopover === pop) { pop.hide(); currentPopover=null; return false; }
+            hideCurrent();
+            pop.show();
+            currentPopover = pop;
             return false;
           });
 
-        function dayAddEvent(index, event) {
-          if (!!event.allDay) { monthAddEvent(index, event); return; }
-          let $event = $('<div/>', { 'class': 'event', text: event.title, title: event.title, 'data-index': index });
-          const start = event.start;
-          const end = event.end || start;
-          const time = event.start.toTimeString();
-          const hour = start.getHours();
-          let timeclass = '.time-22-0';
-          const startint = start.toDateInt();
-          const dateint = options.date.toDateInt();
-          const endint = end.toDateInt();
-          if (startint > dateint || endint < dateint) { return; }
-          if (!!time) { $event.html('<strong>' + time + '</strong> ' + $event.html()); }
-          $event.toggleClass('begin', startint === dateint);
-          $event.toggleClass('end', endint === dateint);
-          if (hour < 6) { timeclass = '.time-0-0'; }
-          if (hour < 22) { timeclass = '.time-' + hour + '-' + (start.getMinutes() < 30 ? '0' : '30'); }
-          $(timeclass).append($event);
-        }
+        // ===== Click item trong popover =====
+        $(document).off("click.calOpt").on("click.calOpt", ".js-cal-option", function () {
+          const $t = $(this);
+          const o = $t.data();
+          if (o.date) o.date = new Date(o.date);
+          $.extend(options, o);
+          hideCurrent();
+          $(".popover").remove();
+          draw();
+        });
 
+        // ===== Popover chi tiết event (BS5) =====
+        $el.on("click", ".event", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          const card = this;
+          const index = +card.getAttribute("data-index");
+          if (isNaN(index)) return true;
+          const data = options.data[index];
+          let time = data.start.toTimeString();
+          if (time && data.end) time = time + " - " + data.end.toTimeString();
+          const content = `<p><strong>${time}</strong></p>${data.text || data.title}`;
+          const pop = getOrCreatePopover(card, { content });
+          if (currentPopover && currentPopover === pop) { pop.hide(); currentPopover=null; return false; }
+          hideCurrent();
+          pop.show();
+          currentPopover = pop;
+          return false;
+        });
+
+        /** ====== monthAddEvent ====== */
         function monthAddEvent(index, event) {
-          let $event = $('<div/>', { 'class': 'event', text: event.title, title: event.title, 'data-index': index });
-          let e = new Date(event.start);
-          let dateclass = e.toDateCssClass();
-          let day = $('.' + e.toDateCssClass());
-          const empty = $('<div/>', { 'class': 'clear event', html: '\u00A0' });
-          let numbevents = 0;
+          const e = new Date(event.start);
+          const dayCell = $("." + e.toDateCssClass());
+          if (!dayCell.length || dayCell.hasClass("has-event")) return;
           const time = event.start.toTimeString();
-          const endday = event.end && $('.' + event.end.toDateCssClass()).length > 0;
-          const checkanyway = new Date(e.getFullYear(), e.getMonth(), e.getDate() + 40);
-          let existing, i;
-          $event.toggleClass('all-day', !!event.allDay);
-          if (!!time) { $event.html('<strong>' + time + '</strong> ' + $event.html()); }
-          if (!event.end) {
-            $event.addClass('begin end');
-            $('.' + event.start.toDateCssClass()).append($event);
-            return;
-          }
-          while (e <= event.end && (day.length || endday || options.date < checkanyway)) {
-            if (day.length) {
-              existing = day.find('.event').length;
-              numbevents = Math.max(numbevents, existing);
-              for (i = 0; i < numbevents - existing; i++) { day.append(empty.clone()); }
-              day.append(
-                $event
-                  .toggleClass('begin', dateclass === event.start.toDateCssClass())
-                  .toggleClass('end', dateclass === event.end.toDateCssClass())
-              );
-              $event = $event.clone();
-              $event.html('\u00A0');
-            }
-            e.setDate(e.getDate() + 1);
-            dateclass = e.toDateCssClass();
-            day = $('.' + dateclass);
-          }
+          const status = (event.status || "").toLowerCase(); // present|absent|not yet
+          const $chip = $(`
+            <div class="event-chip status-${status}" data-index="${index}" title="${event.title}">
+              <div class="event-chip-title">${event.title}</div>
+              <div class="event-chip-time">${time}${event.end ? " - " + event.end.toTimeString() : ""}</div>
+              <div class="event-chip-badge">${status}</div>
+            </div>
+          `);
+          dayCell.addClass("has-event").append($chip);
         }
 
         function yearAddEvents(events, year) {
-          const counts = [0,0,0,0,0,0,0,0,0,0,0,0];
-          $.each(events, function (i, v) {
-            if (v.start.getFullYear() === year) {
-              counts[v.start.getMonth()]++;
-            }
-          });
-          $.each(counts, function (i, v) {
-            if (v !== 0) {
-              $('.month-' + i).append('<span class="badge">' + v + '</span>');
-            }
-          });
+          const counts = new Array(12).fill(0);
+          $.each(events, (i, v) => { if (v.start.getFullYear() === year) counts[v.start.getMonth()]++; });
+          $.each(counts, (i, v) => { if (v !== 0) $(".month-" + i).append('<span class="badge bg-info ms-2">'+v+"</span>"); });
         }
 
         function draw() {
           $el.html(t(options));
-          $('.' + (new Date()).toDateCssClass()).addClass('today');
+          $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
-            if (options.mode === 'year') {
-              yearAddEvents(options.data, options.date.getFullYear());
-            } else if (options.mode === 'month' || options.mode === 'week') {
-              $.each(options.data, monthAddEvent);
-            } else {
-              $.each(options.data, dayAddEvent);
-            }
+            if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
+            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
           }
         }
-
         draw();
       }
 
-      ;(function (defaults, $, window, document) {
+      (function (defaults, $, window, document) {
         $.extend({
-          calendar: function (options) { return $.extend(defaults, options); }
+          calendar: function (options) { return $.extend(defaults, options); },
         }).fn.extend({
           calendar: function (options) {
             options = $.extend({}, defaults, options);
             return $(this).each(function () { calendar($(this), options); });
-          }
+          },
         });
-      })({
-        days: ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"],
-        months: ["Tháng Một", "Tháng Hai", "Tháng Ba", "Tháng Tư", "Tháng Năm", "Tháng Sáu", "Tháng Bảy", "Tháng Tám", "Tháng Chín", "Tháng Mười", "Tháng Mười Một", "Tháng Mười Hai"],
-        shortMonths: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"],
-        date: new Date(),
-        daycss: ["", "", "", "", "", "c-saturday", "c-sunday"],
-        todayname: "Hôm nay",
-        thismonthcss: "current",
-        lastmonthcss: "outside",
-        nextmonthcss: "outside",
-        mode: "month",
-        data: []
-      }, window.jQuery, window, document);
+      })(
+        {
+          days: ["Thứ hai","Thứ ba","Thứ tư","Thứ năm","Thứ sáu","Thứ bảy","Chủ nhật"],
+          months: ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"],
+          shortMonths: ["Th1","Th2","Th3","Th4","Th5","Th6","Th7","Th8","Th9","Th10","Th11","Th12"],
+          date: new Date(),
+          daycss: ["","","","","","c-saturday","c-sunday"],
+          thismonthcss: "current",
+          lastmonthcss: "prev-month",
+          nextmonthcss: "next-month",
+          mode: "month",
+          data: [],
+        },
+        window.jQuery,
+        window,
+        document
+      );
 
-      // Sample data generation (unchanged, variable names adjusted to avoid shadowing)
-      const data = [];
-      const now = new Date();
-      let d = now.getDate();
-      const d1 = d;
-      const monthIdx = now.getMonth();
-      const year = now.getFullYear();
-      let i, end, j, c = 1063, c1 = 3329, hh, mm;
-      const names = ['Cả ngày Event', 'Long Event', 'Birthday Party', 'Repeating Event', 'Training', 'Meeting', 'Mr. Behnke', 'Date', 'Ms. Tubbs'];
-      const slipsum = [
-        "Now that we know who you are, I know who I am. I'm not a mistake! It all makes sense! In a comic, you know how you can tell who the arch-villain's going to be? He's the exact opposite of the hero. And most times they're friends, like you and me! I should've known way back when... You know why, David? Because of the kids. They called me Mr Glass.",
-        "You see? It's curious. Ted did figure it out - time travel. And when we get back, we gonna tell everyone. How it's possible, how it's done, what the dangers are. But then why fifty years in the future when the spacecraft encounters a black hole does the computer call it an 'unknown entry event'? Why don't they know? If they don't know, that means we never told anyone. And if we never told anyone it means we never made it back. Hence we die down here. Just as a matter of deductive logic.",
-        "Your bones don't break, mine do. That's clear. Your cells react to bacteria and viruses differently than mine. You don't get sick, I do. That's also clear. But for some reason, you and I react the exact same way to water. We swallow it too fast, we choke. We get some in our lungs, we drown. However unreal it may seem, we are connected, you and I. We're on the same curve, just on opposite ends.",
-        "Well, the way they make shows is, they make one show. That show's called a pilot. Then they show that show to the people who make shows, and on the strength of that one show they decide if they're going to make more shows. Some pilots get picked and become television programs. Some don't, become nothing. She starred in one of the ones that became nothing.",
-        "Yeah, I like animals better than people sometimes... Especially dogs. Dogs are the best. Every time you come home, they act like they haven't seen you in a year. And the good thing about dogs... is they got different dogs for different people. Like pit bulls. The dog of dogs. Pit bull can be the right man's best friend... or the wrong man's worst enemy. You going to give me a dog for a pet, give me a pit bull. Give me... Raoul. Right, Omar? Give me Raoul.",
-        "Like you, I used to think the world was this great place where everybody lived by the same standards I did, then some kid with a nail showed me I was living in his world, a world where chaos rules not order, a world where righteousness is not rewarded. That's Cesar's world, and if you're not willing to play by his rules, then you're gonna have to pay the price.",
-        "You think water moves fast? You should see ice. It moves like it has a mind. Like it knows it killed the world once and got a taste for murder. After the avalanche, it took us a week to climb out. Now, I don't know exactly when we turned on each other, but I know that seven of us survived the slide... and only five made it out. Now we took an oath, that I'm breaking now. We said we'd say it was the snow that killed the other two, but it wasn't. Nature is lethal but it doesn't hold a candle to man.",
-        "You see? It's curious. Ted did figure it out - time travel. And when we get back, we gonna tell everyone. How it's possible, how it's done, what the dangers are. But then why fifty years in the future when the spacecraft encounters a black hole does the computer call it an 'unknown entry event'? Why don't they know? If they don't know, that means we never told anyone. And if we never told anyone it means we never made it back. Hence we die down here. Just as a matter of deductive logic.",
-        "Like you, I used to think the world was this great place where everybody lived by the same standards I did, then some kid with a nail showed me I was living in his world, a world where chaos rules not order, a world where righteousness is not rewarded. That's Cesar's world, and if you're not willing to play by his rules, then you're gonna have to pay the price.",
-        "You think water moves fast? You should see ice. It moves like it has a mind. Like it knows it killed the world once and got a taste for murder. After the avalanche, it took us a week to climb out. Now, I don't know exactly when we turned on each other, but I know that seven of us survived the slide... and only five made it out. Now we took an oath, that I'm breaking now. We said we'd say it was the snow that killed the other two, but it wasn't. Nature is lethal but it doesn't hold a candle to man."
-      ];
-
-      for (i = 0; i < 500; i++) {
-        j = Math.max(i % 15 - 10, 0);
-        c = (c * 1063) % 1061;
-        c1 = (c1 * 3329) % 3331;
-        d = (d1 + c + c1) % 839 - 440;
-        hh = i % 36;
-        mm = (i % 4) * 15;
-        if (hh < 18) { hh = 0; mm = 0; } else { hh = Math.max(hh - 24, 0) + 8; }
-        end = !j ? null : new Date(year, monthIdx, d + j, hh + 2, mm);
-        data.push({
-          title: names[c1 % names.length],
-          start: new Date(year, monthIdx, d, hh, mm),
-          end: end,
-          allDay: !(i % 6),
-          text: slipsum[c % slipsum.length],
-        });
-      }
-
-      data.sort((a, b) => (+a.start) - (+b.start));
-
-      // Initialize calendar on the holder
-      $(holderRef.current).calendar({ data });
-
-      // --- END: Original JS ---
+      const normalized = normalizeMockData(mockData);
+      window.jQuery(holderRef.current).calendar({ data: normalized });
     })();
   }, []);
 
   return (
     <div className="container mt-5 mb-5">
-      <h1 style={{ textAlign: 'center', color: '#c80036', fontWeight: 'bold' }}>Lịch</h1>
-      {/* Template preserved exactly as provided */}
+      <style>{`
+        .nav-arrow{font-weight:800;font-size:22px;line-height:1;padding:2px 10px;border:none;background:transparent;cursor:pointer;}
+        .nav-arrow:focus{outline:none;}
+        .btn-link.no-underline{text-decoration:none!important;}
+        .btn-link.bold{font-weight:700!important;}
+
+        .calendar-day.has-event{background:#fff3f5!important;border:1px solid #ffc7d2!important;position:relative;}
+        .calendar-day.has-event .date{font-weight:700;color:#c80036;}
+
+        .event-chip{margin-top:6px;padding:6px 8px;border-radius:10px;background:#ffdbe3;border:1px dashed #ff9eb2;cursor:pointer;font-size:12px;line-height:1.25;display:grid;gap:2px;}
+        .event-chip-title{font-weight:600;}
+        .event-chip-time{opacity:.9;font-size:11px;}
+        .event-chip-badge{display:inline-block;margin-top:2px;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+
+        .event-chip.status-present{background:#e6ffed;border-color:#9ae6b4;}
+        .event-chip.status-present .event-chip-badge{background:#34d399;color:#053321;}
+        .event-chip.status-absent{background:#ffe6e6;border-color:#ffb3b3;}
+        .event-chip.status-absent .event-chip-badge{background:#f87171;color:#4a0a0a;}
+        .event-chip.status-not\\ yet{background:#f1f5f9;border-color:#cbd5e1;}
+        .event-chip.status-not\\ yet .event-chip-badge{background:#94a3b8;color:#0f172a;}
+
+        .calendar-day.today{background:#fff7cc!important;border:1px solid #ffd24d!important;box-shadow:inset 0 0 0 2px #ffe58a;}
+        .calendar-day.today .date{font-weight:800;color:#b45309;}
+        .calendar-day.has-event.today{background:#ffe9a8!important;border-color:#ffcc66!important;}
+        .calendar-day.has-event.today .event-chip{background:#ffe3a3;border-color:#ffc770;}
+
+        .calendar-day.prev-month,.calendar-day.next-month{background:#f4f5f7!important;color:#9aa0a6;opacity:.9;}
+        .calendar-day.prev-month .date,.calendar-day.next-month .date{color:#9aa0a6;font-weight:600;}
+        .calendar-day.prev-month .event-chip,.calendar-day.next-month .event-chip{background:#eef0f2;border-color:#d7dbe0;color:#6b7280;}
+
+        .popover{z-index:1080;max-width:320px;}
+        .popover .list-group-item{text-align:left;}
+      `}</style>
+
+      <h1 style={{ textAlign: "center", color: "#c80036", fontWeight: "bold" }}>Lịch</h1>
+
       <script type="text/tmpl" id="tmpl" ref={tmplRef}>
         {`
   {{ 
@@ -334,7 +353,7 @@ export default function Calendar() {
       i, j; 
   if (mode === 'week') {
     thedate = new Date(date);
-    thedate.setDate(date.getDate() - date.getDay());
+    thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
     first = new Date(thedate);
     last = new Date(thedate);
     last.setDate(last.getDate()+6);
@@ -344,51 +363,32 @@ export default function Calendar() {
     last = new Date(thedate);
     last.setDate(thedate.getDate() + 1);
   }
-  
   }}
-  <table class="calendar-table table table-condensed table-tight">
+  <table class="calendar-table table table-sm">
     <thead>
       <tr>
-        <td colspan="7" style="text-align: center">
-          <table style="white-space: nowrap; width: 100%">
+        <td colSpan="7">
+          <table style="width:100%; white-space:nowrap;">
             <tr>
-              <td style="text-align: left;">
-                <span class="btn-group">
-                  <button class="js-cal-prev btn btn-default"><</button>
-                  <button class="js-cal-next btn btn-default">></button>
-                </span>
-                <button class="js-cal-option btn btn-default {{: first.toDateInt() <= today.toDateInt() && today.toDateInt() <= last.toDateInt() ? 'active':'' }}" data-date="{{: today.toISOString()}}" data-mode="month">{{: todayname }}</button>
+              <td style="text-align:left; width:33%;">
+                <button class="js-cal-prev nav-arrow" aria-label="Prev">&lt;</button>
               </td>
-              <td>
+              <td style="text-align:center; width:34%;">
                 <span class="btn-group btn-group-lg">
-                  {{ if (mode !== 'day') { }}
-                    {{ if (mode === 'month') { }}<button class="js-cal-option btn btn-link" data-mode="year">{{: months[month] }}</button>{{ } }}
-                    {{ if (mode ==='week') { }}
-                      <button class="btn btn-link disabled">{{: shortMonths[first.getMonth()] }} {{: first.getDate() }} - {{: shortMonths[last.getMonth()] }} {{: last.getDate() }}</button>
-                    {{ } }}
-                    <button class="js-cal-years btn btn-link">{{: year}}</button> 
-                  {{ } else { }}
-                    <button class="btn btn-link disabled">{{: date.toDateString() }}</button> 
-                  {{ } }}
+                  <button class="js-cal-years btn btn-link no-underline bold">{{: year }}</button>
+                  <button class="js-cal-months btn btn-link no-underline bold">{{: months[month] }}</button>
                 </span>
               </td>
-              <td style="text-align: right">
-                <span class="btn-group">
-                  <button class="js-cal-option btn btn-default {{: mode==='year'? 'active':'' }}" data-mode=\"year\">Năm</button>
-                  <button class="js-cal-option btn btn-default {{: mode==='month'? 'active':'' }}" data-mode=\"month\">Tháng</button>
-                  <button class="js-cal-option btn btn-default {{: mode==='week'? 'active':'' }}" data-mode=\"week\">Tuần</button>
-                  <button class="js-cal-option btn btn-default {{: mode==='day'? 'active':'' }}" data-mode=\"day\">Ngày</button>
-                </span>
+              <td style="text-align:right; width:33%;">
+                <button class="js-cal-next nav-arrow" aria-label="Next">&gt;</button>
               </td>
             </tr>
           </table>
-          
         </td>
       </tr>
     </thead>
-    {{ if (mode ==='year') {
-      month = 0;
-    }}
+
+    {{ if (mode ==='year') { month = 0; }}
     <tbody>
       {{ for (j = 0; j < 3; j++) { }}
       <tr>
@@ -402,13 +402,12 @@ export default function Calendar() {
       {{ } }}
     </tbody>
     {{ } }}
+
     {{ if (mode ==='month' || mode ==='week') { }}
     <thead>
       <tr class="c-weeks">
         {{ for (i = 0; i < 7; i++) { }}
-          <th class="c-name">
-            {{: days[i] }}
-          </th>
+          <th class="c-name">{{: days[i] }}</th>
         {{ } }}
       </tr>
     </thead>
@@ -426,40 +425,26 @@ export default function Calendar() {
       {{ } }}
     </tbody>
     {{ } }}
+
     {{ if (mode ==='day') { }}
     <tbody>
       <tr>
-        <td colspan="7">
-          <table class="table table-striped table-condensed table-tight-vert" >
+        <td colSpan="7">
+          <table class="table table-striped table-sm">
             <thead>
               <tr>
-                <th> </th>
-                <th style="text-align: center; width: 100%">{{: days[(date.getDay()+6)%7] }}</th>
+                <th> </th>
+                <th style="text-align:center; width: 100%">{{: days[(date.getDay()+6)%7] }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <th class="timetitle" >Cả ngày</th>
-                <td class="{{: date.toDateCssClass() }}">  </td>
-              </tr>
-              <tr>
-                <th class="timetitle" >Trước 6 giờ sáng</th>
-                <td class="time-0-0"> </td>
-              </tr>
-              {{for (i = 6; i < 22; i++) { }}
-              <tr>
-                <th class="timetitle" >{{: i <= 12 ? i : i - 12 }} {{: i < 12 ? "SA" : "CH"}}</th>
-                <td class="time-{{: i}}-0"> </td>
-              </tr>
-              <tr>
-                <th class="timetitle" >{{: i <= 12 ? i : i - 12 }}:30 {{: i < 12 ? "SA" : "CH"}}</th>
-                <td class="time-{{: i}}-30"> </td>
-              </tr>
+              <tr><th class="timetitle">Cả ngày</th><td class="{{: date.toDateCssClass() }}"></td></tr>
+              <tr><th class="timetitle">Trước 6 giờ sáng</th><td class="time-0-0"></td></tr>
+              {{ for (i = 6; i < 22; i++) { }}
+              <tr><th class="timetitle">{{: i <= 12 ? i : i - 12 }} {{: i < 12 ? "SA" : "CH"}}</th><td class="time-{{: i}}-0"></td></tr>
+              <tr><th class="timetitle">{{: i <= 12 ? i : i - 12 }}:30 {{: i < 12 ? "SA" : "CH"}}</th><td class="time-{{: i}}-30"></td></tr>
               {{ } }}
-              <tr>
-                <th class="timetitle" >Sau 10 giờ tối</th>
-                <td class="time-22-0"> </td>
-              </tr>
+              <tr><th class="timetitle">Sau 10 giờ tối</th><td class="time-22-0"></td></tr>
             </tbody>
           </table>
         </td>
