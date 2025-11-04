@@ -559,7 +559,7 @@ export default function Home() {
         </div>
 
         {/* Testimonial */}
-        <div id="testimonial-section" className="container-fluid testimonial bg-dark py-5" style={{ marginBottom: 90 }}>
+        <div id="testimonial-section" className="container-fluid testimonial py-5" style={{ marginBottom: 90 }}>
           <div className="container py-5">
             <div className="text-center mx-auto pb-5" data-aos="fade-up" style={{ maxWidth: 800 }}>
               <h4 className="text-primary">Testimonial</h4>

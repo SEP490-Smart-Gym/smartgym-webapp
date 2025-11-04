@@ -24,6 +24,7 @@ import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
 
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
+import CartComponent from "../pages/Member/Payment.jsx";
 
 import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
@@ -82,6 +83,9 @@ export default function AppRoutes() {
 
           {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
           <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
+
+          {/* Payment */}
+          <Route path="/cart" element={<CartComponent />} />
 
 
           {/* Packages */}
