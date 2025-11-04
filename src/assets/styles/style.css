@@ -340,7 +340,7 @@
 .btn.btn-dark {
     color: var(--bs-primary);
     border: none;
-    transform: skew(18deg);
+    /* transform: skew(18deg); */
     transition: 0.5s;
 }
 
@@ -1683,4 +1683,12 @@
 @media (max-width: 991.98px){
   .admin-content{ margin-left: 0; }
 }
-
+/* img admin page*/
+.photo-preview img{
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid #eee;
+  background: #fff;
+}

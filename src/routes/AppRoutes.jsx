@@ -35,6 +35,10 @@ import TrainerSchedule from "../pages/Member/Schedule.jsx";
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
+import AdminTrainerList from "../pages/admin/AdminTrainerList.jsx";
+import EquipmentList from "../pages/admin/EquipmentList.jsx";
+import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
+import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
 
 function Layout() {
   return (
@@ -64,7 +68,6 @@ export default function AppRoutes() {
           <Route path="/about" element={<About />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/contact" element={<Contact />} />
-
           {/* Profile */}
           <Route path="profile/member" element={<ProfileMember />} />
           <Route path="profile/manager" element={<ProfileManager />} />
@@ -108,6 +111,10 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="admin/dashboard" element={<Home />} />
           <Route path="admin/packages" element={<AdminPackages />} />
+          <Route path="/admin/trainers" element={<AdminTrainerList />} />
+          <Route path="/admin/equipments" element={<EquipmentList />} />
+          <Route path="/admin/members" element={<AdminMemberList />} />
+          <Route path="/admin/staffs" element={<AdminStaffList />} />
         </Route>
 
         {/* Route dành cho manager */}
