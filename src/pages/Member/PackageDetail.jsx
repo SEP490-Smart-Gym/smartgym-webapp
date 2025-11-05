@@ -16,14 +16,9 @@ export default function PackageDetail() {
   );
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [safeId, setSafeId] = useState(null);
+  // Tạo ID 4 số ngẫu nhiên NGAY LÚC KHỞI TẠO (không chờ useEffect)
+  const [safeId] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const navigate = useNavigate();
-
-  // 🆕 Khi load, sinh ID 4 số ngẫu nhiên
-  useEffect(() => {
-    const random4 = Math.floor(1000 + Math.random() * 9000);
-    setSafeId(random4.toString());
-  }, []);
 
   const featureImgs = [
     "/img/feature-1.jpg",
@@ -213,7 +208,8 @@ export default function PackageDetail() {
             </button>
 
             {/* ✅ Nút đăng ký sinh ID 4 số random */}
-            <button
+            <Link
+              to={`/${safeId}/cart`}
               className="btn btn-lg"
               style={{
                 backgroundColor: "#C80036",
@@ -224,18 +220,11 @@ export default function PackageDetail() {
                 borderRadius: "8px",
                 transition: "all 0.2s ease",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.filter = "brightness(1.1)")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.filter = "brightness(1)")
-              }
-              onClick={() => safeId && console.log("Generated ID:", safeId) && navigate(`/${safeId}/cart`)}
-              disabled={!safeId}
-              title={!safeId ? "Đang tạo ID..." : undefined}
+              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
+              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
             >
               <span>Đăng ký ngay</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,6 +1,13 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { Box, Stepper, Step, StepLabel, Card, CardContent, CardMedia, Typography, IconButton, TextField, Button, Stack, Grid, Divider, Paper, useTheme, styled, Container, CircularProgress, RadioGroup, FormControlLabel, Radio, Snackbar, Alert } from "@mui/material";
-import { FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiCreditCard, FiArrowLeft, FiArrowRight, FiLock } from "react-icons/fi";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import {
+  Box, Stepper, Step, StepLabel, Card, CardContent, CardMedia, Typography,
+  IconButton, TextField, Button, Stack, Grid, Divider, Paper, useTheme, styled,
+  Container, CircularProgress, Snackbar, Alert
+} from "@mui/material";
+import {
+  FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiCreditCard,
+  FiArrowLeft, FiArrowRight, FiLock
+} from "react-icons/fi";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   marginBottom: theme.spacing(2),
@@ -28,7 +35,7 @@ const CheckoutSteps = ({ activeStep, steps }) => (
   </Stepper>
 );
 
-const PaymentForm = ({ onSubmit }) => (
+const PaymentForm = () => (
   <Stack spacing={3}>
     <TextField label="Card Number" fullWidth placeholder="1234 5678 9012 3456" />
     <Grid container spacing={2}>
@@ -43,56 +50,43 @@ const PaymentForm = ({ onSubmit }) => (
   </Stack>
 );
 
-const ShippingForm = ({ onSubmit }) => (
-  <Stack spacing={3}>
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6}>
-        <TextField label="First Name" fullWidth />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField label="Last Name" fullWidth />
-      </Grid>
-    </Grid>
-    <TextField label="Address Line 1" fullWidth />
-    <TextField label="Address Line 2" fullWidth />
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6}>
-        <TextField label="City" fullWidth />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField label="Postal Code" fullWidth />
-      </Grid>
-    </Grid>
-    <TextField label="Phone Number" fullWidth />
-  </Stack>
-);
-
 const CartComponent = () => {
   const theme = useTheme();
+  const SINGLE_SERVICE = true;
+
+  // Chỉ 1 dịch vụ trong giỏ
   const [cartItems, setCartItems] = useState([
     {
       id: 1,
-      name: "Premium Wireless Headphones",
-      price: 299.99,
+      name: "Gói Tập Gym 3 Tháng",
+      price: 199.0,
       quantity: 1,
-      image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e",
-      stock: 5
+      image: "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
+      stock: 1
     },
     {
       id: 2,
-      name: "Smart Fitness Watch",
-      price: 199.99,
-      quantity: 2,
-      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
-      stock: 3
+      name: "Gói PT 10 Buổi",
+      price: 299.0,
+      quantity: 1,
+      image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438",
+      stock: 1
     }
   ]);
 
+  // Giữ lại item đầu tiên, quantity = 1
+  useEffect(() => {
+    if (SINGLE_SERVICE && cartItems.length > 1) {
+      setCartItems([{ ...cartItems[0], quantity: 1 }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Bước: Cart (0) → Payment (1) → Confirmation (2)
+  const steps = ["Cart", "Payment", "Confirmation"];
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const steps = ["Cart", "Shipping", "Payment", "Confirmation"];
-  const [shippingMethod, setShippingMethod] = useState("standard");
 
   const [promoCode, setPromoCode] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -112,26 +106,34 @@ const CartComponent = () => {
   };
 
   const handleQuantityChange = useCallback((id, newQuantity) => {
-    setCartItems(prev =>
-      prev.map(item =>
+    if (SINGLE_SERVICE) {
+      // Cố định quantity = 1
+      setCartItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, quantity: 1 } : item))
+      );
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((item) =>
         item.id === id
           ? { ...item, quantity: Math.min(Math.max(1, newQuantity), item.stock) }
           : item
       )
     );
-  }, []);
+  }, [SINGLE_SERVICE]);
 
   const handleRemoveItem = useCallback((id) => {
-    setCartItems(prev => prev.filter(item => item.id !== id));
+    setCartItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   const calculateSubtotal = useMemo(() => {
     return cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
   }, [cartItems]);
 
-  const shipping = shippingMethod === "express" ? 20 : 10;
+  // ❌ Không có shipping → phí ship = 0
+  const shipping = 0;
   const tax = calculateSubtotal * 0.1;
-  const total = calculateSubtotal + shipping + tax - discount;
+  const total = Math.max(0, calculateSubtotal + shipping + tax - discount);
 
   const handlePromoCode = () => {
     const validPromo = "SAVE20";
@@ -146,12 +148,76 @@ const CartComponent = () => {
     }
   };
 
+  const renderQuantityUI = (item) => {
+    if (SINGLE_SERVICE) {
+      return (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton size="small" disabled>
+            <FiMinus />
+          </IconButton>
+          <TextField
+            size="small"
+            value={1}
+            inputProps={{ readOnly: true }}
+            sx={{ width: 60 }}
+          />
+          <IconButton size="small" disabled>
+            <FiPlus />
+          </IconButton>
+        </Stack>
+      );
+    }
+    return (
+      <Stack direction="row" spacing={1} alignItems="center">
+        <IconButton
+          size="small"
+          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+          disabled={item.quantity <= 1}
+        >
+          <FiMinus />
+        </IconButton>
+        <TextField
+          size="small"
+          value={item.quantity}
+          onChange={(e) => {
+            const value = parseInt(e.target.value) || 0;
+            handleQuantityChange(item.id, value);
+          }}
+          inputProps={{ min: 1, max: item.stock }}
+          sx={{ width: 60 }}
+        />
+        <IconButton
+          size="small"
+          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+          disabled={item.quantity >= item.stock}
+        >
+          <FiPlus />
+        </IconButton>
+      </Stack>
+    );
+  };
+
   const renderStepContent = (step) => {
     switch (step) {
+      // Cart
       case 0:
         return (
-          <Grid container spacing={3}>
+          <Grid
+            container
+            spacing={3}
+            justifyContent="center"
+            alignItems="flex-start"
+            sx={{ mt: 2 }}
+          >
             <Grid item xs={12} md={8}>
+              {cartItems.length === 0 && (
+                <StyledPaper>
+                  <Typography align="center" color="text.secondary">
+                    Giỏ hàng đang trống.
+                  </Typography>
+                </StyledPaper>
+              )}
+
               {cartItems.map((item) => (
                 <StyledCard key={item.id}>
                   <CardContent>
@@ -162,7 +228,7 @@ const CartComponent = () => {
                           height="100"
                           image={item.image}
                           alt={item.name}
-                          sx={{ objectFit: "contain" }}
+                          sx={{ objectFit: "cover", borderRadius: 2 }}
                         />
                       </Grid>
                       <Grid item xs={9}>
@@ -171,35 +237,12 @@ const CartComponent = () => {
                           <Typography variant="body1" color="text.secondary">
                             ${item.price.toFixed(2)}
                           </Typography>
+
+                          {/* Khóa số lượng = 1 */}
+                          {/* {renderQuantityUI(item)} */}
+
                           <Stack direction="row" spacing={1} alignItems="center">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                              disabled={item.quantity <= 1}
-                            >
-                              <FiMinus />
-                            </IconButton>
-                            <TextField
-                              size="small"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const value = parseInt(e.target.value) || 0;
-                                handleQuantityChange(item.id, value);
-                              }}
-                              inputProps={{ min: 1, max: item.stock }}
-                              sx={{ width: 60 }}
-                            />
-                            <IconButton
-                              size="small"
-                              onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                              disabled={item.quantity >= item.stock}
-                            >
-                              <FiPlus />
-                            </IconButton>
-                            <IconButton
-                              color="error"
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
+                            <IconButton color="error" onClick={() => handleRemoveItem(item.id)}>
                               <FiTrash2 />
                             </IconButton>
                           </Stack>
@@ -210,22 +253,11 @@ const CartComponent = () => {
                 </StyledCard>
               ))}
             </Grid>
+
             <Grid item xs={12} md={4}>
               <StyledPaper>
                 <Stack spacing={2}>
                   <Typography variant="h6">Order Summary</Typography>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography>Subtotal</Typography>
-                    <Typography>${calculateSubtotal.toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography>Shipping</Typography>
-                    <Typography>${shipping.toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography>Tax</Typography>
-                    <Typography>${tax.toFixed(2)}</Typography>
-                  </Stack>
                   {discount > 0 && (
                     <Stack direction="row" justifyContent="space-between">
                       <Typography>Discount</Typography>
@@ -245,60 +277,37 @@ const CartComponent = () => {
                     helperText={promoError}
                     fullWidth
                   />
-                  <Button variant="outlined" onClick={handlePromoCode}>Apply Promo</Button>
+                  <Button variant="outlined" onClick={handlePromoCode}>
+                    Apply Promo
+                  </Button>
                   <Button
                     variant="contained"
                     startIcon={<FiCreditCard />}
                     fullWidth
                     sx={{ mt: 2 }}
+                    disabled={cartItems.length === 0}
                   >
                     Proceed to Checkout
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FiShoppingBag />}
-                    fullWidth
-                  >
-                    Continue Shopping
                   </Button>
                 </Stack>
               </StyledPaper>
             </Grid>
           </Grid>
         );
+
+      // Payment
       case 1:
         return (
           <StyledPaper>
-            <Typography variant="h6" gutterBottom>Shipping Information</Typography>
-            <ShippingForm />
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" gutterBottom>Shipping Method</Typography>
-              <RadioGroup
-                value={shippingMethod}
-                onChange={(e) => setShippingMethod(e.target.value)}
-              >
-                <FormControlLabel
-                  value="standard"
-                  control={<Radio />}
-                  label="Standard Shipping ($10)"
-                />
-                <FormControlLabel
-                  value="express"
-                  control={<Radio />}
-                  label="Express Shipping ($20)"
-                />
-              </RadioGroup>
-            </Box>
-          </StyledPaper>
-        );
-      case 2:
-        return (
-          <StyledPaper>
-            <Typography variant="h6" gutterBottom>Payment Information</Typography>
+            <Typography variant="h6" gutterBottom>
+              Payment Information
+            </Typography>
             <PaymentForm />
           </StyledPaper>
         );
-      case 3:
+
+      // Confirmation
+      case 2:
         return (
           <StyledPaper>
             <Stack spacing={3} alignItems="center">
@@ -318,6 +327,7 @@ const CartComponent = () => {
             </Stack>
           </StyledPaper>
         );
+
       default:
         return null;
     }
@@ -325,11 +335,16 @@ const CartComponent = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>Checkout</Typography>
+      <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
+        Checkout
+      </Typography>
+
+      {/* Bước: Cart → Payment → Confirmation */}
       <CheckoutSteps activeStep={activeStep} steps={steps} />
       {renderStepContent(activeStep)}
-      
-      {activeStep !== 3 && (
+
+      {/* Ẩn nút điều hướng trên màn hình Confirmation (index 2) */}
+      {activeStep !== 2 && (
         <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
           <Button
             variant="outlined"
@@ -341,16 +356,21 @@ const CartComponent = () => {
           </Button>
           <Button
             variant="contained"
-            endIcon={activeStep === 2 ? <FiLock /> : <FiArrowRight />}
+            endIcon={activeStep === 1 ? <FiLock /> : <FiArrowRight />}
             onClick={handleNext}
-            disabled={loading}
+            disabled={loading || (activeStep === 0 && cartItems.length === 0)}
           >
-            {loading ? <CircularProgress size={24} /> : 
-              activeStep === 2 ? "Place Order" : "Continue"}
+            {loading ? (
+              <CircularProgress size={24} />
+            ) : activeStep === 1 ? (
+              "Place Order"
+            ) : (
+              "Continue"
+            )}
           </Button>
         </Box>
       )}
-      
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
