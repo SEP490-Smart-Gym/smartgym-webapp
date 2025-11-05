@@ -35,6 +35,7 @@ import AdminTrainerList from "../pages/admin/AdminTrainerList.jsx";
 import EquipmentList from "../pages/admin/EquipmentList.jsx";
 import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
 import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
+import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 
 function Layout() {
   return (
@@ -56,33 +57,33 @@ export default function AppRoutes() {
         <Route index element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        
+
         <Route path="contact" element={<Contact />} />
         <Route path="403" element={<Forbidden />} />
 
-          {/* Các trang chính */}
-          <Route path="/about" element={<About />} />
-          <Route path="/classes" element={<Classes />} />
-          <Route path="/contact" element={<Contact />} />
-          {/* Profile */}
-          <Route path="profile/member" element={<ProfileMember />} />
-          <Route path="profile/manager" element={<ProfileManager />} />
-          <Route path="profile/staff" element={<ProfileStaff />} />
-          <Route path="profile/trainer" element={<ProfileTrainer />} />
-          <Route path="profile/admin" element={<ProfileAdmin />} />
+        {/* Các trang chính */}
+        <Route path="/about" element={<About />} />
+        <Route path="/classes" element={<Classes />} />
+        <Route path="/contact" element={<Contact />} />
+        {/* Profile */}
+        <Route path="profile/member" element={<ProfileMember />} />
+        <Route path="profile/manager" element={<ProfileManager />} />
+        <Route path="profile/staff" element={<ProfileStaff />} />
+        <Route path="profile/trainer" element={<ProfileTrainer />} />
+        <Route path="profile/admin" element={<ProfileAdmin />} />
 
 
-          {/* Trainer */}
-          <Route path="/trainers" element={<TrainerList />} />
-          <Route path="trainer/:id" element={<TrainerDetail />} />
+        {/* Trainer */}
+        <Route path="/trainers" element={<TrainerList />} />
+        <Route path="trainer/:id" element={<TrainerDetail />} />
 
 
-          {/* Packages */}
-          <Route path="/packages" element={<PackageList />} />
-          <Route path="/packages/:id" element={<PackageDetail />} />
+        {/* Packages */}
+        <Route path="/packages" element={<PackageList />} />
+        <Route path="/packages/:id" element={<PackageDetail />} />
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
 
         {/* Route dành cho member (hội viên) */}
         <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
@@ -98,6 +99,7 @@ export default function AppRoutes() {
         {/* Route dành cho staff */}
         <Route element={<ProtectedRoute allowedRoles={["staff"]} />}>
           <Route path="staff/dashboard" element={<Home />} />
+          <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
         </Route>
 
         {/* Route dành cho admin */}

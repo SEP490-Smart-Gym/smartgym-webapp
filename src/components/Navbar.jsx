@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
+import { AiFillCaretDown } from "react-icons/ai";
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
@@ -159,6 +160,13 @@ export default function Navbar() {
                             >
                               Profile
                             </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("staff/equipmentlist")}
+                            >
+                              Manage Equipment
+                            </button>
                           </li>
                         )}
 
@@ -228,6 +236,7 @@ export default function Navbar() {
                     {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                     <a href="#" className="nav-link" data-bs-toggle="dropdown">
                       <span className="dropdown-toggle">Pages</span>
+                      <AiFillCaretDown />
                     </a>
                     <div className="dropdown-menu">
                       <HashLink smooth to="/#features-section" className="dropdown-item">Our Features</HashLink>

@@ -29,6 +29,14 @@ export default function Login() {
             email: "admin@example.com",
             photo: "/img/useravt.jpg",
         },
+        {
+            phone: "0123459876",
+            password: "staff123",
+            role: "staff",
+            name: "Staff User",
+            email: "staff@example.com",
+            photo: "/img/useravt.jpg",
+        },
     ];
 
     const validate = () => {
