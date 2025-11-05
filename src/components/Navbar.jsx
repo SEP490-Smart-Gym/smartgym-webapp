@@ -77,7 +77,7 @@ export default function Navbar() {
                   </div>
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
-                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sun: 8.00 am-7.00 pm
+                      <i className="fa fa-clock text-primary me-2" ></i>Mon - Sun: 5.00 am-9.00 pm
                     </span>
                   </div>
                 </div>

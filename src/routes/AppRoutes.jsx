@@ -70,7 +70,6 @@ export default function AppRoutes() {
           <Route path="/classes" element={<Classes />} />
           <Route path="/contact" element={<Contact />} />
           {/* Profile */}
-          <Route path="profile/member" element={<ProfileMember />} />
           <Route path="profile/manager" element={<ProfileManager />} />
           <Route path="profile/staff" element={<ProfileStaff />} />
           <Route path="profile/trainer" element={<ProfileTrainer />} />
@@ -85,7 +84,7 @@ export default function AppRoutes() {
           <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
 
           {/* Payment */}
-          <Route path="/cart" element={<CartComponent />} />
+          <Route path="/:id/cart" element={<CartComponent />} />
 
 
           {/* Packages */}
@@ -98,6 +97,7 @@ export default function AppRoutes() {
         {/* Route dành cho member (hội viên) */}
         <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
           <Route path="classes" element={<Classes />} />
+          <Route path="profile/member" element={<ProfileMember />} />
 
         </Route>
 
