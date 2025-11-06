@@ -35,7 +35,7 @@ function normalizeMockData(arr) {
   for (const it of arr) {
     const d = new Date(it.date);
     const k = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-    if (seen.has(k)) continue; // mỗi ngày 1 event theo thiết kế gốc
+    if (seen.has(k)) continue; // mỗi ngày 1 event theo thiết kế gốc (cho display)
     seen.add(k);
     const [sh, sm, eh, em] = parseTimeRange(it.time);
     const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm, 0, 0);
@@ -75,7 +75,7 @@ function buildTimeSlots() {
   return slots;
 }
 
-/** dd/MM/yyyy hôm nay */
+/** Helpers cho ngày dd/MM/yyyy */
 function formatTodayVN() {
   const d = new Date();
   return toDDMMYYYY(d);
@@ -87,7 +87,6 @@ function toDDMMYYYY(date) {
   const yyyy = date.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
-/** dd/MM/yyyy -> Date (strict) */
 function toDateFromDDMMYYYY(vn) {
   if (!vn) return null;
   const m = vn.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -103,6 +102,11 @@ function toDateFromDDMMYYYY(vn) {
 function parseVNDateToISO(vn) {
   const d = toDateFromDDMMYYYY(vn);
   if (!d) return null;
+  return dateObjToISO(d);
+}
+
+/** Date -> yyyy-mm-dd */
+function dateObjToISO(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth()+1).padStart(2,"0");
   const dd = String(d.getDate()).padStart(2,"0");
@@ -125,6 +129,13 @@ export default function Calendar() {
   const [disabledSlots, setDisabledSlots] = useState(new Set());
   const [selectedSlotId, setSelectedSlotId] = useState("");
 
+  // === NEW: 1 ngày chỉ 1 slot → helper kiểm tra ngày đã có lịch ===
+  function dayAlreadyBooked(dateObj) {
+    if (!dateObj) return false;
+    const iso = dateObjToISO(dateObj);
+    return dataRef.current.some(ev => ev.date === iso);
+  }
+
   // Tính các slot bị disable theo ngày chọn (slot < now+24h)
   function computeDisabledSlots(dateObj) {
     const now = new Date();
@@ -143,11 +154,21 @@ export default function Calendar() {
 
   // Khởi tạo & cập nhật disabledSlots khi đổi ngày; auto chọn slot hợp lệ đầu tiên
   useEffect(() => {
+    // Nếu ngày đã có lịch → disable toàn bộ
+    if (dayAlreadyBooked(selectedDate)) {
+      const all = new Set(allSlots.map(s => s.id));
+      setDisabledSlots(all);
+      setSelectedSlotId("");
+      return;
+    }
+
+    // Ngày chưa có lịch → disable theo quy tắc 24h
     const ds = computeDisabledSlots(selectedDate);
     setDisabledSlots(ds);
     const firstValid = allSlots.find(s => !ds.has(s.id));
     setSelectedSlotId(firstValid ? firstValid.id : "");
-  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   useEffect(() => {
     (async () => {
@@ -487,13 +508,18 @@ export default function Calendar() {
                 return;
               }
 
+              // ❗ 1 ngày chỉ 1 slot: chặn ngay ở submit
+              if (dataRef.current.some(ev => ev.date === isoDate)) {
+                alert("❌ Mỗi ngày chỉ được đặt 1 slot. Vui lòng chọn ngày khác.");
+                return;
+              }
+
               const trainerId = fd.get("trainer");
               const trainerName = trainersMock.find(t => t.id === trainerId)?.name || "Trainer";
 
-              // dùng selectedSlotId để tránh chọn option bị disable
+              // dùng selectedSlotId (đã bị khóa nếu cùng ngày có lịch)
               const slot = selectedSlotId; // e.g. "05:00-06:00"
               if (!slot || disabledSlots.has(slot)) {
-                alert("❌ Khung giờ không hợp lệ. Vui lòng chọn khung giờ khác (≥ 24h).");
                 return;
               }
               const [start, end] = slot.split("-");
@@ -504,11 +530,10 @@ export default function Calendar() {
               const now = new Date();
               const diffHours = (bookingDateTime - now) / (1000 * 60 * 60);
               if (diffHours < 24) {
-                alert("⚠️ Bạn chỉ có thể đặt lịch ít nhất 24 tiếng trước giờ bắt đầu.");
                 return;
               }
 
-              // === 🔍 Kiểm tra trùng lịch (cùng ngày + time + trainer) ===
+              // === 🔍 Kiểm tra trùng lịch (phòng double check theo trainer + slot)
               const conflict = dataRef.current.find(
                 ev => ev.date === isoDate && ev.time === `${start}-${end}` && ev.title.includes(trainerName)
               );
@@ -517,7 +542,7 @@ export default function Calendar() {
                 return;
               }
 
-              // === ✅ Nếu hợp lệ → thêm mới ===
+              // === ✅ Nếu hợp lệ → thêm mới
               dataRef.current.push({
                 date: isoDate,
                 time: `${start}-${end}`,
@@ -528,14 +553,19 @@ export default function Calendar() {
                 data: normalizeMockData(dataRef.current),
               });
 
-              // Đóng modal & reset form + state
-              const modalInst =
-                window.bootstrap?.Modal.getInstance(modalRef.current) ||
-                new window.bootstrap.Modal(modalRef.current);
-              modalInst.hide();
+              // 🔒 Tắt modal & reset
+              try {
+                const ModalClass = window.bootstrap?.Modal;
+                const inst = ModalClass?.getInstance(modalRef.current) || new ModalClass(modalRef.current);
+                inst.hide();
+              } catch (_) {
+                modalRef.current?.querySelector('.btn-close')?.click();
+              }
               e.currentTarget.reset();
               setSelectedDate(new Date());
               setVnDate(formatTodayVN());
+              setSelectedSlotId("");
+              setDisabledSlots(new Set());
             }}
           >
             <div className="modal-header">
@@ -577,9 +607,14 @@ export default function Calendar() {
                   />
                   <input type="hidden" name="date_vn" value={vnDate || ""} />
                 </div>
+                {dayAlreadyBooked(selectedDate) && (
+                  <div className="form-text text-danger mt-2">
+                    Ngày này đã có lịch. Mỗi ngày chỉ được 1 slot — vui lòng chọn ngày khác.
+                  </div>
+                )}
               </div>
 
-              {/* Timeslot select — render tất cả, khóa xám slot < now+24h */}
+              {/* Timeslot select — nếu ngày đã có lịch → disable toàn bộ */}
               <div className="mb-3">
                 <label className="form-label">Timeslot (mỗi tiếng một slot)</label>
                 <select
@@ -588,28 +623,35 @@ export default function Calendar() {
                   required
                   value={selectedSlotId}
                   onChange={(e) => setSelectedSlotId(e.target.value)}
+                  disabled={dayAlreadyBooked(selectedDate)}
                 >
                   {allSlots.map(s => (
                     <option key={s.id} value={s.id} disabled={disabledSlots.has(s.id)}>
-                      {s.label}{disabledSlots.has(s.id) ? "" : ""}
+                      {s.label}
                     </option>
                   ))}
                 </select>
-                {allSlots.every(s => disabledSlots.has(s.id)) && (
+                {(dayAlreadyBooked(selectedDate) || allSlots.every(s => disabledSlots.has(s.id))) && (
                   <div className="form-text text-danger mt-1">
-                    Không còn khung giờ khả dụng (cần ≥ 24h tính từ hiện tại).
+                    {dayAlreadyBooked(selectedDate)
+                      ? "Ngày này đã có lịch."
+                      : "Không còn khung giờ khả dụng."}
                   </div>
                 )}
-              </div>
-
-              <div className="form-text mt-2">
-                • Sự kiện tương lai tự động có trạng thái <code>not yet</code>. Mỗi ngày hiển thị 1 event (theo logic hiện có).
               </div>
             </div>
 
             <div className="modal-footer">
               <button type="button" className="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-              <button type="submit" className="btn btn-primary" disabled={!selectedSlotId || disabledSlots.has(selectedSlotId)}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={
+                  !selectedSlotId ||
+                  disabledSlots.has(selectedSlotId) ||
+                  dayAlreadyBooked(selectedDate)
+                }
+              >
                 Lưu
               </button>
             </div>
