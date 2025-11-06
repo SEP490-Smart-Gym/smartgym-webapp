@@ -4,13 +4,12 @@ import { Routes, Route, Outlet } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import Footer from "../components/Footer.jsx";
 
-// Pages
+// Pages (public)
 import Home from "../pages/Home.jsx";
 import About from "../pages/About.jsx";
 import Classes from "../pages/Classes.jsx";
 import Contact from "../pages/Contact.jsx";
 import NotFound from "../pages/NotFound.jsx";
-
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
@@ -22,24 +21,24 @@ import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
 
+// Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
 import CartComponent from "../pages/Member/Payment.jsx";
-
+import MyPackage from "../pages/Member/MyPackage.jsx";
 import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
-
-// import TrainerSchedule from "../pages/Trainer/Schedule.jsx";
 import TrainerSchedule from "../pages/Member/Schedule.jsx";
 
-
-// Route bảo vệ
-import ProtectedRoute from "./ProtectedRoute.jsx";
+// Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
 import AdminTrainerList from "../pages/admin/AdminTrainerList.jsx";
 import EquipmentList from "../pages/admin/EquipmentList.jsx";
 import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
 import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
+
+// Guard
+import ProtectedRoute from "./ProtectedRoute.jsx";
 
 function Layout() {
   return (
@@ -57,76 +56,71 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        {/* Trang public */}
+        {/* ===== Public ===== */}
         <Route index element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        
-        <Route path="contact" element={<Contact />} />
-        <Route path="403" element={<Forbidden />} />
+        <Route path="/403" element={<Forbidden />} />
 
-          {/* Các trang chính */}
-          <Route path="/about" element={<About />} />
-          <Route path="/classes" element={<Classes />} />
-          <Route path="/contact" element={<Contact />} />
-          {/* Profile */}
-          <Route path="profile/manager" element={<ProfileManager />} />
-          <Route path="profile/staff" element={<ProfileStaff />} />
-          <Route path="profile/trainer" element={<ProfileTrainer />} />
-          <Route path="profile/admin" element={<ProfileAdmin />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/classes" element={<Classes />} /> {/* Public listing (nếu cần) */}
+        <Route path="/contact" element={<Contact />} />
 
+        {/* Trainers (public danh sách & chi tiết nếu bạn muốn) */}
+        <Route path="/trainers" element={<TrainerList />} />
+        <Route path="/trainer/:id" element={<TrainerDetail />} />
 
-          {/* Trainer */}
-          <Route path="/trainers" element={<TrainerList />} />
-          <Route path="trainer/:id" element={<TrainerDetail />} />
+        {/* Packages (public) */}
+        <Route path="/packages" element={<PackageList />} />
+        <Route path="/packages/:id" element={<PackageDetail />} />
 
-          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
-          <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
+        {/* Cart: đổi sang /cart/:id để tránh đè các route có :id khác */}
+        <Route path="/cart/:id" element={<CartComponent />} />
 
-          {/* Payment */}
-          <Route path="/:id/cart" element={<CartComponent />} />
+        {/* Member schedule (public-accessible path nếu muốn, hoặc chuyển vào group member) */}
+        <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
 
-
-          {/* Packages */}
-          <Route path="/packages" element={<PackageList />} />
-          <Route path="/packages/:id" element={<PackageDetail />} />
-
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-
-        {/* Route dành cho member (hội viên) */}
+        {/* ===== Member protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
-          <Route path="classes" element={<Classes />} />
-          <Route path="profile/member" element={<ProfileMember />} />
-
+          {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
+          <Route path="/member/profile" element={<ProfileMember />} />
+          <Route path="/member/mypackages" element={<MyPackage />} />
+          {/* Nếu muốn lớp học riêng cho member: */}
+          {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>
 
-        {/* Route dành cho trainer */}
+        {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["trainer"]} />}>
-          <Route path="trainer/:id" element={<TrainerDetail />} />
+          {/* Trang profile trainer riêng */}
+          <Route path="/trainer/profile" element={<ProfileTrainer />} />
+          {/* Nếu muốn schedule riêng cho trainer: */}
+          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
         </Route>
 
-        {/* Route dành cho staff */}
+        {/* ===== Staff protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["staff"]} />}>
-          <Route path="staff/dashboard" element={<Home />} />
+          <Route path="/staff/dashboard" element={<Home />} />
+          <Route path="/profile/staff" element={<ProfileStaff />} />
         </Route>
 
-        {/* Route dành cho admin */}
+        {/* ===== Admin protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route path="admin/dashboard" element={<Home />} />
-          <Route path="admin/packages" element={<AdminPackages />} />
+          <Route path="/admin/dashboard" element={<Home />} />
+          <Route path="/admin/profile" element={<ProfileAdmin />} />
+          <Route path="/admin/packages" element={<AdminPackages />} />
           <Route path="/admin/trainers" element={<AdminTrainerList />} />
           <Route path="/admin/equipments" element={<EquipmentList />} />
           <Route path="/admin/members" element={<AdminMemberList />} />
           <Route path="/admin/staffs" element={<AdminStaffList />} />
         </Route>
 
-        {/* Route dành cho manager */}
+        {/* ===== Manager protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
-          <Route path="manager/overview" element={<Home />} />
+          <Route path="/manager/overview" element={<Home />} />
+          <Route path="/profile/manager" element={<ProfileManager />} />
         </Route>
 
-        {/* 404 */}
+        {/* 404 cuối cùng trong layout */}
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
