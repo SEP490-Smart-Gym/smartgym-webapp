@@ -8,9 +8,16 @@ import "../../assets/styles/style.css";
 const fmtVND = (n) => Number(n).toLocaleString("vi-VN");
 
 export default function PackageDetail() {
-  const { id } = useParams();
-  const pkg = useMemo(() => packagesData.find((p) => p.id === Number(id)), [id]);
+  const { id: routeId } = useParams();
+
+  const pkg = useMemo(
+    () => packagesData.find((p) => String(p.id) === String(routeId)),
+    [routeId]
+  );
+
   const [activeIndex, setActiveIndex] = useState(0);
+  // Tạo ID 4 số ngẫu nhiên NGAY LÚC KHỞI TẠO (không chờ useEffect)
+  const [safeId] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const navigate = useNavigate();
 
   const featureImgs = [
@@ -19,7 +26,8 @@ export default function PackageDetail() {
     "/img/feature-3.jpg",
     "/img/feature-4.jpg",
   ];
-  const mainCandidate = featureImgs[(pkg?.iconIndex - 1) % featureImgs.length];
+  const iconIndex = Number.isFinite(pkg?.iconIndex) && pkg.iconIndex > 0 ? pkg.iconIndex : 1;
+  const mainCandidate = featureImgs[(iconIndex - 1) % featureImgs.length];
   const thumbnails = [mainCandidate, featureImgs[1], featureImgs[2], featureImgs[3]];
   const mainImage = thumbnails[activeIndex];
 
@@ -29,9 +37,8 @@ export default function PackageDetail() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-        setActiveIndex((prev) => (prev + 1) % thumbnails.length);
-    }, 2000); // 3 giây đổi ảnh
-
+      setActiveIndex((prev) => (prev + 1) % thumbnails.length);
+    }, 2000);
     return () => clearInterval(interval);
   }, [thumbnails.length]);
 
@@ -47,47 +54,44 @@ export default function PackageDetail() {
   }
 
   return (
-    <div
-      className="container mt-5 mb-5"
-    >
+    <div className="container mt-5 mb-5">
       <div className="row align-items-start">
         {/* Left: Gallery */}
         <div className="col-md-6 mb-4">
-            <img
-                src={mainImage}
-                alt={pkg.title}
-                className="img-fluid mb-3"
+          <img
+            src={mainImage}
+            alt={pkg.title}
+            className="img-fluid mb-3"
+            style={{
+              maxHeight: "400px",
+              width: "100%",
+              objectFit: "cover",
+              borderRadius: "10px",
+              transition: "opacity 0.5s ease",
+            }}
+          />
+
+          <div className="d-flex justify-content-between">
+            {thumbnails.map((src, idx) => (
+              <img
+                key={idx}
+                src={src}
+                alt={`Thumbnail ${idx + 1}`}
+                onClick={() => setActiveIndex(idx)}
                 style={{
-                maxHeight: "400px",
-                width: "100%",
-                objectFit: "cover",
-                borderRadius: "10px",
-                transition: "opacity 0.5s ease",
+                  width: "80px",
+                  height: "80px",
+                  objectFit: "cover",
+                  cursor: "pointer",
+                  borderRadius: "8px",
+                  opacity: activeIndex === idx ? 1 : 0.6,
+                  transform: activeIndex === idx ? "scale(1.05)" : "scale(1)",
+                  transition: "opacity 0.3s ease, transform 0.2s ease",
                 }}
-            />
-
-            <div className="d-flex justify-content-between">
-                {thumbnails.map((src, idx) => (
-                <img
-                    key={idx}
-                    src={src}
-                    alt={`Thumbnail ${idx + 1}`}
-                    onClick={() => setActiveIndex(idx)}
-                    style={{
-                    width: "80px",
-                    height: "80px",
-                    objectFit: "cover",
-                    cursor: "pointer",
-                    borderRadius: "8px",
-                    opacity: activeIndex === idx ? 1 : 0.6,
-                    transform: activeIndex === idx ? "scale(1.05)" : "scale(1)",
-                    transition: "opacity 0.3s ease, transform 0.2s ease",
-                    }}
-                />
-                ))}
-            </div>
+              />
+            ))}
+          </div>
         </div>
-
 
         {/* Right: Details */}
         <div className="col-md-6">
@@ -191,19 +195,21 @@ export default function PackageDetail() {
             }}
           >
             <button
-                onClick={() => navigate(-1)} // 🔙 Quay lại trang trước
-                className="btn btn-outline-secondary btn-lg"
-                style={{
-                    borderRadius: "8px",
-                    fontWeight: 600,
-                    color: "#333",
-                    border: "1px solid #ccc",
-                }}
-                >
-                ← Quay lại
+              onClick={() => navigate(-1)}
+              className="btn btn-outline-secondary btn-lg"
+              style={{
+                borderRadius: "8px",
+                fontWeight: 600,
+                color: "#333",
+                border: "1px solid #ccc",
+              }}
+            >
+              ← Quay lại
             </button>
 
-            <button
+            {/* ✅ Nút đăng ký sinh ID 4 số random */}
+            <Link
+              to={`/${safeId}/cart`}
               className="btn btn-lg"
               style={{
                 backgroundColor: "#C80036",
@@ -214,17 +220,12 @@ export default function PackageDetail() {
                 borderRadius: "8px",
                 transition: "all 0.2s ease",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.filter = "brightness(1.1)")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.filter = "brightness(1)")
-              }
+              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
+              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
             >
-              Đăng ký ngay
-            </button>
+              <span>Đăng ký ngay</span>
+            </Link>
           </div>
-
         </div>
       </div>
     </div>

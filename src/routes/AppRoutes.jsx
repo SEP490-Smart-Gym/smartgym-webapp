@@ -24,9 +24,14 @@ import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
 
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
+import CartComponent from "../pages/Member/Payment.jsx";
 
 import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
+
+// import TrainerSchedule from "../pages/Trainer/Schedule.jsx";
+import TrainerSchedule from "../pages/Member/Schedule.jsx";
+
 
 // Route bảo vệ
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -71,11 +76,26 @@ export default function AppRoutes() {
         <Route path="profile/staff" element={<ProfileStaff />} />
         <Route path="profile/trainer" element={<ProfileTrainer />} />
         <Route path="profile/admin" element={<ProfileAdmin />} />
+          {/* Các trang chính */}
+          <Route path="/about" element={<About />} />
+          <Route path="/classes" element={<Classes />} />
+          <Route path="/contact" element={<Contact />} />
+          {/* Profile */}
+          <Route path="profile/manager" element={<ProfileManager />} />
+          <Route path="profile/staff" element={<ProfileStaff />} />
+          <Route path="profile/trainer" element={<ProfileTrainer />} />
+          <Route path="profile/admin" element={<ProfileAdmin />} />
 
 
         {/* Trainer */}
         <Route path="/trainers" element={<TrainerList />} />
         <Route path="trainer/:id" element={<TrainerDetail />} />
+
+          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
+          <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
+
+          {/* Payment */}
+          <Route path="/:id/cart" element={<CartComponent />} />
 
 
         {/* Packages */}
@@ -88,6 +108,7 @@ export default function AppRoutes() {
         {/* Route dành cho member (hội viên) */}
         <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
           <Route path="classes" element={<Classes />} />
+          <Route path="profile/member" element={<ProfileMember />} />
 
         </Route>
 

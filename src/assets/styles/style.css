@@ -1,3 +1,83 @@
+/** Member Profile **/
+/* === Bo góc và đổ bóng chung === */
+.react-datepicker {
+  font-family: "Poppins", sans-serif;
+  border-radius: 10px !important;
+  border: 1px solid #ccc !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden;
+}
+
+/* === Header tháng/năm === */
+/* .react-datepicker__header {
+  background-color: #0c1844 !important;
+  color: #fff !important;
+  border-bottom: none !important;
+  border-radius: 10px 10px 0 0 !important;
+  padding: 10px 0 !important;
+} */
+
+/* === Dropdown tháng/năm === */
+.react-datepicker__month-dropdown,
+.react-datepicker__year-dropdown {
+  background-color: #fff !important;
+  border-radius: 8px !important;
+  border: 1px solid #ddd !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+}
+
+/* .react-datepicker__month-dropdown-container--select,
+.react-datepicker__year-dropdown-container--select select {
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  padding: 4px 8px;
+  font-weight: 500;
+  color: #333;
+} */
+
+/* === Nút ngày === */
+.react-datepicker__day {
+  border-radius: 6px !important;
+  transition: all 0.2s ease;
+}
+
+.react-datepicker__day:hover {
+  background-color: #0c1844 !important;
+  color: #fff !important;
+}
+
+/* === Ngày được chọn === */
+.react-datepicker__day--selected {
+  background-color: #0c1844 !important;
+  color: #fff !important;
+}
+
+/* === Nút Clear (xóa ngày) === */
+.react-datepicker__close-icon::after {
+  background-color: #0c1844 !important;
+  color: #fff !important;
+  font-size: 14px;
+  border-radius: 50%;
+}
+
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  padding: 4px 6px;
+  background-color: #f8f8f8;
+  font-weight: 500;
+  color: #333;
+  transition: 0.2s ease;
+}
+
+.react-datepicker__month-select:hover,
+.react-datepicker__year-select:hover {
+  border-color: #0c1844;
+}
+
 .trainer {
   display: flex;
   flex-direction: column;
