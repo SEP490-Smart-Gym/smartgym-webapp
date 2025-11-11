@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
 // import { AiFillCaretDown } from "react-icons/ai";
-import { HiChevronDown, HiChevronUp  } from "react-icons/hi2";
+import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
@@ -115,7 +115,9 @@ export default function Navbar() {
                           style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
                         />
                         <span className="user-name-text" style={{ color: "white" }}>
-                          {user.name || "User"}
+                          {user.lastName && user.firstName
+                            ? `${user.lastName} ${user.firstName}`
+                            : "User"}
                         </span>
                       </button>
 
@@ -124,7 +126,7 @@ export default function Navbar() {
                         <li><hr className="dropdown-divider" /></li>
 
                         {/* Admin */}
-                        {user.role === "admin" && (
+                        {user.roleName === "Admin" && (
                           <li>
                             <button className="dropdown-item" onClick={() => navigate("/admin/packages")}>
                               Quản lý
