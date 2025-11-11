@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
-import { AiFillCaretDown } from "react-icons/ai";
+// import { AiFillCaretDown } from "react-icons/ai";
 import { HiChevronDown, HiChevronUp  } from "react-icons/hi2";
 
 export default function Navbar() {

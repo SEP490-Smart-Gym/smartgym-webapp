@@ -1,6 +1,6 @@
 import { useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Button, Space, Tag, Input, Select } from "antd";
+import { Table, Button, Space, Tag, Input, Select, Modal, Form } from "antd";
 
 const STATUS_OPTIONS = ["Đang hoạt động", "Đang bảo trì", "Hư hỏng", "Tồn kho"];
 
@@ -24,6 +24,7 @@ export default function EquipmentList() {
     },
   ]);
 
+  // ======== THÊM MỚI ========
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -32,16 +33,6 @@ export default function EquipmentList() {
     photo: "",
   });
 
-  const [editingId, setEditingId] = useState(null);
-  const [editRow, setEditRow] = useState({
-    name: "",
-    code: "",
-    brand: "",
-    status: STATUS_OPTIONS[0],
-    photo: "",
-  });
-
-  // ======== CRUD Handlers ========
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
@@ -74,47 +65,48 @@ export default function EquipmentList() {
     });
   };
 
-  const startEdit = (item) => {
-    setEditingId(item.id);
-    setEditRow({ ...item });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditRow({
-      name: "",
-      code: "",
-      brand: "",
-      status: STATUS_OPTIONS[0],
-      photo: "",
-    });
-  };
-
-  const saveEdit = () => {
-    if (!editRow.name.trim()) return alert("Tên máy không được trống!");
-    if (!editRow.code.trim()) return alert("Mã máy không được trống!");
-    if (!editRow.brand.trim()) return alert("Thương hiệu không được trống!");
-    setEquipments((prev) =>
-      prev.map((it) =>
-        it.id === editingId
-          ? {
-              ...it,
-              name: editRow.name.trim(),
-              code: editRow.code.trim(),
-              brand: editRow.brand.trim(),
-              status: editRow.status,
-              photo: editRow.photo || "/img/useravt.jpg",
-            }
-          : it
-      )
-    );
-    cancelEdit();
-  };
-
+  // ======== XÓA ========
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc muốn xoá thiết bị này?")) {
       setEquipments((prev) => prev.filter((it) => it.id !== id));
     }
+  };
+
+  // ======== SỬA BẰNG MODAL ========
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  const openEditModal = (record) => {
+    setEditingItem({ ...record });
+    setIsEditOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setEditingItem(null);
+  };
+
+  const saveEditModal = () => {
+    if (!editingItem) return;
+    if (!editingItem.name?.trim()) return alert("Tên máy không được trống!");
+    if (!editingItem.code?.trim()) return alert("Mã máy không được trống!");
+    if (!editingItem.brand?.trim()) return alert("Thương hiệu không được trống!");
+
+    setEquipments((prev) =>
+      prev.map((it) =>
+        it.id === editingItem.id
+          ? {
+              ...it,
+              name: editingItem.name.trim(),
+              code: editingItem.code.trim(),
+              brand: editingItem.brand.trim(),
+              status: editingItem.status,
+              photo: editingItem.photo || "/img/useravt.jpg",
+            }
+          : it
+      )
+    );
+    closeEditModal();
   };
 
   const statusColor = {
@@ -124,7 +116,7 @@ export default function EquipmentList() {
     "Tồn kho": "gray",
   };
 
-  // ======== Table Columns ========
+  // ======== TABLE COLUMNS ========
   const columns = [
     {
       title: "Ảnh",
@@ -134,7 +126,7 @@ export default function EquipmentList() {
       fixed: "left",
       render: (src, record) => (
         <img
-          src={editingId === record.id ? editRow.photo || "/img/useravt.jpg" : src || "/img/useravt.jpg"}
+          src={src || "/img/useravt.jpg"}
           alt={record.name}
           style={{
             width: 56,
@@ -152,103 +144,44 @@ export default function EquipmentList() {
       dataIndex: "name",
       key: "name",
       width: 220,
-      render: (_, record) =>
-        editingId === record.id ? (
-          <Input
-            size="small"
-            value={editRow.name}
-            onChange={(e) => setEditRow((p) => ({ ...p, name: e.target.value }))}
-          />
-        ) : (
-          record.name
-        ),
+      render: (_, record) => record.name,
     },
     {
       title: "Mã máy",
       dataIndex: "code",
       key: "code",
       width: 150,
-      render: (_, record) =>
-        editingId === record.id ? (
-          <Input
-            size="small"
-            value={editRow.code}
-            onChange={(e) => setEditRow((p) => ({ ...p, code: e.target.value }))}
-          />
-        ) : (
-          record.code
-        ),
     },
     {
       title: "Thương hiệu",
       dataIndex: "brand",
       key: "brand",
       width: 160,
-      render: (_, record) =>
-        editingId === record.id ? (
-          <Input
-            size="small"
-            value={editRow.brand}
-            onChange={(e) => setEditRow((p) => ({ ...p, brand: e.target.value }))}
-          />
-        ) : (
-          record.brand
-        ),
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       width: 150,
-      render: (_, record) =>
-        editingId === record.id ? (
-          <Select
-            size="small"
-            value={editRow.status}
-            style={{ width: "100%" }}
-            onChange={(v) => setEditRow((p) => ({ ...p, status: v }))}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <Select.Option key={s} value={s}>
-                {s}
-              </Select.Option>
-            ))}
-          </Select>
-        ) : (
-          <Tag color={statusColor[record.status] || "default"}>{record.status}</Tag>
-        ),
+      render: (_, record) => (
+        <Tag color={statusColor[record.status] || "default"}>{record.status}</Tag>
+      ),
     },
     {
       title: "Thao tác",
       key: "actions",
       fixed: "right",
       width: 180,
-      render: (_, record) => {
-        const isEditing = editingId === record.id;
-        return (
-          <Space>
-            {isEditing ? (
-              <>
-                <Button size="small" type="primary" onClick={saveEdit}>
-                  Lưu
-                </Button>
-                <Button size="small" onClick={cancelEdit}>
-                  Hủy
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button size="small" onClick={() => startEdit(record)}>
-                  Sửa
-                </Button>
-                <Button danger size="small" onClick={() => handleDelete(record.id)}>
-                  Xóa
-                </Button>
-              </>
-            )}
-          </Space>
-        );
-      },
+      render: (_, record) => (
+        <Space>
+          <Button size="small" onClick={() => openEditModal(record)}>
+            Sửa
+          </Button>
+          <Button danger size="small" onClick={() => handleDelete(record.id)}>
+            Xóa
+          </Button>
+        </Space>
+      ),
     },
   ];
 
@@ -367,6 +300,88 @@ export default function EquipmentList() {
           </div>
         </div>
       </div>
+
+      {/* Modal Sửa thiết bị */}
+      <Modal
+        open={isEditOpen}
+        title="Cập nhật thiết bị"
+        onCancel={closeEditModal}
+        onOk={saveEditModal}
+        okText="Lưu thay đổi"
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        {editingItem && (
+          <Form layout="vertical">
+            <Form.Item label="Tên máy">
+              <Input
+                value={editingItem.name}
+                onChange={(e) =>
+                  setEditingItem((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="VD: Treadmill X9"
+              />
+            </Form.Item>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Form.Item label="Mã máy">
+                <Input
+                  value={editingItem.code}
+                  onChange={(e) =>
+                    setEditingItem((p) => ({ ...p, code: e.target.value }))
+                  }
+                  placeholder="VD: TM-X9"
+                />
+              </Form.Item>
+              <Form.Item label="Thương hiệu">
+                <Input
+                  value={editingItem.brand}
+                  onChange={(e) =>
+                    setEditingItem((p) => ({ ...p, brand: e.target.value }))
+                  }
+                  placeholder="VD: Technogym"
+                />
+              </Form.Item>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Form.Item label="Trạng thái">
+                <Select
+                  value={editingItem.status}
+                  onChange={(v) =>
+                    setEditingItem((p) => ({ ...p, status: v }))
+                  }
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <Select.Option key={s} value={s}>
+                      {s}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              <Form.Item label="Ảnh (URL)">
+                <Input
+                  value={editingItem.photo || ""}
+                  onChange={(e) =>
+                    setEditingItem((p) => ({ ...p, photo: e.target.value }))
+                  }
+                  placeholder="https://..."
+                />
+              </Form.Item>
+            </div>
+
+            <div className="d-flex align-items-center gap-3">
+              <img
+                src={editingItem.photo || "/img/useravt.jpg"}
+                alt="preview"
+                style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", border: "1px solid #eee" }}
+                onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+              />
+              <span className="text-muted small">Xem trước ảnh</span>
+            </div>
+          </Form>
+        )}
+      </Modal>
     </div>
   );
 }

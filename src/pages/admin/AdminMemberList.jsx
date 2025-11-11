@@ -259,7 +259,7 @@ export default function AdminMemberList() {
                 </div>
 
                 <div className="mt-3 text-end">
-                  <button type="submit" className="btn btn-primary">
+                  <button type="submit" className="btn btn-add">
                     Thêm hội viên
                   </button>
                 </div>

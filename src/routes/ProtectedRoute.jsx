@@ -7,6 +7,9 @@ export default function ProtectedRoute({ allowedRoles }) {
     return stored ? JSON.parse(stored) : null;
   });
 
+  const token = localStorage.getItem("token");
+
+  // Lắng nghe event thay đổi đăng nhập
   useEffect(() => {
     const syncUser = () => {
       const stored = localStorage.getItem("user");
@@ -16,12 +19,17 @@ export default function ProtectedRoute({ allowedRoles }) {
     return () => window.removeEventListener("app-auth-changed", syncUser);
   }, []);
 
-  const token = localStorage.getItem("token");
-//   if (!token || !user) return <Navigate to="/login" replace />;
-  if (!user) return <Navigate to="/login" replace />;
+  // ✅ Chưa đăng nhập → chuyển login
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
 
-  if (allowedRoles && !allowedRoles.includes(user.role))
+  // ✅ Kiểm tra role bằng API roleName
+  const userRole = user.roleName || user.role || ""; // fallback để tránh lỗi
+
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/403" replace />;
+  }
 
   return <Outlet />;
 }

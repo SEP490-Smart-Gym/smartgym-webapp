@@ -41,6 +41,7 @@ import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 
 // Guard
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
 
 function Layout() {
   return (
@@ -76,15 +77,15 @@ export default function AppRoutes() {
         <Route path="profile/staff" element={<ProfileStaff />} />
         <Route path="profile/trainer" element={<ProfileTrainer />} />
         <Route path="profile/admin" element={<ProfileAdmin />} />
-          {/* Các trang chính */}
-          <Route path="/about" element={<About />} />
-          <Route path="/classes" element={<Classes />} />
-          <Route path="/contact" element={<Contact />} />
-          {/* Profile */}
-          <Route path="profile/manager" element={<ProfileManager />} />
-          <Route path="profile/staff" element={<ProfileStaff />} />
-          <Route path="profile/trainer" element={<ProfileTrainer />} />
-          <Route path="profile/admin" element={<ProfileAdmin />} />
+        {/* Các trang chính */}
+        <Route path="/about" element={<About />} />
+        <Route path="/classes" element={<Classes />} />
+        <Route path="/contact" element={<Contact />} />
+        {/* Profile */}
+        <Route path="profile/manager" element={<ProfileManager />} />
+        <Route path="profile/staff" element={<ProfileStaff />} />
+        <Route path="profile/trainer" element={<ProfileTrainer />} />
+        <Route path="profile/admin" element={<ProfileAdmin />} />
         <Route path="/403" element={<Forbidden />} />
 
         <Route path="/about" element={<About />} />
@@ -140,6 +141,7 @@ export default function AppRoutes() {
           <Route path="/admin/equipments" element={<EquipmentList />} />
           <Route path="/admin/members" element={<AdminMemberList />} />
           <Route path="/admin/staffs" element={<AdminStaffList />} />
+          <Route path="/admin/vouchers" element={<AdminVoucher />} />
         </Route>
 
         {/* ===== Manager protected ===== */}

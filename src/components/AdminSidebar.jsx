@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
+import { AiOutlineTool, AiOutlineUser } from "react-icons/ai";
+import { IoTicketOutline } from "react-icons/io5";
 import { NavLink } from "react-router-dom";
+import { RiFileListLine } from "react-icons/ri";
+import { FaUsers } from "react-icons/fa";
+import { GiWhistle } from "react-icons/gi";
 
 export default function AdminSidebar() {
   const [open, setOpen] = useState(true);
@@ -49,27 +54,38 @@ export default function AdminSidebar() {
           <div className="admin-side-section">Quản Lý</div>
           <NavLink to="/admin/packages" className="admin-side-item" end>
             <i className="fa fa-box icon" />
+            <RiFileListLine />
             <span className="label">Gói tập</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <NavLink to="/admin/trainers" className="admin-side-item">
             <i className="fa fa-user-tie icon" />
+            <GiWhistle />
             <span className="label">Huấn luyện viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <NavLink to="/admin/staffs" className="admin-side-item">
             <i className="fa fa-user-tie icon" />
+            <FaUsers />
             <span className="label">Nhân viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <NavLink to="/admin/members" className="admin-side-item">
             <i className="fa fa-users icon" />
+            <AiOutlineUser />
             <span className="label">Hội viên</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <NavLink to="/admin/equipments" className="admin-side-item">
             <i className="fa fa-users icon" />
+            <AiOutlineTool />
             <span className="label">Thiết bị</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
+          <NavLink to="/admin/vouchers" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <IoTicketOutline />
+            <span className="label">Mã khuyến mãi</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <div className="admin-side-section">System</div>

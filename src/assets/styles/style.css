@@ -1662,9 +1662,10 @@
 .admin-side-item{
   display:flex; align-items:center; gap:12px; padding:10px 12px; margin:6px;
   color:#cfd3ff; text-decoration:none; border-radius:10px;
-  transform: skew(10deg); transition: background .2s,color .2s;
+  /* transform: skew(10deg); */
+  transition: background .2s,color .2s;
 }
-.admin-side-item .icon,.admin-side-item .label,.admin-side-item .caret{ transform: skew(-10deg); }
+/* .admin-side-item .icon,.admin-side-item .label,.admin-side-item .caret{ transform: skew(-10deg); } */
 .admin-side-item .icon{ width:22px; text-align:center; }
 .admin-side-item .caret{ margin-left:auto; opacity:.6; }
 .admin-side-item:hover{ background: rgba(255,255,255,.06); color:#fff; }
