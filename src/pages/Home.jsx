@@ -98,76 +98,7 @@ export default function Home() {
     const t = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(t);
   }, []);
-
-  const packagesData = [
-  {
-    id: 1,
-    iconIndex: 1,
-    title: "Gói Cơ Bản",
-    duration: 1,
-    sessions: 10,
-    price: 2500000,
-    hasPT: false,
-    description:
-      "Phù hợp cho người mới bắt đầu, làm quen máy và các bài tập nền tảng cơ bản.",
-  },
-  {
-    id: 2,
-    iconIndex: 2,
-    title: "Gói Nâng Cao",
-    duration: 2,
-    sessions: 20,
-    price: 4500000,
-    hasPT: true,
-    description:
-      "Dành cho người đã có kinh nghiệm tập, có huấn luyện viên hướng dẫn cải thiện kỹ thuật và thể hình.",
-  },
-  {
-    id: 3,
-    iconIndex: 3,
-    title: "Gói Chuyên Sâu",
-    duration: 3,
-    sessions: 30,
-    price: 6500000,
-    hasPT: true,
-    description:
-      "Lộ trình chuyên sâu 1-1 với huấn luyện viên cá nhân, bao gồm theo dõi dinh dưỡng và đánh giá InBody định kỳ.",
-  },
-  {
-    id: 4,
-    iconIndex: 4,
-    title: "Gói Linh Hoạt",
-    duration: 1,
-    sessions: 12,
-    price: 3000000,
-    hasPT: false,
-    description:
-      "Lựa chọn linh hoạt cho người bận rộn, có thể sắp xếp thời gian tập tuỳ lịch cá nhân.",
-  },
-  {
-    id: 5,
-    iconIndex: 5,
-    title: "Gói Tăng Tốc",
-    duration: 2,
-    sessions: 16,
-    price: 4000000,
-    hasPT: true,
-    description:
-      "Gói tập cường độ cao cùng PT, giúp đạt kết quả nhanh trong thời gian ngắn.",
-  },
-  {
-    id: 6,
-    iconIndex: 6,
-    title: "Gói Tiết Kiệm",
-    duration: 1,
-    sessions: 8,
-    price: 2000000,
-    hasPT: false,
-    description:
-      "Gói cơ bản giá tốt, phù hợp người muốn duy trì sức khoẻ và hình thể.",
-  },
-];
-
+  
   const featureSlides = [
     { img: "/img/feature-1.jpg", title: "Work Your Butt Off" },
     { img: "/img/feature-2.jpg", title: "Get In The groove" },
@@ -442,11 +373,11 @@ export default function Home() {
                               PT:&nbsp;
                               {item.hasPT ? (
                                 <>
-                                  Không < AiOutlineClose className="icon-close" style={{ marginLeft: 4 }} />      
+                                  Có < AiOutlineCheck className="icon-check" style={{ marginLeft: 4 }} />      
                                 </>
                               ) : (
                                 <>
-                                  Có < AiOutlineCheck className="icon-check" style={{ marginLeft: 4 }} />      
+                                 Không < AiOutlineClose className="icon-close" style={{ marginLeft: 4 }} />       
                                 </>
                               )}
                             </p>
