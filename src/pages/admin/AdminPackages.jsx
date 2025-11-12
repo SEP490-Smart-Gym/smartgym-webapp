@@ -1,42 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Tag, Space, Button, message } from "antd";
+import { Table, Tag, Space, Button, message, Spin } from "antd";
+import api from "../../config/axios";
 
 export default function AdminPackages() {
-  const [packages, setPackages] = useState([
-    {
-      id: 1,
-      name: "Gói 10 buổi",
-      limit: "1 tháng",
-      type: "Buổi",
-      amount: 10,
-      price: 800000,
-      description: "Gói siêu ưu đãi cho người mới",
-      hasPT: false,
-    },
-    {
-      id: 2,
-      name: "Gói 1 tháng (có PT)",
-      limit: "1 tháng",
-      type: "Tháng",
-      amount: "",
-      price: 1200000,
-      description: "Gói siêu ưu đãi cho người mới",
-      hasPT: true,
-    },
-  ]);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // ------ Form thêm mới ------
   const [newPackage, setNewPackage] = useState({
-    name: "",
-    limit: "",
-    type: "Buổi",
-    amount: "",
-    price: "",
+    packageName: "",
+    packageTypeId: 1,
     description: "",
-    hasPT: false,
+    price: "",
+    durationInDays: "",
+    sessionCount: "",
+    includesPersonalTrainer: false,
   });
 
+  const [editingPkg, setEditingPkg] = useState(null);
+
+  // ================== Lấy danh sách ==================
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/Package");
+      setPackages(res.data || []);
+    } catch (err) {
+      console.error(err);
+      message.error("Không thể tải danh sách gói tập!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPackages();
+  }, []);
+
+  // ================== Xử lý input ==================
   const handleInput = (e) => {
     const { name, value, type, checked } = e.target;
     setNewPackage((prev) => ({
@@ -45,127 +46,134 @@ export default function AdminPackages() {
     }));
   };
 
-  const validateAdd = () => {
-    if (!newPackage.name.trim()) return alert("Vui lòng nhập tên gói!");
-    if (!newPackage.price || +newPackage.price <= 0) return alert("Giá phải lớn hơn 0!");
-    if (newPackage.type === "Buổi" && (!newPackage.amount || +newPackage.amount <= 0))
-      return alert("Số buổi phải > 0 với gói Buổi!");
-    return true;
-  };
+  // ================== Thêm gói mới ==================
+  const handleAdd = async () => {
+    if (!newPackage.packageName.trim()) return message.error("Vui lòng nhập tên gói!");
+    if (!newPackage.price || +newPackage.price <= 0)
+      return message.error("Giá phải lớn hơn 0!");
+    if (!newPackage.durationInDays)
+      return message.error("Vui lòng nhập thời hạn (ngày)!");
 
-  const handleAdd = () => {
-    if (!validateAdd()) return;
-    const newPkg = {
-      id: Date.now(),
-      name: newPackage.name.trim(),
-      limit: newPackage.limit,
-      type: newPackage.type,
-      amount: newPackage.type === "Buổi" ? Number(newPackage.amount) : "",
-      price: parseInt(newPackage.price, 10),
+    const body = {
+      packageName: newPackage.packageName.trim(),
+      packageTypeId: Number(newPackage.packageTypeId),
       description: newPackage.description.trim(),
-      hasPT: !!newPackage.hasPT,
+      price: Number(newPackage.price),
+      durationInDays: Number(newPackage.durationInDays),
+      sessionCount: Number(newPackage.sessionCount) || 0,
+      includesPersonalTrainer: newPackage.includesPersonalTrainer,
     };
-    setPackages((prev) => [newPkg, ...prev]);
-    setNewPackage({
-      name: "",
-      limit: "",
-      type: "Buổi",
-      amount: "",
-      price: "",
-      description: "",
-      hasPT: false,
-    });
-    message.success("Đã thêm gói tập");
-  };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa gói này?")) {
-      setPackages((prev) => prev.filter((pkg) => pkg.id !== id));
-      message.success("Đã xoá gói");
+    try {
+      await api.post("/Package", body);
+      message.success("Thêm gói tập thành công!");
+      fetchPackages();
+      setNewPackage({
+        packageName: "",
+        packageTypeId: 1,
+        description: "",
+        price: "",
+        durationInDays: "",
+        sessionCount: "",
+        includesPersonalTrainer: false,
+      });
+    } catch (err) {
+      console.error(err);
+      message.error("Thêm gói thất bại!");
     }
   };
 
-  // ------ Modal cập nhật (giữ nguyên luồng CRUD) ------
-  const [editingPkg, setEditingPkg] = useState(null);
-
-  const handleUpdate = (e) => {
-    e.preventDefault();
-    if (!editingPkg.name.trim()) return alert("Tên gói không được trống!");
-    if (!editingPkg.price || +editingPkg.price <= 0) return alert("Giá phải lớn hơn 0!");
-
-    setPackages((prev) =>
-      prev.map((p) =>
-        p.id === editingPkg.id ? { ...editingPkg, price: +editingPkg.price } : p
-      )
-    );
-    setEditingPkg(null);
-    message.success("Cập nhật gói thành công");
+  // ================== Xóa gói ==================
+  const handleDelete = async (id) => {
+    if (!window.confirm("Bạn có chắc muốn xóa gói này?")) return;
+    try {
+      await api.delete(`/Package/${id}`);
+      message.success("Đã xoá gói!");
+      fetchPackages();
+    } catch (err) {
+      console.error(err);
+      message.error("Xoá thất bại!");
+    }
   };
 
-  // ======= AntD Table columns (chỉ thay phần bảng) =======
+  // ================== Cập nhật gói ==================
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!editingPkg.packageName.trim())
+      return message.error("Tên gói không được trống!");
+    if (!editingPkg.price || +editingPkg.price <= 0)
+      return message.error("Giá phải lớn hơn 0!");
+
+    const body = {
+      packageName: editingPkg.packageName.trim(),
+      packageTypeId: Number(editingPkg.packageTypeId),
+      description: editingPkg.description.trim(),
+      price: Number(editingPkg.price),
+      durationInDays: Number(editingPkg.durationInDays),
+      sessionCount: Number(editingPkg.sessionCount) || 0,
+      includesPersonalTrainer: editingPkg.includesPersonalTrainer,
+    };
+
+    try {
+      await api.put(`/Package/${editingPkg.id}`, body);
+      message.success("Cập nhật thành công!");
+      setEditingPkg(null);
+      fetchPackages();
+    } catch (err) {
+      console.error(err);
+      message.error("Cập nhật thất bại!");
+    }
+  };
+
+  // ================== Cấu hình bảng ==================
   const columns = [
     {
       title: "Tên gói",
-      dataIndex: "name",
-      key: "name",
+      dataIndex: "packageName",
+      key: "packageName",
       fixed: "left",
       width: 220,
       ellipsis: true,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
-      title: "Giới hạn",
-      dataIndex: "limit",
-      key: "limit",
-      width: 140,
-      render: (v) => v || "—",
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
-    },
-    {
-      title: "Loại",
-      dataIndex: "type",
-      key: "type",
-      width: 110,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
-    },
-    {
-      title: "Số buổi",
-      dataIndex: "amount",
-      key: "amount",
-      width: 110,
-      render: (v) => (v || v === 0 ? v : "—"),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
-    },
-    {
-      title: "Giá",
+      title: "Giá (VNĐ)",
       dataIndex: "price",
       key: "price",
       width: 150,
       render: (v) => `${Number(v).toLocaleString("vi-VN")} đ`,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    },
+    {
+      title: "Thời hạn (ngày)",
+      dataIndex: "durationInDays",
+      key: "durationInDays",
+      width: 150,
+    },
+    {
+      title: "Số buổi",
+      dataIndex: "sessionCount",
+      key: "sessionCount",
+      width: 120,
+      render: (v) => (v ? v : "—"),
+    },
+    {
+      title: "PT",
+      dataIndex: "includesPersonalTrainer",
+      key: "includesPersonalTrainer",
+      width: 100,
+      render: (v) => (v ? <Tag color="green">Có</Tag> : <Tag color="default">Không</Tag>),
     },
     {
       title: "Mô tả",
       dataIndex: "description",
       key: "description",
-      width: 280,
+      width: 300,
       ellipsis: true,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
-    },
-    {
-      title: "PT",
-      dataIndex: "hasPT",
-      key: "hasPT",
-      width: 100,
-      render: (v) =>
-        v ? <Tag color="green">Có</Tag> : <Tag color="default">Không</Tag>,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
       title: "Thao tác",
       key: "actions",
       fixed: "right",
-      width: 170,
+      width: 150,
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => setEditingPkg(record)}>
@@ -176,23 +184,21 @@ export default function AdminPackages() {
           </Button>
         </Space>
       ),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
   ];
 
+  // ================== Giao diện ==================
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-        {/* Sidebar trái */}
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
 
-        {/* Nội dung chính */}
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý gói tập</h2>
 
-          {/* Form thêm gói mới (giữ nguyên) */}
+          {/* Form thêm gói mới */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm gói tập mới</h5>
@@ -200,56 +206,15 @@ export default function AdminPackages() {
                 <div className="col-md-3">
                   <label className="form-label">Tên gói</label>
                   <input
-                    name="name"
+                    name="packageName"
                     className="form-control"
                     placeholder="VD: Gói 3 tháng (có PT)"
-                    value={newPackage.name}
+                    value={newPackage.packageName}
                     onChange={handleInput}
                   />
                 </div>
 
                 <div className="col-md-2">
-                  <label className="form-label">Loại gói</label>
-                  <select
-                    name="type"
-                    className="form-select"
-                    value={newPackage.type}
-                    onChange={handleInput}
-                  >
-                    <option value="Buổi">Buổi</option>
-                    <option value="Tháng">Tháng</option>
-                  </select>
-                </div>
-
-                <div className="col-md-1">
-                  <label className="form-label">Số buổi</label>
-                  <input
-                    name="amount"
-                    type="number"
-                    className="form-control"
-                    placeholder="VD: 10"
-                    value={newPackage.amount}
-                    onChange={handleInput}
-                    disabled={newPackage.type !== "Buổi"}
-                  />
-                </div>
-
-                <div className="col-md-3">
-                  <label className="form-label">Thời hạn</label>
-                  <select
-                    name="limit"
-                    className="form-select"
-                    value={newPackage.limit}
-                    onChange={handleInput}
-                  >
-                    <option value="">-- Chọn thời hạn --</option>
-                    <option value="1 tháng">1 tháng</option>
-                    <option value="3 tháng">3 tháng</option>
-                    <option value="6 tháng">6 tháng</option>
-                  </select>
-                </div>
-
-                <div className="col-md-3">
                   <label className="form-label">Giá (VNĐ)</label>
                   <input
                     name="price"
@@ -259,6 +224,46 @@ export default function AdminPackages() {
                     value={newPackage.price}
                     onChange={handleInput}
                   />
+                </div>
+
+                <div className="col-md-2">
+                  <label className="form-label">Thời hạn (ngày)</label>
+                  <input
+                    name="durationInDays"
+                    type="number"
+                    className="form-control"
+                    placeholder="VD: 30"
+                    value={newPackage.durationInDays}
+                    onChange={handleInput}
+                  />
+                </div>
+
+                <div className="col-md-2">
+                  <label className="form-label">Số buổi</label>
+                  <input
+                    name="sessionCount"
+                    type="number"
+                    className="form-control"
+                    placeholder="VD: 10"
+                    value={newPackage.sessionCount}
+                    onChange={handleInput}
+                  />
+                </div>
+
+                <div className="col-md-2 d-flex align-items-end">
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      name="includesPersonalTrainer"
+                      checked={newPackage.includesPersonalTrainer}
+                      onChange={handleInput}
+                      id="ptCheck"
+                    />
+                    <label className="form-check-label" htmlFor="ptCheck">
+                      Có PT
+                    </label>
+                  </div>
                 </div>
 
                 <div className="col-md-9">
@@ -271,22 +276,6 @@ export default function AdminPackages() {
                     onChange={handleInput}
                   />
                 </div>
-
-                <div className="col-md-2 d-flex align-items-end">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      name="hasPT"
-                      checked={newPackage.hasPT}
-                      onChange={handleInput}
-                      id="ptCheck"
-                    />
-                    <label className="form-check-label" htmlFor="ptCheck">
-                      Có PT
-                    </label>
-                  </div>
-                </div>
               </div>
 
               <div className="mt-3 text-end">
@@ -297,21 +286,27 @@ export default function AdminPackages() {
             </div>
           </div>
 
-          {/* Danh sách gói (AntD Table) */}
+          {/* Bảng danh sách */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách gói tập</h5>
-              <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={packages}
-                pagination={{ pageSize: 8 }}
-                scroll={{ x: "max-content" }}
-              />
+              {loading ? (
+                <div className="text-center py-5">
+                  <Spin />
+                </div>
+              ) : (
+                <Table
+                  rowKey="id"
+                  columns={columns}
+                  dataSource={packages}
+                  pagination={{ pageSize: 8 }}
+                  scroll={{ x: "max-content" }}
+                />
+              )}
             </div>
           </div>
 
-          {/* Modal chỉnh sửa (giữ nguyên bootstrap modal) */}
+          {/* Modal chỉnh sửa */}
           {editingPkg && (
             <div
               className="modal fade show"
@@ -334,57 +329,14 @@ export default function AdminPackages() {
                           <label className="form-label">Tên gói</label>
                           <input
                             className="form-control"
-                            value={editingPkg.name}
+                            value={editingPkg.packageName}
                             onChange={(e) =>
-                              setEditingPkg((p) => ({ ...p, name: e.target.value }))
+                              setEditingPkg((p) => ({ ...p, packageName: e.target.value }))
                             }
                           />
                         </div>
 
                         <div className="col-md-3">
-                          <label className="form-label">Loại gói</label>
-                          <select
-                            className="form-select"
-                            value={editingPkg.type}
-                            onChange={(e) =>
-                              setEditingPkg((p) => ({ ...p, type: e.target.value }))
-                            }
-                          >
-                            <option value="Buổi">Buổi</option>
-                            <option value="Tháng">Tháng</option>
-                          </select>
-                        </div>
-
-                        <div className="col-md-3">
-                          <label className="form-label">Số buổi</label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            value={editingPkg.amount || ""}
-                            onChange={(e) =>
-                              setEditingPkg((p) => ({ ...p, amount: e.target.value }))
-                            }
-                            disabled={editingPkg.type !== "Buổi"}
-                          />
-                        </div>
-
-                        <div className="col-md-4">
-                          <label className="form-label">Thời hạn</label>
-                          <select
-                            className="form-select"
-                            value={editingPkg.limit}
-                            onChange={(e) =>
-                              setEditingPkg((p) => ({ ...p, limit: e.target.value }))
-                            }
-                          >
-                            <option value="">-- Chọn thời hạn --</option>
-                            <option value="1 tháng">1 tháng</option>
-                            <option value="3 tháng">3 tháng</option>
-                            <option value="6 tháng">6 tháng</option>
-                          </select>
-                        </div>
-
-                        <div className="col-md-4">
                           <label className="form-label">Giá (VNĐ)</label>
                           <input
                             type="number"
@@ -392,6 +344,36 @@ export default function AdminPackages() {
                             value={editingPkg.price}
                             onChange={(e) =>
                               setEditingPkg((p) => ({ ...p, price: e.target.value }))
+                            }
+                          />
+                        </div>
+
+                        <div className="col-md-3">
+                          <label className="form-label">Thời hạn (ngày)</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={editingPkg.durationInDays}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                durationInDays: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="col-md-3">
+                          <label className="form-label">Số buổi</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            value={editingPkg.sessionCount}
+                            onChange={(e) =>
+                              setEditingPkg((p) => ({
+                                ...p,
+                                sessionCount: e.target.value,
+                              }))
                             }
                           />
                         </div>
@@ -415,9 +397,12 @@ export default function AdminPackages() {
                             <input
                               className="form-check-input"
                               type="checkbox"
-                              checked={editingPkg.hasPT}
+                              checked={editingPkg.includesPersonalTrainer}
                               onChange={(e) =>
-                                setEditingPkg((p) => ({ ...p, hasPT: e.target.checked }))
+                                setEditingPkg((p) => ({
+                                  ...p,
+                                  includesPersonalTrainer: e.target.checked,
+                                }))
                               }
                               id="editPT"
                             />

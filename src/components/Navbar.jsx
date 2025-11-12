@@ -139,7 +139,7 @@ export default function Navbar() {
                         )}
 
                         {/* Member (role = "member") */}
-                        {user.role === "member" && (
+                        {user.roleName === "Member" && (
                           <li>
                             <button className="dropdown-item" onClick={() => navigate("/member/profile")}>
                               Profile

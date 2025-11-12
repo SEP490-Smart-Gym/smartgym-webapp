@@ -107,7 +107,7 @@ export default function AppRoutes() {
         <Route path="/member/:id/schedule" element={<TrainerSchedule />} />
 
         {/* ===== Member protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["member"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Member"]} />}>
           {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
@@ -117,7 +117,7 @@ export default function AppRoutes() {
         </Route>
 
         {/* ===== Trainer protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["trainer"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
@@ -125,7 +125,7 @@ export default function AppRoutes() {
         </Route>
 
         {/* ===== Staff protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["staff"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Staff"]} />}>
           <Route path="staff/dashboard" element={<Home />} />
           <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/dashboard" element={<Home />} />
