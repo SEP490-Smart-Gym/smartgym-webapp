@@ -1,48 +1,154 @@
-import { useState } from "react";
+// AdminStaffList.jsx
+import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Space, Button } from "antd";
+import { Table, Space, Button, Modal, Form, Input, DatePicker, Select, message, Spin } from "antd";
+import api from "../../config/axios";
+import dayjs from "dayjs";
+
+const GENDER_OPTIONS = [
+  { label: "Nam", value: "Male" },
+  { label: "Nữ", value: "Female" },
+  { label: "Khác", value: "Other" },
+];
+
+// NOTE:
+// - Endpoint dùng trong file này: 
+//    GET  -> /Users          (lấy danh sách staff)
+//    POST -> /Users          (tạo user mới)
+//    PUT  -> /Users/{id}     (cập nhật user)
+//    DELETE -> /Users/{id}   (xóa user)
+// If your backend uses different routes, replace the strings below accordingly.
 
 export default function AdminStaffList() {
-  const [staffs, setStaffs] = useState([
-    {
-      id: 1,
-      name: "Nguyễn Thành Công",
-      gender: "Nam",
-      dob: "1995-03-10",
-      phone: "0911222333",
-      email: "cong@example.com",
-      photo: "/img/testimonial-2.jpg",
-    },
-    {
-      id: 2,
-      name: "Lê Thị Hoa",
-      gender: "Nữ",
-      dob: "1999-12-22",
-      phone: "0977123456",
-      email: "hoa@example.com",
-      photo: "",
-    },
-  ]);
+  const [staffs, setStaffs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [newStaff, setNewStaff] = useState({
-    name: "",
-    gender: "Nam",
-    dob: "",
-    phone: "",
-    email: "",
-    photo: "",
-  });
+  // form add (không modal)
+  const [addForm] = Form.useForm();
 
+  // edit modal
+  const [editForm] = Form.useForm();
   const [editingStaff, setEditingStaff] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
 
-  // yyyy-mm-dd -> dd/mm/yyyy
-  const formatDateDisplay = (dateStr) => {
-    if (!dateStr) return "—";
-    const [y, m, d] = dateStr.split("-");
-    return `${d}/${m}/${y}`;
+  // fetch danh sách từ API
+  const fetchStaffs = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/Admin/users");
+      const data = Array.isArray(res.data) ? res.data : res.data.items || [];
+      const staffList = data.filter(
+        (u) => u.roleName && u.roleName.toLowerCase() === "staff"
+      );
+
+      setStaffs(staffList);
+    } catch (err) {
+      console.error(err);
+      message.error("Lấy danh sách nhân viên thất bại");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ===== Columns cho AntD Table =====
+
+  useEffect(() => {
+    fetchStaffs();
+  }, []);
+
+  // ===== Thêm nhân viên (POST) =====
+  const handleAdd = async (values) => {
+    // build body theo spec bạn gửi
+    const body = {
+      email: values.email,
+      password: values.password,
+      firstName: values.firstName,
+      lastName: values.lastName,
+      phoneNumber: values.phoneNumber,
+      gender: values.gender, // "Male" / "Female" / "Other"
+      address: values.address || "",
+      dateOfBirth: values.dateOfBirth ? values.dateOfBirth.toISOString() : null,
+      roleId: 3, // staff
+    };
+
+    try {
+      const res = await api.post("/Users", body); // <-- thay endpoint nếu cần
+      message.success("Tạo nhân viên thành công");
+      // nếu API trả object mới, push vào state
+      const created = res.data;
+      // một số backend trả object trong res.data.data; bạn có thể điều chỉnh khi test
+      setStaffs((prev) => [created, ...prev]);
+      addForm.resetFields();
+    } catch (err) {
+      console.error(err);
+      // hiển thị thông báo lỗi chi tiết nếu có
+      const detail = err?.response?.data?.message || err?.response?.data || err.message;
+      message.error("Tạo nhân viên thất bại: " + (detail || ""));
+    }
+  };
+
+  // ===== Xóa (DELETE) =====
+  const handleDelete = async (id) => {
+    if (!window.confirm("Bạn có chắc muốn xóa nhân viên này?")) return;
+    try {
+      await api.delete(`/Users/${id}`); // <-- thay endpoint nếu cần
+      setStaffs((prev) => prev.filter((s) => s.id !== id));
+      message.success("Xóa thành công");
+    } catch (err) {
+      console.error(err);
+      message.error("Xóa thất bại");
+    }
+  };
+
+  // ===== Mở modal edit =====
+  const openEdit = (record) => {
+    // map backend -> form fields
+    editForm.setFieldsValue({
+      id: record.id,
+      firstName: record.firstName || record.first_name || (record.name?.split(" ")?.slice(0, 1)?.join(" ") || ""),
+      lastName: record.lastName || record.last_name || (record.name ? record.name.split(" ").slice(1).join(" ") : ""),
+      email: record.email,
+      phoneNumber: record.phoneNumber || record.phone || "",
+      gender: record.gender || "Male",
+      address: record.address || "",
+      dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
+      roleId: record.roleId ?? null,
+    });
+    setEditingStaff(record);
+    setEditOpen(true);
+  };
+
+  // ===== Lưu chỉnh sửa (PUT) =====
+  const saveEdit = async (values) => {
+    if (!editingStaff) return;
+    const id = editingStaff.id;
+    const body = {
+      email: values.email,
+      // password optional khi cập nhật - nếu backend bắt password khi tạo, để trống khi cập nhật
+      firstName: values.firstName,
+      lastName: values.lastName,
+      phoneNumber: values.phoneNumber,
+      gender: values.gender,
+      address: values.address || "",
+      dateOfBirth: values.dateOfBirth ? values.dateOfBirth.toISOString() : null,
+      roleId: values.roleId ?? 3,
+    };
+
+    try {
+      const res = await api.put(`/Users/${id}`, body); // <-- thay endpoint nếu cần
+      message.success("Cập nhật nhân viên thành công");
+      // update local state: dùng res.data nếu backend trả object mới
+      const updated = res.data || { id, ...body };
+      setStaffs((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      setEditOpen(false);
+      setEditingStaff(null);
+      editForm.resetFields();
+    } catch (err) {
+      console.error(err);
+      const detail = err?.response?.data?.message || err?.response?.data || err.message;
+      message.error("Cập nhật thất bại: " + (detail || ""));
+    }
+  };
+
   const columns = [
     {
       title: "Ảnh",
@@ -52,54 +158,51 @@ export default function AdminStaffList() {
       fixed: "left",
       render: (src, record) => (
         <img
-          src={src || "/img/useravt.jpg"}
-          alt={record.name}
+          src={src || record.imageUrl || "/img/useravt.jpg"}
+          alt={record.firstName ? `${record.firstName} ${record.lastName || ""}` : record.name || "avatar"}
           style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "1px solid #ddd" }}
           onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
         />
       ),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
-      title: "Tên",
+      title: "Họ và tên",
       dataIndex: "name",
       key: "name",
       width: 220,
-      fixed: "left",
-      ellipsis: true,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (_, r) => {
+        const first = r.firstName || "";
+        const last = r.lastName || "";
+        return (first || last) ? `${first} ${last}`.trim() : (r.name || "—");
+      },
     },
     {
       title: "Giới tính",
       dataIndex: "gender",
       key: "gender",
       width: 120,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (v) => (v === "Male" ? "Nam" : v === "Female" ? "Nữ" : "Khác"),
     },
     {
       title: "Ngày sinh",
-      dataIndex: "dob",
-      key: "dob",
+      dataIndex: "dateOfBirth",
+      key: "dateOfBirth",
       width: 140,
-      render: (v) => formatDateDisplay(v),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "—"),
     },
     {
       title: "SĐT",
-      dataIndex: "phone",
-      key: "phone",
+      dataIndex: "phoneNumber",
+      key: "phoneNumber",
       width: 150,
       render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
-      width: 220,
+      width: 240,
       render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
-      ellipsis: true,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
       title: "Thao tác",
@@ -108,302 +211,158 @@ export default function AdminStaffList() {
       width: 160,
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => setEditingStaff(record)}>
-            Sửa
-          </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
-            Xoá
-          </Button>
+          <Button size="small" onClick={() => openEdit(record)}>Sửa</Button>
+          <Button size="small" danger onClick={() => handleDelete(record.id)}>Xóa</Button>
         </Space>
       ),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
   ];
-
-  // ===== Add =====
-  const handleAdd = (e) => {
-    e.preventDefault();
-    if (!newStaff.name || !newStaff.phone || !newStaff.email)
-      return alert("Vui lòng nhập đầy đủ thông tin!");
-
-    const newEntry = { ...newStaff, id: Date.now() };
-    setStaffs((prev) => [newEntry, ...prev]);
-    setNewStaff({
-      name: "",
-      gender: "Nam",
-      dob: "",
-      phone: "",
-      email: "",
-      photo: "",
-    });
-  };
-
-  // ===== Delete =====
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa nhân viên này?")) {
-      setStaffs((prev) => prev.filter((s) => s.id !== id));
-    }
-  };
-
-  // ===== Update (giữ modal bootstrap như cũ) =====
-  const handleUpdate = (e) => {
-    e.preventDefault();
-    setStaffs((prev) =>
-      prev.map((s) => (s.id === editingStaff.id ? editingStaff : s))
-    );
-    setEditingStaff(null);
-  };
 
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-        {/* Sidebar */}
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
 
-        {/* Nội dung chính */}
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý nhân viên</h2>
 
-          {/* Form thêm nhân viên (giữ nguyên) */}
+          {/* Form thêm (không modal) */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm nhân viên mới</h5>
-              <form onSubmit={handleAdd}>
+              <Form
+                form={addForm}
+                layout="vertical"
+                onFinish={handleAdd}
+                initialValues={{ gender: "Male" }}
+              >
                 <div className="row g-3">
+                  <div className="col-md-6">
+                    <Form.Item name="firstName" rules={[{ required: true, message: "Nhập tên" }]}>
+                      <Input placeholder="Tên (firstName)" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="lastName" rules={[{ required: true, message: "Nhập họ" }]}>
+                      <Input placeholder="Họ (lastName)" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
+                      <Input placeholder="Email" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
+                      <Input placeholder="Số điện thoại" />
+                    </Form.Item>
+                  </div>
+
                   <div className="col-md-4">
-                    <label className="form-label">Họ và tên</label>
-                    <input
-                      name="name"
-                      className="form-control"
-                      value={newStaff.name}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, name: e.target.value }))
-                      }
-                      placeholder="Nhập họ tên"
-                    />
+                    <Form.Item name="gender">
+                      <Select options={GENDER_OPTIONS} />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-2">
-                    <label className="form-label">Giới tính</label>
-                    <select
-                      className="form-select"
-                      value={newStaff.gender}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, gender: e.target.value }))
-                      }
-                    >
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                      <option value="Khác">Khác</option>
-                    </select>
+                  <div className="col-md-4">
+                    <Form.Item name="dateOfBirth">
+                      <DatePicker style={{ width: "100%" }} />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Ngày sinh</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={newStaff.dob}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, dob: e.target.value }))
-                      }
-                    />
+                  <div className="col-md-4">
+                    <Form.Item name="password" rules={[{ required: true, min: 6, message: "Mật khẩu >= 6 ký tự" }]}>
+                      <Input.Password placeholder="Mật khẩu" />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Số điện thoại</label>
-                    <input
-                      className="form-control"
-                      value={newStaff.phone}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, phone: e.target.value }))
-                      }
-                      placeholder="VD: 0987xxxxxx"
-                    />
+                  <div className="col-md-8">
+                    <Form.Item name="address">
+                      <Input placeholder="Địa chỉ" />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      value={newStaff.email}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, email: e.target.value }))
-                      }
-                      placeholder="VD: example@gmail.com"
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label">Ảnh đại diện (URL)</label>
-                    <input
-                      className="form-control"
-                      placeholder="Dán link ảnh hoặc để trống"
-                      value={newStaff.photo}
-                      onChange={(e) =>
-                        setNewStaff((p) => ({ ...p, photo: e.target.value }))
-                      }
-                    />
+                  <div className="col-md-4 d-flex align-items-end">
+                    <Form.Item style={{ width: "100%", marginBottom: 0 }}>
+                      <Button type="btn btn-add" htmlType="submit" block>
+                        Thêm nhân viên
+                      </Button>
+                    </Form.Item>
                   </div>
                 </div>
-
-                <div className="mt-3 text-end">
-                  <button type="submit" className="btn btn-add">
-                    Thêm nhân viên
-                  </button>
-                </div>
-              </form>
+              </Form>
             </div>
           </div>
 
-          {/* Danh sách (AntD Table) */}
+          {/* Table */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách nhân viên</h5>
-
-              <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={staffs}
-                pagination={{ pageSize: 8 }}
-                scroll={{ x: "max-content" }}
-              />
+              {loading ? (
+                <div className="text-center py-5"><Spin /></div>
+              ) : (
+                <Table
+                  rowKey={(r) => r.id}
+                  columns={columns}
+                  dataSource={staffs}
+                  pagination={{ pageSize: 8 }}
+                  scroll={{ x: "max-content" }}
+                />
+              )}
             </div>
           </div>
-
-          {/* Modal cập nhật (giữ nguyên bootstrap modal) */}
-          {editingStaff && (
-            <div
-              className="modal fade show"
-              style={{ display: "block", background: "rgba(0,0,0,.4)" }}
-            >
-              <div className="modal-dialog modal-lg modal-dialog-centered">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">Cập nhật nhân viên</h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={() => setEditingStaff(null)}
-                    ></button>
-                  </div>
-                  <form onSubmit={handleUpdate}>
-                    <div className="modal-body">
-                      <div className="row g-3">
-                        <div className="col-md-6">
-                          <label className="form-label">Họ và tên</label>
-                          <input
-                            className="form-control"
-                            value={editingStaff.name}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                name: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="col-md-3">
-                          <label className="form-label">Giới tính</label>
-                          <select
-                            className="form-select"
-                            value={editingStaff.gender}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                gender: e.target.value,
-                              }))
-                            }
-                          >
-                            <option value="Nam">Nam</option>
-                            <option value="Nữ">Nữ</option>
-                            <option value="Khác">Khác</option>
-                          </select>
-                        </div>
-
-                        <div className="col-md-3">
-                          <label className="form-label">Ngày sinh</label>
-                          <input
-                            type="date"
-                            className="form-control"
-                            value={editingStaff.dob}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                dob: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="col-md-6">
-                          <label className="form-label">Email</label>
-                          <input
-                            type="email"
-                            className="form-control"
-                            value={editingStaff.email}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                email: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="col-md-6">
-                          <label className="form-label">Số điện thoại</label>
-                          <input
-                            className="form-control"
-                            value={editingStaff.phone}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                phone: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="col-md-12">
-                          <label className="form-label">Ảnh đại diện (URL)</label>
-                          <input
-                            className="form-control"
-                            value={editingStaff.photo}
-                            onChange={(e) =>
-                              setEditingStaff((p) => ({
-                                ...p,
-                                photo: e.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="modal-footer">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setEditingStaff(null)}
-                      >
-                        Hủy
-                      </button>
-                      <button type="submit" className="btn btn-add">
-                        Lưu thay đổi
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Modal edit */}
+      <Modal
+        title="Cập nhật nhân viên"
+        open={editOpen}
+        onCancel={() => { setEditOpen(false); setEditingStaff(null); editForm.resetFields(); }}
+        onOk={() => editForm.submit()}
+        okText="Lưu thay đổi"
+        cancelText="Hủy"
+        destroyOnClose
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={saveEdit}
+        >
+          <Form.Item name="firstName" label="Tên" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="lastName" label="Họ" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: "email" }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="phoneNumber" label="SĐT">
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="gender" label="Giới tính">
+            <Select options={GENDER_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item name="dateOfBirth" label="Ngày sinh">
+            <DatePicker style={{ width: "100%" }} />
+          </Form.Item>
+
+          <Form.Item name="address" label="Địa chỉ">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
