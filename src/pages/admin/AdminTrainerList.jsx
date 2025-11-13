@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
@@ -10,158 +10,228 @@ import {
   Tag,
   Space,
   Button,
-  Popconfirm,
   message,
+  DatePicker,
+  Spin,
 } from "antd";
+import api from "../../config/axios";
+import dayjs from "dayjs";
 
 const { Option } = Select;
 
 export default function AdminTrainerList() {
-  const [trainers, setTrainers] = useState([
-    {
-      id: 101,
-      name: "John Doe",
-      age: 32,
-      gender: "Nam",
-      experienceYears: 8,
-      skills: ["Strength", "Mobility", "HIIT"],
-      email: "john@example.com",
-      phone: "0901234567",
-      certificates: ["NASM-CPT", "CPR/AED"],
-      photo: "/img/team-1.jpg",
-    },
-    {
-      id: 102,
-      name: "Emily Smith",
-      age: 28,
-      gender: "Nữ",
-      experienceYears: 5,
-      skills: ["Yoga", "Pilates"],
-      email: "emily@example.com",
-      phone: "0912345678",
-      certificates: ["RYT-200"],
-      photo: "/img/team-2.jpg",
-    },
-  ]);
+  const [trainers, setTrainers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // State form thêm mới
+  // form thêm mới (giữ các trường theo API)
   const [newT, setNewT] = useState({
-    name: "",
-    age: "",
-    gender: "Nam",
-    experienceYears: "",
-    skills: "",
+    fullName: "",
     email: "",
-    phone: "",
-    certificates: "",
-    photo: "",
+    password: "",
+    phoneNumber: "",
+    gender: "Male", // Male / Female / Other
+    address: "",
+    dateOfBirth: null, // ISO string
   });
 
-  const handleInputNew = (e) => {
-    const { name, value } = e.target;
-    setNewT((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const validateNew = () => {
-    if (!newT.name.trim()) return alert("Vui lòng nhập tên HLV!");
-    if (!newT.age || Number(newT.age) <= 0) return alert("Tuổi phải là số dương!");
-    if (!newT.email.includes("@")) return alert("Email không hợp lệ!");
-    if (!newT.phone || newT.phone.replace(/\D/g, "").length < 9)
-      return alert("SĐT không hợp lệ!");
-    return true;
-  };
-
-  const handleAdd = () => {
-    if (!validateNew()) return;
-
-    const skillsArr = newT.skills.split(",").map((s) => s.trim()).filter(Boolean);
-    const certArr = newT.certificates.split(",").map((c) => c.trim()).filter(Boolean);
-
-    const newTrainer = {
-      id: Date.now(),
-      name: newT.name.trim(),
-      age: Number(newT.age),
-      gender: newT.gender,
-      experienceYears: Number(newT.experienceYears || 0),
-      skills: skillsArr,
-      email: newT.email.trim(),
-      phone: newT.phone.trim(),
-      certificates: certArr,
-      photo: newT.photo || "/img/useravt.jpg",
-    };
-
-    setTrainers((prev) => [newTrainer, ...prev]);
-    setNewT({
-      name: "",
-      age: "",
-      gender: "Nam",
-      experienceYears: "",
-      skills: "",
-      email: "",
-      phone: "",
-      certificates: "",
-      photo: "",
-    });
-    message.success("Đã thêm huấn luyện viên mới!");
-  };
-
-  // === Update bằng Modal ===
+  // modal sửa local
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form] = Form.useForm();
 
+  // helper: split full name -> firstName + lastName (last token là lastName)
+  const splitName = (fullname) => {
+    const parts = (fullname || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { firstName: "", lastName: "" };
+    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+    const lastName = parts.pop();
+    const firstName = parts.join(" ");
+    return { firstName, lastName };
+  };
+
+  // === Fetch trainers ===
+  const fetchTrainers = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/Admin/users");
+      const raw = Array.isArray(res.data) ? res.data : res.data.items || res.data.data || [];
+      // filter trainer by roleName/roleId/roles
+      const filtered = raw.filter((u) => {
+        if (!u) return false;
+        if (u.roleName && typeof u.roleName === "string") {
+          return u.roleName.toLowerCase() === "trainer";
+        }
+        if (u.roleId) return Number(u.roleId) === 5;
+        if (u.roles && Array.isArray(u.roles)) {
+          return u.roles.some(
+            (r) => (r.name || "").toLowerCase() === "trainer" || Number(r.id) === 5
+          );
+        }
+        return false;
+      });
+
+      const mapped = filtered.map((u) => ({
+        id: u.userId || u.id || u.user?.id,
+        firstName: u.firstName || "",
+        lastName: u.lastName || "",
+        name:
+          `${u.firstName || ""}${u.firstName && u.lastName ? " " : ""}${u.lastName || ""}`.trim() ||
+          u.fullName ||
+          u.name ||
+          "",
+        email: u.email,
+        phone: u.phoneNumber || u.phone,
+        gender: u.gender === "Male" ? "Nam" : u.gender === "Female" ? "Nữ" : u.gender || "Khác",
+        address: u.address || "",
+        dateOfBirth: u.dateOfBirth || null,
+        raw: u,
+      }));
+
+      setTrainers(mapped);
+    } catch (err) {
+      console.error("fetch trainers error", err);
+      message.error("Lấy danh sách HLV thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrainers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // === validate local ===
+  const validateNew = () => {
+    if (!newT.fullName.trim()) {
+      message.error("Vui lòng nhập họ & tên.");
+      return false;
+    }
+    if (!newT.email || !/\S+@\S+\.\S+/.test(newT.email)) {
+      message.error("Email không hợp lệ.");
+      return false;
+    }
+    if (!newT.password || newT.password.length < 6) {
+      message.error("Password tối thiểu 6 ký tự.");
+      return false;
+    }
+    if (!newT.phoneNumber || newT.phoneNumber.replace(/\D/g, "").length < 9) {
+      message.error("Số điện thoại không hợp lệ.");
+      return false;
+    }
+    return true;
+  };
+
+  // === Create trainer (API) roleId = 5 ===
+  const handleAdd = async (ev) => {
+    ev?.preventDefault?.();
+    if (!validateNew()) return;
+
+    const { firstName, lastName } = splitName(newT.fullName);
+    const body = {
+      email: newT.email,
+      password: newT.password,
+      firstName: firstName || "",
+      lastName: lastName || "",
+      phoneNumber: newT.phoneNumber,
+      gender: newT.gender || "Male",
+      address: newT.address || "",
+      dateOfBirth: newT.dateOfBirth ? dayjs(newT.dateOfBirth).toISOString() : new Date().toISOString(),
+      roleId: 5,
+    };
+
+    try {
+      message.loading({ content: "Đang tạo tài khoản...", key: "createTrainer" });
+      const res = await api.post("/Admin/create-user", body);
+      message.success({ content: "Tạo tài khoản HLV thành công", key: "createTrainer", duration: 2 });
+
+      // refresh danh sách từ server
+      await fetchTrainers();
+
+      // reset form
+      setNewT({
+        fullName: "",
+        email: "",
+        password: "",
+        phoneNumber: "",
+        gender: "Male",
+        address: "",
+        dateOfBirth: null,
+      });
+    } catch (err) {
+      console.error("create trainer error", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        "Tạo tài khoản thất bại";
+      message.error({ content: Array.isArray(msg) ? msg.join(", ") : String(msg), duration: 4 });
+    }
+  };
+
+  // === Delete user (try API) ===
+  const handleDelete = async (record) => {
+    if (!window.confirm("Bạn có chắc muốn xoá HLV này?")) return;
+    try {
+      const userId = record?.raw?.userId || record?.id;
+      if (userId) {
+        await api.delete(`/Admin/users/${userId}`);
+        message.success("Xóa tài khoản thành công");
+        await fetchTrainers();
+        return;
+      }
+    } catch (err) {
+      console.warn("delete API failed", err);
+      message.error("Xóa tài khoản trên server thất bại");
+    }
+    // fallback local
+    setTrainers((p) => p.filter((t) => t.id !== record.id));
+    message.success("Đã xóa (local)");
+  };
+
+  // === Edit modal (local update only) ===
   const handleEdit = (record) => {
     setEditing(record);
     form.setFieldsValue({
-      ...record,
-      skills: (record.skills || []).join(", "),
-      certificates: (record.certificates || []).join(", "),
+      name: record.name,
+      age: record.age || undefined,
+      gender: record.gender === "Nam" ? "Nam" : record.gender === "Nữ" ? "Nữ" : record.gender,
+      email: record.email,
+      phone: record.phone,
+      address: record.address,
+      dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
+      photo: record.photo,
     });
     setOpen(true);
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xoá HLV này?")) {
-      setTrainers((prev) => prev.filter((t) => t.id !== id));
-      message.success("Đã xoá HLV");
-    }
   };
 
   const handleUpdate = async () => {
     try {
       const values = await form.validateFields();
-      const skillsArr = (values.skills || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const certArr = (values.certificates || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
+      // local update only (server-side update endpoint not assumed)
       setTrainers((prev) =>
         prev.map((t) =>
           t.id === editing.id
             ? {
                 ...t,
-                ...values,
-                age: Number(values.age),
-                experienceYears: Number(values.experienceYears || 0),
-                skills: skillsArr,
-                certificates: certArr,
-                photo: values.photo || "/img/useravt.jpg",
+                name: values.name,
+                email: values.email,
+                phone: values.phone,
+                gender: values.gender,
+                address: values.address,
+                dateOfBirth: values.dateOfBirth ? values.dateOfBirth.toISOString() : t.dateOfBirth,
+                photo: values.photo || t.photo,
               }
             : t
         )
       );
-
       setOpen(false);
       setEditing(null);
-      message.success("Cập nhật thành công");
-    } catch {}
+      message.success("Cập nhật thành công (local)");
+    } catch (err) {
+      // validation failed
+    }
   };
 
-  // === Cấu hình bảng AntD ===
   const columns = [
     {
       title: "Ảnh",
@@ -172,12 +242,7 @@ export default function AdminTrainerList() {
         <img
           src={src || "/img/useravt.jpg"}
           alt={r.name}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            objectFit: "cover",
-          }}
+          style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover" }}
           onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
         />
       ),
@@ -186,79 +251,57 @@ export default function AdminTrainerList() {
       title: "Tên",
       dataIndex: "name",
       key: "name",
+      width: 220,
       fixed: "left",
-      width: 200,
       ellipsis: true,
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
-    { title: "Tuổi", dataIndex: "age", key: "age", width: 90 },
-    { title: "Giới tính", dataIndex: "gender", key: "gender", width: 100 },
-    {
-      title: "KN (năm)",
-      dataIndex: "experienceYears",
-      key: "experienceYears",
-      width: 120,
-    },
-    {
-      title: "Kỹ năng",
-      dataIndex: "skills",
-      key: "skills",
-      width: 260,
-      render: (arr) =>
-        Array.isArray(arr) && arr.length ? (
-          <Space wrap size={4}>
-            {arr.map((s, i) => (
-              <Tag key={i} color="blue">
-                {s}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <span className="text-muted">—</span>
-        ),
+      sorter: (a, b) => (a.name || "").localeCompare(b.name || ""),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
-      width: 250,
+      width: 240,
       render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
     },
     {
       title: "SĐT",
       dataIndex: "phone",
       key: "phone",
-      width: 150,
+      width: 140,
       render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
     },
     {
-      title: "Chứng chỉ",
-      dataIndex: "certificates",
-      key: "certificates",
-      width: 280,
-      render: (arr) =>
-        Array.isArray(arr) && arr.length ? (
-          <Space wrap size={4}>
-            {arr.map((s, i) => (
-              <Tag key={i}>{s}</Tag>
-            ))}
-          </Space>
-        ) : (
-          <span className="text-muted">—</span>
-        ),
+      title: "Giới tính",
+      dataIndex: "gender",
+      key: "gender",
+      width: 110,
+    },
+    {
+      title: "Ngày sinh",
+      dataIndex: "dateOfBirth",
+      key: "dateOfBirth",
+      width: 140,
+      render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "—"),
+    },
+    {
+      title: "Địa chỉ",
+      dataIndex: "address",
+      key: "address",
+      width: 200,
+      ellipsis: true,
     },
     {
       title: "Thao tác",
       key: "action",
       fixed: "right",
-      width: 160,
+      width: 200,
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => handleEdit(record)}>
             Sửa
           </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
-            Xoá
+          <Button size="small" danger onClick={() => handleDelete(record)}>
+            Xóa
           </Button>
         </Space>
       ),
@@ -268,165 +311,131 @@ export default function AdminTrainerList() {
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-        {/* Sidebar */}
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
 
-        {/* Nội dung chính */}
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý Huấn luyện viên</h2>
 
-          {/* Form thêm HLV mới */}
+          {/* Form thêm */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
-              <h5 className="mb-3">Thêm HLV mới</h5>
+              <h5 className="mb-3">Thêm HLV mới (tạo tài khoản)</h5>
 
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <label className="form-label">Tên</label>
-                  <input
-                    name="name"
-                    className="form-control"
-                    placeholder="VD: Nguyễn Văn A"
-                    value={newT.name}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-2">
-                  <label className="form-label">Tuổi</label>
-                  <input
-                    name="age"
-                    type="number"
-                    min="16"
-                    className="form-control"
-                    placeholder="VD: 28"
-                    value={newT.age}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-2">
-                  <label className="form-label">Giới tính</label>
-                  <select
-                    name="gender"
-                    className="form-select"
-                    value={newT.gender}
-                    onChange={handleInputNew}
-                  >
-                    <option>Nam</option>
-                    <option>Nữ</option>
-                    <option>Khác</option>
-                  </select>
-                </div>
-
-                <div className="col-md-4">
-                  <label className="form-label">Số năm kinh nghiệm</label>
-                  <input
-                    name="experienceYears"
-                    type="number"
-                    min="0"
-                    className="form-control"
-                    placeholder="VD: 5"
-                    value={newT.experienceYears}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6">
-                  <label className="form-label">Kỹ năng</label>
-                  <input
-                    name="skills"
-                    className="form-control"
-                    placeholder="VD: Strength, Mobility"
-                    value={newT.skills}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6">
-                  <label className="form-label">Chứng chỉ</label>
-                  <input
-                    name="certificates"
-                    className="form-control"
-                    placeholder="VD: NASM-CPT, RYT-200"
-                    value={newT.certificates}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6">
-                  <label className="form-label">Email</label>
-                  <input
-                    name="email"
-                    type="email"
-                    className="form-control"
-                    placeholder="VD: abc@xyz.com"
-                    value={newT.email}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6">
-                  <label className="form-label">Số điện thoại</label>
-                  <input
-                    name="phone"
-                    className="form-control"
-                    placeholder="VD: 0901234567"
-                    value={newT.phone}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6">
-                  <label className="form-label">Ảnh (URL)</label>
-                  <input
-                    name="photo"
-                    className="form-control"
-                    placeholder="VD: https://..."
-                    value={newT.photo}
-                    onChange={handleInputNew}
-                  />
-                </div>
-
-                <div className="col-md-6 d-flex align-items-end">
-                  <div className="d-flex align-items-center gap-3">
-                    <img
-                      src={newT.photo || "/img/useravt.jpg"}
-                      alt="preview"
-                      width="64"
-                      height="64"
-                      className="rounded-circle object-fit-cover"
-                      onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+              <form onSubmit={handleAdd}>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label className="form-label">Họ & tên</label>
+                    <input
+                      name="fullName"
+                      className="form-control"
+                      placeholder="VD: Nguyễn Văn A"
+                      value={newT.fullName}
+                      onChange={(e) => setNewT((p) => ({ ...p, fullName: e.target.value }))}
                     />
-                    <button className="btn btn-add" onClick={handleAdd}>
-                      Thêm HLV
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Email</label>
+                    <input
+                      name="email"
+                      type="email"
+                      className="form-control"
+                      placeholder="VD: abc@xyz.com"
+                      value={newT.email}
+                      onChange={(e) => setNewT((p) => ({ ...p, email: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Mật khẩu</label>
+                    <input
+                      name="password"
+                      type="password"
+                      className="form-control"
+                      placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+                      value={newT.password}
+                      onChange={(e) => setNewT((p) => ({ ...p, password: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label">Số điện thoại</label>
+                    <input
+                      name="phoneNumber"
+                      className="form-control"
+                      placeholder="VD: 0901234567"
+                      value={newT.phoneNumber}
+                      onChange={(e) => setNewT((p) => ({ ...p, phoneNumber: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label">Giới tính</label>
+                    <select
+                      name="gender"
+                      className="form-select"
+                      value={newT.gender}
+                      onChange={(e) => setNewT((p) => ({ ...p, gender: e.target.value }))}
+                    >
+                      <option value="Male">Nam</option>
+                      <option value="Female">Nữ</option>
+                      <option value="Other">Khác</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label">Ngày sinh</label>
+                    <DatePicker
+                      style={{ width: "100%" }}
+                      value={newT.dateOfBirth ? dayjs(newT.dateOfBirth) : null}
+                      onChange={(d) => setNewT((p) => ({ ...p, dateOfBirth: d ? d.toISOString() : null }))}
+                    />
+                  </div>
+
+                  <div className="col-md-3">
+                    <label className="form-label">Địa chỉ</label>
+                    <input
+                      name="address"
+                      className="form-control"
+                      placeholder="Địa chỉ"
+                      value={newT.address}
+                      onChange={(e) => setNewT((p) => ({ ...p, address: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="col-md-12 text-end">
+                    <button className="btn btn-add" type="submit">
+                      Tạo tài khoản HLV
                     </button>
                   </div>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
 
-          {/* Danh sách HLV */}
+          {/* Table */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách HLV</h5>
-
-              <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={trainers}
-                pagination={{ pageSize: 8 }}
-                scroll={{ x: "max-content" }}
-              />
+              {loading ? (
+                <div className="text-center py-5"><Spin /></div>
+              ) : (
+                <Table
+                  rowKey="id"
+                  columns={columns}
+                  dataSource={trainers}
+                  pagination={{ pageSize: 8 }}
+                  scroll={{ x: "max-content" }}
+                />
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal update */}
+      {/* Modal sửa (local) */}
       <Modal
         title="Cập nhật HLV"
         open={open}
@@ -445,20 +454,12 @@ export default function AdminTrainerList() {
           preserve={false}
           initialValues={{ gender: "Nam", photo: "/img/useravt.jpg" }}
         >
-          <Form.Item
-            name="name"
-            label="Tên"
-            rules={[{ required: true, message: "Vui lòng nhập tên" }]}
-          >
-            <Input placeholder="VD: Nguyễn Văn A" />
+          <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
+            <Input />
           </Form.Item>
 
           <Space style={{ width: "100%" }} size="middle" wrap>
-            <Form.Item
-              name="age"
-              label="Tuổi"
-              rules={[{ required: true, message: "Vui lòng nhập tuổi" }]}
-            >
+            <Form.Item name="age" label="Tuổi">
               <InputNumber min={16} style={{ width: 160 }} />
             </Form.Item>
 
@@ -470,18 +471,10 @@ export default function AdminTrainerList() {
               </Select>
             </Form.Item>
 
-            <Form.Item name="experienceYears" label="Kinh nghiệm (năm)">
-              <InputNumber min={0} style={{ width: 180 }} />
+            <Form.Item name="dateOfBirth" label="Ngày sinh">
+              <DatePicker style={{ width: 180 }} />
             </Form.Item>
           </Space>
-
-          <Form.Item name="skills" label="Kỹ năng (cách nhau bằng dấu phẩy)">
-            <Input placeholder="VD: Strength, Mobility, HIIT" />
-          </Form.Item>
-
-          <Form.Item name="certificates" label="Chứng chỉ (cách nhau bằng dấu phẩy)">
-            <Input placeholder="VD: NASM-CPT, RYT-200" />
-          </Form.Item>
 
           <Form.Item name="email" label="Email" rules={[{ type: "email" }]}>
             <Input />
@@ -491,8 +484,12 @@ export default function AdminTrainerList() {
             <Input />
           </Form.Item>
 
+          <Form.Item name="address" label="Địa chỉ">
+            <Input />
+          </Form.Item>
+
           <Form.Item name="photo" label="Ảnh (URL)">
-            <Input placeholder="https://..." />
+            <Input />
           </Form.Item>
         </Form>
       </Modal>
