@@ -2,23 +2,24 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
-import { packagesData } from "../Home.jsx";
 import "../../assets/styles/style.css";
+import api from "../../config/axios"; // chỉnh path cho đúng với project của bạn
 
-const fmtVND = (n) => Number(n).toLocaleString("vi-VN");
+const fmtVND = (n) => Number(n || 0).toLocaleString("vi-VN");
 
 export default function PackageDetail() {
   const { id: routeId } = useParams();
+  const navigate = useNavigate();
 
-  const pkg = useMemo(
-    () => packagesData.find((p) => String(p.id) === String(routeId)),
-    [routeId]
-  );
+  const [pkg, setPkg] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [activeIndex, setActiveIndex] = useState(0);
-  // Tạo ID 4 số ngẫu nhiên NGAY LÚC KHỞI TẠO (không chờ useEffect)
-  const [safeId] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
-  const navigate = useNavigate();
+  // ID 4 số ngẫu nhiên
+  const [safeId] = useState(() =>
+    String(Math.floor(1000 + Math.random() * 9000))
+  );
 
   const featureImgs = [
     "/img/feature-1.jpg",
@@ -26,15 +27,75 @@ export default function PackageDetail() {
     "/img/feature-3.jpg",
     "/img/feature-4.jpg",
   ];
-  const iconIndex = Number.isFinite(pkg?.iconIndex) && pkg.iconIndex > 0 ? pkg.iconIndex : 1;
-  const mainCandidate = featureImgs[(iconIndex - 1) % featureImgs.length];
-  const thumbnails = [mainCandidate, featureImgs[1], featureImgs[2], featureImgs[3]];
-  const mainImage = thumbnails[activeIndex];
 
+  // Scroll lên đầu trang khi mở
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // Fetch package detail từ API
+  useEffect(() => {
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await api.get(`/Package/${routeId}`);
+        const data = res.data;
+
+        // data dạng:
+        // {
+        //   id, packageName, description, price,
+        //   durationInDays, sessionCount, includesPersonalTrainer, packageTypeId, ...
+        // }
+
+        const normalized = {
+          id: data.id,
+          title: data.packageName,
+          price: data.price,
+          description: data.description ?? "",
+          // đổi ngày -> tháng (xấp xỉ). Nếu muốn hiển thị theo ngày thì dùng durationInDays trực tiếp
+          duration: data.durationInDays
+            ? Math.round(data.durationInDays / 30)
+            : 0,
+          sessions: data.sessionCount ?? 0,
+          hasPT: data.includesPersonalTrainer ?? false,
+          iconIndex: data.packageTypeId || 1,
+        };
+
+        setPkg(normalized);
+      } catch (err) {
+        console.error("Fetch package detail error:", err);
+        if (err.response?.status === 404) {
+          setError("Không tìm thấy gói tập.");
+        } else if (err.response?.status === 401) {
+          setError("Bạn cần đăng nhập để xem thông tin gói tập.");
+        } else {
+          setError("Không thể tải dữ liệu gói tập. Vui lòng thử lại sau.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (routeId) {
+      fetchDetail();
+    }
+  }, [routeId]);
+
+  // Dùng iconIndex nếu có, fallback = 1
+  const iconIndex = Number.isFinite(pkg?.iconIndex) && pkg.iconIndex > 0
+    ? pkg.iconIndex
+    : 1;
+
+  const mainCandidate = featureImgs[(iconIndex - 1) % featureImgs.length];
+  const thumbnails = useMemo(
+    () => [mainCandidate, featureImgs[1], featureImgs[2], featureImgs[3]],
+    [mainCandidate]
+  );
+  const mainImage = thumbnails[activeIndex];
+
+  // Auto slide ảnh
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % thumbnails.length);
@@ -42,10 +103,20 @@ export default function PackageDetail() {
     return () => clearInterval(interval);
   }, [thumbnails.length]);
 
-  if (!pkg) {
+  // Loading
+  if (loading) {
     return (
       <div className="container mt-5 mb-5 text-center">
-        <h3>Không tìm thấy gói tập</h3>
+        <h3>Đang tải thông tin gói tập...</h3>
+      </div>
+    );
+  }
+
+  // Error hoặc không có pkg
+  if (error || !pkg) {
+    return (
+      <div className="container mt-5 mb-5 text-center">
+        <h3>{error || "Không tìm thấy gói tập"}</h3>
         <Link to="/packages" className="btn btn-primary mt-3">
           ← Quay lại danh sách
         </Link>
@@ -141,7 +212,11 @@ export default function PackageDetail() {
             >
               <AiOutlineCheck className="icon-check" />
               <strong style={{ marginRight: 6 }}>Thời hạn:</strong>
-              <span>{pkg.duration} tháng</span>
+              <span>
+                {pkg.duration
+                  ? `${pkg.duration} tháng`
+                  : "Theo thời hạn quy định"}
+              </span>
             </div>
 
             <div
@@ -153,7 +228,9 @@ export default function PackageDetail() {
             >
               <AiOutlineCheck className="icon-check" />
               <strong style={{ marginRight: 6 }}>Số buổi:</strong>
-              <span>{pkg.sessions} buổi</span>
+              <span>
+                {pkg.sessions ? `${pkg.sessions} buổi` : "Không giới hạn / N/A"}
+              </span>
             </div>
 
             <div
@@ -207,7 +284,6 @@ export default function PackageDetail() {
               ← Quay lại
             </button>
 
-            {/* ✅ Nút đăng ký sinh ID 4 số random */}
             <Link
               to={`/${safeId}/cart`}
               className="btn btn-lg"
@@ -220,8 +296,12 @@ export default function PackageDetail() {
                 borderRadius: "8px",
                 transition: "all 0.2s ease",
               }}
-              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.1)")}
-              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.filter = "brightness(1.1)")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.filter = "brightness(1)")
+              }
             >
               <span>Đăng ký ngay</span>
             </Link>

@@ -1,6 +1,5 @@
-// src/components/MyPackage.jsx
 import React, { useMemo, useState } from "react";
-import { packagesData } from "../Home.jsx";
+import { AiOutlineClose } from "react-icons/ai";
 
 const styles = `
 .card-shadow { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); }
@@ -184,7 +183,7 @@ export default function MyPackage() {
                 {selected.master?.title || selected.history?.name || "Chi tiết gói"}
               </h5>
               <button className="btn btn-sm btn-outline-secondary" onClick={handleClose}>
-                Đóng
+                <AiOutlineClose />
               </button>
             </div>
 
@@ -224,14 +223,14 @@ export default function MyPackage() {
                   <div className="col-12 col-md-6">
                     <div className="text-muted small">Huấn luyện viên</div>
                     <div className="fw-semibold">
-  {selected.master.hasPT ? (
-    <span className="badge badge-pt" style={{ background: "#0d6efd33", color: "#0d6efd", fontWeight: 600 }}>
-      Có PT
-    </span>
-  ) : (
-    <span className="text-muted">Không</span>
-  )}
-</div>
+                      {selected.master.hasPT ? (
+                        <span className="badge badge-pt" style={{ background: "#0d6efd33", color: "#0d6efd", fontWeight: 600 }}>
+                          Có PT
+                        </span>
+                      ) : (
+                        <span className="text-muted">Không</span>
+                      )}
+                    </div>
 
                   </div>
 

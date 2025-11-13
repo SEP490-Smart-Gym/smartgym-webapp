@@ -1,21 +1,56 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "../../assets/styles/style.css";
-import { packagesData } from "../Home.jsx";
 import { AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
 import { Link } from "react-router-dom";
+import api from "../../config/axios";
+import { message } from "antd";
 
 const PackageList = () => {
-  const fmtVND = (n) => Number(n).toLocaleString("vi-VN");
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  const fmtVND = (n) => Number(n || 0).toLocaleString("vi-VN");
+
+  // Scroll lên đầu khi vào trang
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // Gọi API lấy danh sách gói active
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/Package/active");
+        setPackages(res.data || []);
+      } catch (err) {
+        console.error("Fetch packages error:", err);
+        if (err.response?.status === 401) {
+          message.error("Bạn cần đăng nhập để xem danh sách gói tập.");
+        } else {
+          message.error("Không thể tải danh sách gói tập!");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPackages();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="mt-5 mb-5 text-center">
+        Đang tải danh sách gói tập...
+      </div>
+    );
+  }
+
   return (
     <div className="mt-5 mb-5">
       <div className="packages">
-        {packagesData.map((pkg) => (
-          <div className="package" key={pkg.name}>
+        {packages.map((pkg) => (
+          <div className="package" key={pkg.id}>
             <div
               className="package-name"
               style={{
@@ -26,7 +61,7 @@ const PackageList = () => {
                 textAlign: "center",
               }}
             >
-              {pkg.title}
+              {pkg.packageName}
             </div>
 
             <div
@@ -47,20 +82,35 @@ const PackageList = () => {
               <div className="package-info">
                 <div className="info-item">
                   <AiOutlineCheck className="icon-check" />
-                  <span>Thời hạn: {pkg.duration} tháng</span>
+                  {/* durationInDays là số ngày, nếu bạn muốn ghi "tháng" thì đổi chữ hiển thị */}
+                  <span>Thời hạn: {pkg.durationInDays} ngày</span>
                 </div>
+
                 <div className="info-item">
                   <AiOutlineCheck className="icon-check" />
-                  <span>Số buổi: {pkg.sessions} buổi</span>
+                  <span>
+                    Số buổi:{" "}
+                    {pkg.sessionCount != null ? `${pkg.sessionCount} buổi` : "—"}
+                  </span>
                 </div>
+
                 <div className="info-item">
-                  {pkg.hasPT ? <AiOutlineCheck className="icon-check" /> : <AiOutlineClose className="icon-close"/>}
-                  <span>PT kèm: {pkg.hasPT ? "Có" : "Không"}</span>
+                  {pkg.includesPersonalTrainer ? (
+                    <AiOutlineCheck className="icon-check" />
+                  ) : (
+                    <AiOutlineClose className="icon-close" />
+                  )}
+                  <span>
+                    PT kèm: {pkg.includesPersonalTrainer ? "Có" : "Không"}
+                  </span>
                 </div>
-                {/* <div className="info-item">
+
+                {/* Mở nếu muốn hiện mô tả từ API
+                <div className="info-item">
                   <AiOutlineCheck className="icon-check" />
                   <span>{pkg.description}</span>
-                </div> */}
+                </div>
+                */}
               </div>
 
               <Link to={`/packages/${pkg.id}`} className="btn">

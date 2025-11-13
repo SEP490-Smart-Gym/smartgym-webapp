@@ -164,6 +164,53 @@ export default function Calendar() {
     return disabled;
   }
 
+  const handleCancelEvent = (event) => {
+    if (!event) return;
+
+    if (!window.confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
+      return;
+    }
+
+    // Tính lại date + time giống format trong dataRef.current
+    const eventDate = event.start || event.date;
+    const isoDate = dateObjToISO(eventDate);
+    const startStr = hhmm(event.start);
+    const endStr = event.end ? hhmm(event.end) : "";
+    const timeStr = endStr ? `${startStr}-${endStr}` : startStr;
+
+    // Xoá event khỏi "cơ sở dữ liệu" tạm dataRef.current
+    dataRef.current = dataRef.current.filter(ev => {
+      if (ev.date !== isoDate) return true;
+      if (ev.time && timeStr && ev.time !== timeStr) return true;
+      if (ev.title !== event.title) return true;
+      return false;
+    });
+
+    // Render lại calendar với data mới
+    if (window.jQuery && holderRef.current) {
+      window.jQuery(holderRef.current).calendar({
+        data: normalizeMockData(dataRef.current),
+      });
+    }
+
+    // Reset state schedule (triggers re-calc disabledSlots / dayAlreadyBooked)
+    setSelectedDate(prev => new Date(prev));
+    setSelectedSlotId("");
+    setDisabledSlots(new Set());
+
+    // Đóng modal chi tiết
+    setSelectedEvent(null);
+    try {
+      const ModalClass = (window.bootstrap && window.bootstrap.Modal);
+      if (ModalClass && eventModalRef.current) {
+        const inst = ModalClass.getInstance(eventModalRef.current) || new ModalClass(eventModalRef.current);
+        inst.hide();
+      }
+    } catch (e) {
+      console.warn("Cannot close event modal:", e);
+    }
+  };
+
   // cập nhật disable khi đổi ngày
   useEffect(() => {
     if (dayAlreadyBooked(selectedDate)) {
@@ -726,7 +773,24 @@ export default function Calendar() {
               )}
             </div>
             <div className="modal-footer">
-              <button type="button" className="btn btn-light" data-bs-dismiss="modal" onClick={() => setSelectedEvent(null)}>
+              {selectedEvent &&
+                selectedEvent.status?.toLowerCase() === "not yet" &&
+                new Date(selectedEvent.start || selectedEvent.date) > new Date() && (
+                  <button
+                    type="button"
+                    className="btn btn-danger me-auto"
+                    onClick={() => handleCancelEvent(selectedEvent)}
+                  >
+                    Hủy lịch
+                  </button>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-light"
+                data-bs-dismiss="modal"
+                onClick={() => setSelectedEvent(null)}
+              >
                 Đóng
               </button>
             </div>
