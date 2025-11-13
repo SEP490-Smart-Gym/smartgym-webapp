@@ -61,7 +61,7 @@ export default function Home() {
   useEffect(() => {
   const fetchTrainers = async () => {
     try {
-      const res = await api.get("/member/trainers", {
+      const res = await api.get("/guest/trainers", {
         params: { onlyAvailable: true },
       });
 
