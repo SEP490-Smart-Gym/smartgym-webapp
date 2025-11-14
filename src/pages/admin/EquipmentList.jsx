@@ -343,7 +343,7 @@ export default function EquipmentList() {
                       <Form.Item name="imageUrl" style={{ flex: 1, marginBottom: 0 }}>
                         <Input placeholder="Ảnh (URL)" />
                       </Form.Item>
-                      <Button type="primary" onClick={handleAdd}>
+                      <Button type="btn btn-add" onClick={handleAdd}>
                         Thêm thiết bị
                       </Button>
                     </div>

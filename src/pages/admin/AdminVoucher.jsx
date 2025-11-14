@@ -254,7 +254,7 @@ export default function AdminVoucher() {
                 </div>
 
                 <div className="text-end">
-                  <Button type="primary" htmlType="submit">
+                  <Button type="btn btn-add" htmlType="submit">
                     Tạo voucher
                   </Button>
                 </div>

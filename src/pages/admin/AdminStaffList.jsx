@@ -11,13 +11,7 @@ const GENDER_OPTIONS = [
   { label: "Khác", value: "Other" },
 ];
 
-// NOTE:
-// - Endpoint dùng trong file này: 
-//    GET  -> /Users          (lấy danh sách staff)
-//    POST -> /Users          (tạo user mới)
-//    PUT  -> /Users/{id}     (cập nhật user)
-//    DELETE -> /Users/{id}   (xóa user)
-// If your backend uses different routes, replace the strings below accordingly.
+
 
 export default function AdminStaffList() {
   const [staffs, setStaffs] = useState([]);
@@ -54,33 +48,56 @@ export default function AdminStaffList() {
   useEffect(() => {
     fetchStaffs();
   }, []);
+  const generatePassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  };
+
 
   // ===== Thêm nhân viên (POST) =====
   const handleAdd = async (values) => {
-    // build body theo spec bạn gửi
+    const autoPassword = generatePassword();
+
     const body = {
       email: values.email,
-      password: values.password,
+      password: autoPassword,
       firstName: values.firstName,
       lastName: values.lastName,
       phoneNumber: values.phoneNumber,
-      gender: values.gender, // "Male" / "Female" / "Other"
+      gender: values.gender,
       address: values.address || "",
-      dateOfBirth: values.dateOfBirth ? values.dateOfBirth.toISOString() : null,
+      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : new Date().toISOString(),
       roleId: 3, // staff
     };
 
     try {
-      const res = await api.post("/Users", body); // <-- thay endpoint nếu cần
-      message.success("Tạo nhân viên thành công");
-      // nếu API trả object mới, push vào state
+      const res = await api.post("/Admin/create-user", body);
+
       const created = res.data;
-      // một số backend trả object trong res.data.data; bạn có thể điều chỉnh khi test
       setStaffs((prev) => [created, ...prev]);
-      addForm.resetFields();
+      // console.log(autoPassword);
+
+      Modal.success({
+        title: "Tạo nhân viên thành công!",
+        content: (
+          <div>
+            Mật khẩu đăng nhập:
+            <br />
+            <strong>{autoPassword}</strong>
+          </div>
+        )
+      });
+      // message.success(
+      //   <div>
+      //     Tạo nhân viên thành công! <br />
+      //     Mật khẩu: <strong>{autoPassword}</strong>
+      //   </div>
+      // );
+
+
+      // addForm.resetFields();
+
     } catch (err) {
-      console.error(err);
-      // hiển thị thông báo lỗi chi tiết nếu có
       const detail = err?.response?.data?.message || err?.response?.data || err.message;
       message.error("Tạo nhân viên thất bại: " + (detail || ""));
     }
@@ -90,7 +107,7 @@ export default function AdminStaffList() {
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc muốn xóa nhân viên này?")) return;
     try {
-      await api.delete(`/Users/${id}`); // <-- thay endpoint nếu cần
+      await api.delete(`/Admin/user/${id}`);
       setStaffs((prev) => prev.filter((s) => s.id !== id));
       message.success("Xóa thành công");
     } catch (err) {
@@ -134,9 +151,8 @@ export default function AdminStaffList() {
     };
 
     try {
-      const res = await api.put(`/Users/${id}`, body); // <-- thay endpoint nếu cần
+      const res = await api.put(`/Admin/user/${id}`, body);
       message.success("Cập nhật nhân viên thành công");
-      // update local state: dùng res.data nếu backend trả object mới
       const updated = res.data || { id, ...body };
       setStaffs((prev) => prev.map((s) => (s.id === id ? updated : s)));
       setEditOpen(false);
@@ -195,14 +211,12 @@ export default function AdminStaffList() {
       dataIndex: "phoneNumber",
       key: "phoneNumber",
       width: 150,
-      render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
       width: 240,
-      render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
     },
     {
       title: "Thao tác",
@@ -212,7 +226,7 @@ export default function AdminStaffList() {
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => openEdit(record)}>Sửa</Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>Xóa</Button>
+          <Button size="small" danger onClick={() => handleDelete(record.userId)}>Xóa</Button>
         </Space>
       ),
     },
@@ -224,11 +238,9 @@ export default function AdminStaffList() {
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
-
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý nhân viên</h2>
 
-          {/* Form thêm (không modal) */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm nhân viên mới</h5>
@@ -240,48 +252,46 @@ export default function AdminStaffList() {
               >
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <Form.Item name="firstName" rules={[{ required: true, message: "Nhập tên" }]}>
-                      <Input placeholder="Tên (firstName)" />
-                    </Form.Item>
-                  </div>
-
-                  <div className="col-md-6">
                     <Form.Item name="lastName" rules={[{ required: true, message: "Nhập họ" }]}>
-                      <Input placeholder="Họ (lastName)" />
+                      <Input placeholder="Họ" />
                     </Form.Item>
                   </div>
-
+                  <div className="col-md-6">
+                    <Form.Item name="firstName" rules={[{ required: true, message: "Nhập tên" }]}>
+                      <Input placeholder="Tên " />
+                    </Form.Item>
+                  </div>
                   <div className="col-md-6">
                     <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
                       <Input placeholder="Email" />
                     </Form.Item>
                   </div>
-
+                  {/* <div className="col-md-6">
+                    <Form.Item name="password" rules={[{ required: true, min: 6, message: "Mật khẩu >= 6 ký tự" }]}>
+                      <Input.Password placeholder="Mật khẩu" />
+                    </Form.Item>
+                  </div> */}
                   <div className="col-md-6">
                     <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
                       <Input placeholder="Số điện thoại" />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <Form.Item name="gender">
                       <Select options={GENDER_OPTIONS} />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <Form.Item name="dateOfBirth">
                       <DatePicker style={{ width: "100%" }} />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4">
-                    <Form.Item name="password" rules={[{ required: true, min: 6, message: "Mật khẩu >= 6 ký tự" }]}>
-                      <Input.Password placeholder="Mật khẩu" />
-                    </Form.Item>
-                  </div>
 
-                  <div className="col-md-8">
+
+                  <div className="col-md-12">
                     <Form.Item name="address">
                       <Input placeholder="Địa chỉ" />
                     </Form.Item>
@@ -327,7 +337,7 @@ export default function AdminStaffList() {
         onOk={() => editForm.submit()}
         okText="Lưu thay đổi"
         cancelText="Hủy"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={editForm}

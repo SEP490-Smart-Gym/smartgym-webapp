@@ -1,12 +1,12 @@
 import axios from "axios";
 // const baseUrl = "http://localhost:8080/api";
-const baseUrl = "https://smartgym-dwdxddbrf8f0e4dy.southeastasia-01.azurewebsites.net/api";
+const baseURL = "https://smartgym-dwdxddbrf8f0e4dy.southeastasia-01.azurewebsites.net/api";
 const config = {
-  baseUrl,
+  baseURL,
   timeout: 3000000,
 };
 const api = axios.create(config);
-api.defaults.baseURL = baseUrl;
+api.defaults.baseURL = baseURL;
 
 const handleBefore = (config) => {
   const token = localStorage.getItem("token")?.replaceAll('"', "");

@@ -1,5 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+//antd
+import 'antd/dist/reset.css';
 
 // Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -15,8 +17,7 @@ import './index.css'
 
 // Bootstrap JS (bundle có Popper: cần cho navbar, dropdown, modal...)
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
-//antd
-import 'antd/dist/reset.css';
+
 
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
