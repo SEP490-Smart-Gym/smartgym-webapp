@@ -38,13 +38,12 @@ const ProfileMember = () => {
   }, []);
 
   // State chung cho cả User + Health
-  // 🔹 Phần User Information sẽ được fill từ API /UserAccount/me
-  // 🔹 Phần cân nặng/chiều cao/mục tiêu… dùng default giá trị mẫu
   const [userInfo, setUserInfo] = useState({
     fullName: "",
     birthday: "", // dd/MM/yyyy
     email: "",
     phone: "",
+    address: "",
     canNang: 68,
     chieuCao: 172,
     gioiTinh: "",
@@ -81,19 +80,6 @@ const ProfileMember = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  // 👉 (optional) Chuẩn hoá chuỗi người dùng gõ tay dd/MM/yyyy
-  const normalizeDDMMYYYY = (s) => {
-    if (!s) return "";
-    const cleaned = s.replace(/[-.]/g, "/").replace(/\s+/g, "");
-    const parts = cleaned.split("/");
-    if (parts.length !== 3) return cleaned;
-    let [d, m, y] = parts;
-    if (!/^\d{1,2}$/.test(d) || !/^\d{1,2}$/.test(m) || !/^\d{4}$/.test(y)) return cleaned;
-    d = Math.min(Math.max(parseInt(d, 10), 1), 31);
-    m = Math.min(Math.max(parseInt(m, 10), 1), 12);
-    return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
-  };
-
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
@@ -106,23 +92,6 @@ const ProfileMember = () => {
       (today.getMonth() + 1 === month && today.getDate() >= day);
     if (!hasHadBirthday) age--;
     return age >= 0 ? age : "";
-  };
-
-  // 👉 Phân loại BMI theo tuổi & giới tính (chuẩn châu Á cho người lớn)
-  const getBmiCategory = (bmi, age, gender) => {
-    const value = parseFloat(bmi);
-    if (isNaN(value)) return "";
-    if (age !== "" && age < 20) return "Cần đánh giá theo biểu đồ tăng trưởng (BMI-for-age)";
-
-    // Phân loại BMI theo chuẩn châu Á
-    if (value < 16) return "🚨Gầy độ III";
-    if (value < 17) return "⚠️ Gầy độ II";
-    if (value < 18.5) return "⚠️ Gầy độ I";
-    if (value < 25) return "✅ Bình thường";
-    if (value < 30) return "⚠️ Thừa cân";
-    if (value < 35) return "⚠️ Béo phì độ I";
-    if (value < 40) return "⚠️ Béo phì độ II";
-    return "🚨 Béo phì độ III";
   };
 
   const getBmiSuggestions = (bmiValue) => {
@@ -245,63 +214,114 @@ const ProfileMember = () => {
 
   const age = calculateAge(userInfo.birthday);
 
-useEffect(() => {
-  const storedUser = localStorage.getItem("user");
-  // Nếu chưa đăng nhập thì không gọi API, tránh 401 spam
-  if (!storedUser) return;
+  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
 
-  const fetchUserInfoFromApi = async () => {
-    try {
-      // dùng axios instance `api` giống Home.jsx
-      const res = await api.get("/UserAccount/me");
-      const data = res.data;
+    const fetchUserInfoFromApi = async () => {
+      try {
+        const res = await api.get("/UserAccount/me");
+        const data = res.data;
 
-      const fullNameFromApi = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+        const fullNameFromApi = `${data.firstName || ""} ${data.lastName || ""}`.trim();
 
-      let birthday = "";
-      if (data.dateOfBirth) {
-        const d = new Date(data.dateOfBirth);
-        if (!isNaN(d)) {
-          const dd = String(d.getDate()).padStart(2, "0");
-          const mm = String(d.getMonth() + 1).padStart(2, "0");
-          const yyyy = d.getFullYear();
-          birthday = `${dd}/${mm}/${yyyy}`;
+        let birthday = "";
+        if (data.dateOfBirth) {
+          const d = new Date(data.dateOfBirth);
+          if (!isNaN(d)) {
+            const dd = String(d.getDate()).padStart(2, "0");
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const yyyy = d.getFullYear();
+            birthday = `${dd}/${mm}/${yyyy}`;
+          }
         }
-      }
 
-      let gioiTinh = "";
-      if (data.gender) {
-        const g = String(data.gender).toLowerCase();
-        if (g === "male") gioiTinh = "Nam";
-        else if (g === "female") gioiTinh = "Nữ";
-        else gioiTinh = "Khác";
-      }
+        let gioiTinh = "";
+        if (data.gender) {
+          const g = String(data.gender).toLowerCase();
+          if (g === "male") gioiTinh = "Nam";
+          else if (g === "female") gioiTinh = "Nữ";
+          else gioiTinh = "Khác";
+        }
 
-      setUserInfo((prev) => ({
-        ...prev,
-        fullName: fullNameFromApi,
-        email: data.email || "",
-        phone: data.phoneNumber || "",
-        birthday,
-        gioiTinh,
-      }));
+        setUserInfo((prev) => ({
+          ...prev,
+          fullName: fullNameFromApi,
+          email: data.email || "",
+          phone: data.phoneNumber || "",
+          address: data.address || "",
+          birthday,
+          gioiTinh,
+        }));
+      } catch (err) {
+        if (err.response?.status === 401) {
+          console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
+          navigate("/login");
+          return;
+        }
+        console.error("Error fetching /UserAccount/me:", err);
+      }
+    };
+
+    fetchUserInfoFromApi();
+  }, [navigate]);
+
+  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
+  const handleUpdateUserInfo = async (e) => {
+    e && e.preventDefault();
+    try {
+      // tách fullName -> firstName, lastName (đơn giản: từ đầu, từ cuối)
+      const nameParts = (userInfo.fullName || "").trim().split(" ").filter(Boolean);
+      const firstName = nameParts.length > 0 ? nameParts[0] : "";
+      const lastName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
+      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+
+      const genderMap = {
+        Nam: "male",
+        Nữ: "female",
+        Khác: "other",
+      };
+
+      const payload = {
+        firstName,
+        lastName,
+        phoneNumber: userInfo.phone || "",
+        gender: genderMap[userInfo.gioiTinh] || userInfo.gioiTinh || "",
+        address: userInfo.address || "",
+        dateOfBirth: dateOfBirthIso,
+        profileImageUrl: user?.photo || "", // nếu backend dùng trường này
+      };
+
+      await api.put("/UserAccount/update", payload);
+      alert("Cập nhật thông tin cá nhân thành công!");
     } catch (err) {
-      if (err.response?.status === 401) {
-        console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
-        navigate("/login");
-        return;
-      }
-      console.error("Error fetching /UserAccount/me:", err);
+      console.error("Error updating user info:", err);
+      alert("Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!");
     }
   };
 
-  fetchUserInfoFromApi();
-}, [navigate]);
- // chạy 1 lần khi mount
+  // ⚙️ HANDLE UPDATE TAB HEALTH (CHƯA GẮN API, ĐỂ SAU)
+  const handleUpdateHealthInfo = (e) => {
+    e && e.preventDefault();
+    // TODO: gắn API riêng cho health nếu có
+    console.log("Health info:", {
+      canNang: userInfo.canNang,
+      chieuCao: userInfo.chieuCao,
+      gioiTinh: userInfo.gioiTinh,
+      bmi: userInfo.bmi,
+      mucTieu: userInfo.mucTieu,
+      sucKhoe: userInfo.sucKhoe,
+    });
+    alert("Cập nhật thông tin sức khỏe (demo) – chưa gắn API backend.");
+  };
 
   return (
     <>
-      {/* Page content */} 
+      {/* Page content */}
       <Container className="mt-5 mb-5" fluid>
         <Row>
           <Col className="mb-5 mb-xl-0" xl="4">
@@ -357,7 +377,7 @@ useEffect(() => {
                 </Button>
 
                 {/* Input ẩn */}
-                <input
+                {/* <input
                   type="file"
                   accept="image/*"
                   ref={fileInputRef}
@@ -382,14 +402,16 @@ useEffect(() => {
                   >
                     Jessica Jones
                   </h3>
-
-                </div>
+                </div> */}
               </Col>
             </Row>
           </Col>
 
           <Col xl="8">
-            <Card className="bg-secondary shadow" style={{ marginRight: "5%", marginLeft: "5%" }}>
+            <Card
+              className="bg-secondary shadow"
+              style={{ marginRight: "5%", marginLeft: "5%" }}
+            >
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
                   <Col>
@@ -402,7 +424,11 @@ useEffect(() => {
 
               <CardBody
                 className="text-primary mb-0 rounded-bottom"
-                style={{ backgroundColor: "#0c1844", color: "white", fontWeight: "bold" }}
+                style={{
+                  backgroundColor: "#0c1844",
+                  color: "white",
+                  fontWeight: "bold",
+                }}
               >
                 <Form>
                   {/* Tabs chọn section */}
@@ -411,8 +437,10 @@ useEffect(() => {
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor: activeSection === "user" ? "#ffffff" : "transparent",
-                        color: activeSection === "user" ? "#0c1844" : "#ffffff",
+                        backgroundColor:
+                          activeSection === "user" ? "#ffffff" : "transparent",
+                        color:
+                          activeSection === "user" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "user" ? 700 : 500,
                       }}
@@ -424,8 +452,10 @@ useEffect(() => {
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor: activeSection === "health" ? "#ffffff" : "transparent",
-                        color: activeSection === "health" ? "#0c1844" : "#ffffff",
+                        backgroundColor:
+                          activeSection === "health" ? "#ffffff" : "transparent",
+                        color:
+                          activeSection === "health" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "health" ? 700 : 500,
                       }}
@@ -455,7 +485,10 @@ useEffect(() => {
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label className="form-control-label" htmlFor="input-fullname">
+                              <label
+                                className="form-control-label"
+                                htmlFor="input-fullname"
+                              >
                                 👤 Full Name
                               </label>
                               <Input
@@ -464,7 +497,10 @@ useEffect(() => {
                                 value={userInfo.fullName}
                                 type="text"
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, fullName: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    fullName: e.target.value,
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -472,14 +508,21 @@ useEffect(() => {
 
                           <Col lg="6">
                             <FormGroup>
-                              <label className="form-control-label" htmlFor="input-birthday-visible">
+                              <label
+                                className="form-control-label"
+                                htmlFor="input-birthday-visible"
+                              >
                                 🎂 Birthday
                               </label>
 
-                              <div style={{ position: "relative", width: "100%" }}>
+                              <div
+                                style={{ position: "relative", width: "100%" }}
+                              >
                                 <DatePicker
                                   id="birthday-picker"
-                                  selected={toDateFromDDMMYYYY(userInfo.birthday)}
+                                  selected={toDateFromDDMMYYYY(
+                                    userInfo.birthday
+                                  )}
                                   onChange={(date) =>
                                     setUserInfo({
                                       ...userInfo,
@@ -499,7 +542,13 @@ useEffect(() => {
                               </div>
 
                               {/* Hiển thị tuổi dưới Birthday */}
-                              <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
+                              <div
+                                className="mt-1"
+                                style={{
+                                  color: "#ffd700",
+                                  fontStyle: "italic",
+                                }}
+                              >
                                 Tuổi: {age !== "" ? age : "--"}
                               </div>
                             </FormGroup>
@@ -509,7 +558,10 @@ useEffect(() => {
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label className="form-control-label" htmlFor="input-email">
+                              <label
+                                className="form-control-label"
+                                htmlFor="input-email"
+                              >
                                 ✉️ Email Address
                               </label>
                               <Input
@@ -518,7 +570,10 @@ useEffect(() => {
                                 value={userInfo.email}
                                 type="email"
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, email: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    email: e.target.value,
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -526,7 +581,10 @@ useEffect(() => {
 
                           <Col lg="6">
                             <FormGroup>
-                              <label className="form-control-label" htmlFor="input-phone">
+                              <label
+                                className="form-control-label"
+                                htmlFor="input-phone"
+                              >
                                 <FcPhone /> Phone Number
                               </label>
                               <Input
@@ -535,7 +593,35 @@ useEffect(() => {
                                 type="tel"
                                 value={userInfo.phone}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, phone: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    phone: e.target.value,
+                                  })
+                                }
+                              />
+                            </FormGroup>
+                          </Col>
+                        </Row>
+
+                        <Row>
+                          <Col lg="12">
+                            <FormGroup>
+                              <label
+                                className="form-control-label"
+                                htmlFor="input-address"
+                              >
+                                🏠 Address
+                              </label>
+                              <Input
+                                className="form-control-alternative"
+                                id="input-address"
+                                type="text"
+                                value={userInfo.address}
+                                onChange={(e) =>
+                                  setUserInfo({
+                                    ...userInfo,
+                                    address: e.target.value,
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -543,7 +629,23 @@ useEffect(() => {
                         </Row>
                       </div>
 
-                      <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
+                      <Col className="d-flex justify-content-center align-items-center mt-4">
+                        <Button
+                          color="primary"
+                          style={{
+                            transform: "none",
+                          }}
+                          type="button"
+                          onClick={handleUpdateUserInfo}
+                        >
+                          Update User Information
+                        </Button>
+                      </Col>
+
+                      <hr
+                        className="my-4"
+                        style={{ borderColor: "#ffffff", opacity: 1 }}
+                      />
                     </>
                   )}
 
@@ -568,7 +670,10 @@ useEffect(() => {
                         <Row>
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-weight">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-weight"
+                              >
                                 ⚖️ Cân nặng (kg)
                               </Label>
                               <Input
@@ -577,7 +682,10 @@ useEffect(() => {
                                 type="number"
                                 value={userInfo.canNang}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, canNang: Number(e.target.value) })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    canNang: Number(e.target.value),
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -585,7 +693,10 @@ useEffect(() => {
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-height">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-height"
+                              >
                                 📏 Chiều cao (cm)
                               </Label>
                               <Input
@@ -594,7 +705,10 @@ useEffect(() => {
                                 type="number"
                                 value={userInfo.chieuCao}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, chieuCao: Number(e.target.value) })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    chieuCao: Number(e.target.value),
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -602,7 +716,10 @@ useEffect(() => {
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-gender">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-gender"
+                              >
                                 🚻 Giới tính
                               </Label>
                               <Input
@@ -611,7 +728,10 @@ useEffect(() => {
                                 className="form-control-alternative"
                                 value={userInfo.gioiTinh}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, gioiTinh: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    gioiTinh: e.target.value,
+                                  })
                                 }
                               >
                                 <option value="">-- Chọn giới tính --</option>
@@ -627,7 +747,10 @@ useEffect(() => {
                         <Row>
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-bmi">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-bmi"
+                              >
                                 🧍 BMI
                               </Label>
                               <Input
@@ -642,7 +765,10 @@ useEffect(() => {
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-goal">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-goal"
+                              >
                                 💪 Mục tiêu
                               </Label>
                               <Input
@@ -651,7 +777,10 @@ useEffect(() => {
                                 type="text"
                                 value={userInfo.mucTieu}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, mucTieu: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    mucTieu: e.target.value,
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -659,7 +788,10 @@ useEffect(() => {
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label className="form-control-label" htmlFor="input-health">
+                              <Label
+                                className="form-control-label"
+                                htmlFor="input-health"
+                              >
                                 ❤️ Tình trạng sức khỏe
                               </Label>
                               <Input
@@ -668,7 +800,10 @@ useEffect(() => {
                                 type="text"
                                 value={userInfo.sucKhoe}
                                 onChange={(e) =>
-                                  setUserInfo({ ...userInfo, sucKhoe: e.target.value })
+                                  setUserInfo({
+                                    ...userInfo,
+                                    sucKhoe: e.target.value,
+                                  })
                                 }
                               />
                             </FormGroup>
@@ -676,7 +811,10 @@ useEffect(() => {
                         </Row>
                       </div>
 
-                      <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
+                      <hr
+                        className="my-4"
+                        style={{ borderColor: "#ffffff", opacity: 1 }}
+                      />
 
                       {/* Description */}
                       <h6
@@ -704,32 +842,38 @@ useEffect(() => {
                               boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                             }}
                           >
-                            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                              Trạng thái: <span>{suggestions.category || "—"}</span>
+                            <div
+                              style={{ fontWeight: 700, marginBottom: 6 }}
+                            >
+                              Trạng thái:{" "}
+                              <span>{suggestions.category || "—"}</span>
                             </div>
                             <div className="mt-1">
-                              🏋️ <strong>Workout:</strong> {suggestions.workout || "—"}
+                              🏋️ <strong>Workout:</strong>{" "}
+                              {suggestions.workout || "—"}
                             </div>
                             <div className="mt-2">
-                              🍽️ <strong>Meal:</strong> {suggestions.meal || "—"}
+                              🍽️ <strong>Meal:</strong>{" "}
+                              {suggestions.meal || "—"}
                             </div>
                           </div>
                         </FormGroup>
                       </div>
+
+                      <Col className="d-flex justify-content-center align-items-center mt-4">
+                        <Button
+                          color="primary"
+                          style={{
+                            transform: "none",
+                          }}
+                          type="button"
+                          onClick={handleUpdateHealthInfo}
+                        >
+                          Update Health Information
+                        </Button>
+                      </Col>
                     </>
                   )}
-
-                  <Col className="d-flex justify-content-center align-items-center mt-4">
-                    <Button
-                      color="primary"
-                      style={{
-                        transform: "none",
-                      }}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      Update
-                    </Button>
-                  </Col>
                 </Form>
               </CardBody>
             </Card>
