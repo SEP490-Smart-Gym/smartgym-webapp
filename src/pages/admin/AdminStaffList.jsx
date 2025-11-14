@@ -95,7 +95,7 @@ export default function AdminStaffList() {
       // );
 
 
-      // addForm.resetFields();
+      addForm.resetFields();
 
     } catch (err) {
       const detail = err?.response?.data?.message || err?.response?.data || err.message;
