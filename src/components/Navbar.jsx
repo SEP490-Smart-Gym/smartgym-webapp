@@ -162,7 +162,7 @@ export default function Navbar() {
                         )}
 
                         {/* Staff */}
-                        {user.role === "staff" && (
+                        {user.roleName === "Staff" && (
                           <li>
                             <button className="dropdown-item" onClick={() => navigate("/profile/staff")}>
                               Profile

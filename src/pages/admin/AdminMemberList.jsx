@@ -1,38 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Space, Button } from "antd";
+import { Table, Space, Button, message } from "antd";
+import api from "../../config/axios";
+import dayjs from "dayjs";
 
 export default function AdminMemberList() {
-  const [members, setMembers] = useState([
-    {
-      id: 1,
-      name: "Nguyễn Văn A",
-      gender: "Nam",
-      dob: "1998-06-12",
-      phone: "0987654321",
-      email: "vana@example.com",
-      photo: "/img/testimonial-1.jpg",
-    },
-    {
-      id: 2,
-      name: "Trần Thị B",
-      gender: "Nữ",
-      dob: "2001-02-23",
-      phone: "0912345678",
-      email: "thib@example.com",
-      photo: "",
-    },
-  ]);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Form thêm mới
-  const [newMember, setNewMember] = useState({
-    name: "",
-    gender: "Nam",
-    dob: "",
-    phone: "",
-    email: "",
-    photo: "",
-  });
+  // fetch danh sách từ API
+  const fetchMembers = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/Admin/users");
+      const data = Array.isArray(res.data) ? res.data : res.data.items || [];
+      const memberList = data.filter(
+        (u) => u.roleName && u.roleName.toLowerCase() === "member"
+      );
+
+      setMembers(memberList);
+    } catch (err) {
+      console.error(err);
+      message.error("Lấy danh sách hội viên thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
 
   // Dữ liệu đang chỉnh sửa (mở modal khi khác null)
   const [editingMember, setEditingMember] = useState(null);
@@ -44,40 +43,10 @@ export default function AdminMemberList() {
     return `${d}/${m}/${y}`;
   };
 
-  // Thêm hội viên
-  const handleAdd = (e) => {
-    e.preventDefault();
-    if (!newMember.name || !newMember.phone || !newMember.email) {
-      alert("Vui lòng nhập đầy đủ họ tên, SĐT và email!");
-      return;
-    }
-    const entry = { ...newMember, id: Date.now() };
-    setMembers((prev) => [entry, ...prev]);
-    setNewMember({
-      name: "",
-      gender: "Nam",
-      dob: "",
-      phone: "",
-      email: "",
-      photo: "",
-    });
-  };
 
-  // Xóa hội viên
-  const handleDelete = (id) => {
-    if (window.confirm("Bạn có chắc muốn xóa hội viên này?")) {
-      setMembers((prev) => prev.filter((m) => m.id !== id));
-    }
-  };
 
-  // Cập nhật hội viên
-  const handleUpdate = (e) => {
-    e.preventDefault();
-    setMembers((prev) =>
-      prev.map((m) => (m.id === editingMember.id ? editingMember : m))
-    );
-    setEditingMember(null);
-  };
+
+
 
   // ===== AntD Table Columns =====
   const columns = [
@@ -104,63 +73,62 @@ export default function AdminMemberList() {
       onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
-      title: "Tên",
+      title: "Họ và Tên",
       dataIndex: "name",
       key: "name",
       width: 220,
       fixed: "left",
-      ellipsis: true,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (_, r) => {
+        const first = r.firstName || "";
+        const last = r.lastName || "";
+        return (first || last) ? `${first} ${last}`.trim() : (r.name || "—");
+      },
     },
     {
       title: "Giới tính",
       dataIndex: "gender",
       key: "gender",
       width: 120,
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (v) => (v === "Male" || v ==="male" ? "Nam" : v === "Female" || v ==="female" ? "Nữ" : "Khác"),
     },
     {
       title: "Ngày sinh",
-      dataIndex: "dob",
-      key: "dob",
+      dataIndex: "dateOfBirth",
+      key: "dateOfBirth",
       width: 140,
-      render: (v) => formatDateDisplay(v),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+      render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "—"),
     },
     {
       title: "SĐT",
-      dataIndex: "phone",
+      dataIndex: "phoneNumber",
       key: "phone",
       width: 150,
-      render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
     {
       title: "Email",
       dataIndex: "email",
       key: "email",
       width: 220,
-      render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
       ellipsis: true,
       onCell: () => ({ style: { whiteSpace: "nowrap" } }),
     },
-    {
-      title: "Thao tác",
-      key: "actions",
-      fixed: "right",
-      width: 160,
-      render: (_, record) => (
-        <Space>
-          <Button size="small" onClick={() => setEditingMember(record)}>
-            Sửa
-          </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
-            Xoá
-          </Button>
-        </Space>
-      ),
-      onCell: () => ({ style: { whiteSpace: "nowrap" } }),
-    },
+    // {
+    //   title: "Thao tác",
+    //   key: "actions",
+    //   fixed: "right",
+    //   width: 160,
+    //   render: (_, record) => (
+    //     <Space>
+    //       <Button size="small" onClick={() => setEditingMember(record)}>
+    //         Sửa
+    //       </Button>
+    //       <Button size="small" danger onClick={() => handleDelete(record.id)}>
+    //         Xoá
+    //       </Button>
+    //     </Space>
+    //   ),
+    //   onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+    // },
   ];
 
   return (
@@ -176,7 +144,7 @@ export default function AdminMemberList() {
           <h2 className="mb-4 text-center">Quản lý hội viên</h2>
 
           {/* Form thêm mới (giữ nguyên) */}
-          <div className="card shadow-sm mb-4">
+          {/* <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm hội viên mới</h5>
               <form onSubmit={handleAdd}>
@@ -265,7 +233,7 @@ export default function AdminMemberList() {
                 </div>
               </form>
             </div>
-          </div>
+          </div> */}
 
           {/* Danh sách hội viên (AntD Table) */}
           <div className="card shadow-sm">
@@ -275,14 +243,14 @@ export default function AdminMemberList() {
                 rowKey="id"
                 columns={columns}
                 dataSource={members}
-                pagination={{ pageSize: 8 }}
+                pagination={{ pageSize: 5 }}
                 scroll={{ x: "max-content" }}
               />
             </div>
           </div>
 
           {/* Modal chỉnh sửa hội viên (giữ nguyên Bootstrap modal) */}
-          {editingMember && (
+          {/* {editingMember && (
             <div
               className="modal fade show"
               style={{ display: "block", background: "rgba(0,0,0,.4)" }}
@@ -411,7 +379,7 @@ export default function AdminMemberList() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>
