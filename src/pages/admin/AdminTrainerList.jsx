@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// AdminTrainerList.jsx
+import React, { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
@@ -12,84 +13,76 @@ import {
   message,
   DatePicker,
   Spin,
+  Switch,
 } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
 
-const { Option } = Select;
+const GENDER_OPTIONS = [
+  { label: "Nam", value: "Male" },
+  { label: "Nữ", value: "Female" },
+  { label: "Khác", value: "Other" },
+];
 
 export default function AdminTrainerList() {
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // form thêm mới (giữ các trường theo API)
-  const [newT, setNewT] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    phoneNumber: "",
-    gender: "Male", // Male / Female / Other
-    address: "",
-    dateOfBirth: null, // ISO string
-  });
-
-  // modal sửa local
-  const [open, setOpen] = useState(false);
+  const [addForm] = Form.useForm();
+  const [editForm] = Form.useForm();
+  const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form] = Form.useForm();
 
-  // helper: split full name -> firstName + lastName (last token là lastName)
-  const splitName = (fullname) => {
-    const parts = (fullname || "").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return { firstName: "", lastName: "" };
-    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-    const lastName = parts.pop();
-    const firstName = parts.join(" ");
-    return { firstName, lastName };
+  const generatePassword = () => {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    return Array.from({ length: 10 }, () =>
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join("");
   };
 
-  // === Fetch trainers ===
+  // Fetch trainers (filter roleId === 5). Adjust if your API has a dedicated endpoint.
   const fetchTrainers = async () => {
     setLoading(true);
     try {
       const res = await api.get("/Admin/users");
       const raw = Array.isArray(res.data) ? res.data : res.data.items || res.data.data || [];
-      // filter trainer by roleName/roleId/roles
-      const filtered = raw.filter((u) => {
-        if (!u) return false;
-        if (u.roleName && typeof u.roleName === "string") {
-          return u.roleName.toLowerCase() === "trainer";
-        }
-        if (u.roleId) return Number(u.roleId) === 5;
-        if (u.roles && Array.isArray(u.roles)) {
-          return u.roles.some(
-            (r) => (r.name || "").toLowerCase() === "trainer" || Number(r.id) === 5
-          );
-        }
-        return false;
-      });
+      const list = raw
+        .filter((u) => {
+          if (!u) return false;
+          if (u.roleId) return Number(u.roleId) === 5;
+          if (u.roleName && typeof u.roleName === "string") return u.roleName.toLowerCase() === "trainer";
+          if (u.roles && Array.isArray(u.roles)) {
+            return u.roles.some((r) => (r.name || "").toLowerCase() === "trainer" || Number(r.id) === 5);
+          }
+          return false;
+        })
+        .map((u) => ({
+          id: u.userId || u.id || (u.user && u.user.id),
+          firstName: u.firstName || "",
+          lastName: u.lastName || "",
+          name:
+            `${u.firstName || ""}${u.firstName && u.lastName ? " " : ""}${u.lastName || ""}`.trim() ||
+            u.fullName ||
+            u.name ||
+            "",
+          email: u.email,
+          phoneNumber: u.phoneNumber || u.phone || "",
+          gender: u.gender || "Male",
+          address: u.address || "",
+          dateOfBirth: u.dateOfBirth || null,
+          specialization: u.specialization || "",
+          trainerBio: u.trainerBio || "",
+          salary: u.salary ?? null,
+          isAvailableForNewClients: !!u.isAvailableForNewClients,
+          certificates: Array.isArray(u.certificates) ? u.certificates : [],
+          raw: u,
+        }));
 
-      const mapped = filtered.map((u) => ({
-        id: u.userId || u.id || u.user?.id,
-        firstName: u.firstName || "",
-        lastName: u.lastName || "",
-        name:
-          `${u.firstName || ""}${u.firstName && u.lastName ? " " : ""}${u.lastName || ""}`.trim() ||
-          u.fullName ||
-          u.name ||
-          "",
-        email: u.email,
-        phone: u.phoneNumber || u.phone,
-        gender: u.gender === "Male" ? "Nam" : u.gender === "Female" ? "Nữ" : u.gender || "Khác",
-        address: u.address || "",
-        dateOfBirth: u.dateOfBirth || null,
-        raw: u,
-      }));
-
-      setTrainers(mapped);
+      setTrainers(list);
     } catch (err) {
       console.error("fetch trainers error", err);
-      message.error("Lấy danh sách HLV thất bại");
+      message.error("Lấy danh sách huấn luyện viên thất bại");
     } finally {
       setLoading(false);
     }
@@ -100,134 +93,144 @@ export default function AdminTrainerList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === validate local ===
-  const validateNew = () => {
-    if (!newT.fullName.trim()) {
-      message.error("Vui lòng nhập họ & tên.");
-      return false;
-    }
-    if (!newT.email || !/\S+@\S+\.\S+/.test(newT.email)) {
-      message.error("Email không hợp lệ.");
-      return false;
-    }
-    if (!newT.password || newT.password.length < 6) {
-      message.error("Password tối thiểu 6 ký tự.");
-      return false;
-    }
-    if (!newT.phoneNumber || newT.phoneNumber.replace(/\D/g, "").length < 9) {
-      message.error("Số điện thoại không hợp lệ.");
-      return false;
-    }
-    return true;
-  };
+  // CREATE trainer (use /Admin/create-trainer)
+  const handleAdd = async (values) => {
+    const autoPassword = generatePassword();
 
-  // === Create trainer (API) roleId = 5 ===
-  const handleAdd = async (ev) => {
-    ev?.preventDefault?.();
-    if (!validateNew()) return;
-
-    const { firstName, lastName } = splitName(newT.fullName);
     const body = {
-      email: newT.email,
-      password: newT.password,
-      firstName: firstName || "",
-      lastName: lastName || "",
-      phoneNumber: newT.phoneNumber,
-      gender: newT.gender || "Male",
-      address: newT.address || "",
-      dateOfBirth: newT.dateOfBirth ? dayjs(newT.dateOfBirth).toISOString() : new Date().toISOString(),
-      roleId: 5,
+      email: values.email,
+      password: autoPassword,
+      firstName: values.firstName || "",
+      lastName: values.lastName || "",
+      phoneNumber: values.phoneNumber || "",
+      gender: values.gender || "Male",
+      address: values.address || "",
+      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : new Date().toISOString(),
+      specialization: values.specialization || "",
+      trainerBio: values.trainerBio || "",
+      salary: typeof values.salary === "number" ? values.salary : 0,
+      isAvailableForNewClients: !!values.isAvailableForNewClients,
+      certificates:
+        values.certificates && Array.isArray(values.certificates)
+          ? values.certificates.map((c) => ({
+              certificateName: c.certificateName || "",
+              certificateDetail: c.certificateDetail || "",
+            }))
+          : [],
     };
 
     try {
       message.loading({ content: "Đang tạo tài khoản...", key: "createTrainer" });
-      const res = await api.post("/Admin/create-user", body);
-      message.success({ content: "Tạo tài khoản HLV thành công", key: "createTrainer", duration: 2 });
+      await api.post("/Admin/create-trainer", body);
 
-      // refresh danh sách từ server
-      await fetchTrainers();
-
-      // reset form
-      setNewT({
-        fullName: "",
-        email: "",
-        password: "",
-        phoneNumber: "",
-        gender: "Male",
-        address: "",
-        dateOfBirth: null,
+      Modal.success({
+        title: "Tạo HLV thành công!",
+        content: (
+          <div>
+            Mật khẩu đăng nhập:
+            <br />
+            <strong>{autoPassword}</strong>
+          </div>
+        ),
+        getContainer: () => document.body,
       });
+
+      addForm.resetFields();
+      await fetchTrainers();
     } catch (err) {
       console.error("create trainer error", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data ||
-        "Tạo tài khoản thất bại";
-      message.error({ content: Array.isArray(msg) ? msg.join(", ") : String(msg), duration: 4 });
+      const msg = err?.response?.data?.message || err?.response?.data || "Tạo HLV thất bại";
+      message.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
+    } finally {
+      message.destroy("createTrainer");
     }
   };
 
-  // === Delete user (try API) ===
+  // DELETE trainer (attempt appropriate endpoint; adjust if your backend path differs)
   const handleDelete = async (record) => {
     if (!window.confirm("Bạn có chắc muốn xoá HLV này?")) return;
     try {
-      const userId = record?.raw?.userId || record?.id;
-      if (userId) {
-        await api.delete(`/Admin/users/${userId}`);
-        message.success("Xóa tài khoản thành công");
-        await fetchTrainers();
+      const id = record?.id || record?.raw?.userId;
+      if (!id) {
+        // fallback: remove local
+        setTrainers((p) => p.filter((t) => t !== record));
+        message.success("Đã xóa (local)");
         return;
       }
+
+      // try delete trainer-specific endpoint first, fallback to /Admin/user/{id}
+      try {
+        await api.delete(`/Admin/trainer/${id}`);
+      } catch (err) {
+        await api.delete(`/Admin/user/${id}`);
+      }
+
+      message.success("Xóa tài khoản thành công");
+      await fetchTrainers();
     } catch (err) {
-      console.warn("delete API failed", err);
-      message.error("Xóa tài khoản trên server thất bại");
+      console.error("delete trainer error", err);
+      message.error("Xóa thất bại");
     }
-    // fallback local
-    setTrainers((p) => p.filter((t) => t.id !== record.id));
-    message.success("Đã xóa (local)");
   };
 
-  // === Edit modal (local update only) ===
-  const handleEdit = (record) => {
+  // OPEN edit modal (fill editForm). We'll try to PUT to /Admin/trainer/{id} or /Admin/user/{id}
+  const openEdit = (record) => {
     setEditing(record);
-    form.setFieldsValue({
-      name: record.name,
-      age: record.age || undefined,
-      gender: record.gender === "Nam" ? "Nam" : record.gender === "Nữ" ? "Nữ" : record.gender,
+    editForm.setFieldsValue({
+      firstName: record.firstName,
+      lastName: record.lastName,
       email: record.email,
-      phone: record.phone,
+      phoneNumber: record.phoneNumber,
+      gender: record.gender,
       address: record.address,
       dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
-      photo: record.photo,
+      specialization: record.specialization,
+      trainerBio: record.trainerBio,
+      salary: record.salary,
+      isAvailableForNewClients: record.isAvailableForNewClients,
+      certificates: record.certificates && record.certificates.length ? record.certificates : [{ certificateName: "", certificateDetail: "" }],
     });
-    setOpen(true);
+    setEditOpen(true);
   };
 
-  const handleUpdate = async () => {
+  const saveEdit = async (values) => {
+    if (!editing) return;
+    const id = editing.id || editing.raw?.userId;
+    const body = {
+      email: values.email,
+      firstName: values.firstName,
+      lastName: values.lastName,
+      phoneNumber: values.phoneNumber,
+      gender: values.gender,
+      address: values.address,
+      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : null,
+      specialization: values.specialization,
+      trainerBio: values.trainerBio,
+      salary: values.salary,
+      isAvailableForNewClients: !!values.isAvailableForNewClients,
+      certificates: (values.certificates || []).map((c) => ({
+        certificateName: c.certificateName || "",
+        certificateDetail: c.certificateDetail || "",
+      })),
+    };
+
     try {
-      const values = await form.validateFields();
-      // local update only (server-side update endpoint not assumed)
-      setTrainers((prev) =>
-        prev.map((t) =>
-          t.id === editing.id
-            ? {
-                ...t,
-                name: values.name,
-                email: values.email,
-                phone: values.phone,
-                gender: values.gender,
-                address: values.address,
-                dateOfBirth: values.dateOfBirth ? values.dateOfBirth.toISOString() : t.dateOfBirth,
-                photo: values.photo || t.photo,
-              }
-            : t
-        )
-      );
-      setOpen(false);
+      // try trainer-specific update, fallback to user update
+      try {
+        await api.put(`/Admin/trainer/${id}`, body);
+      } catch (err) {
+        await api.put(`/Admin/user/${id}`, body);
+      }
+
+      message.success("Cập nhật thành công");
+      setEditOpen(false);
       setEditing(null);
-      message.success("Cập nhật thành công (local)");
+      editForm.resetFields();
+      await fetchTrainers();
     } catch (err) {
-      // validation failed
+      console.error("update trainer error", err);
+      const msg = err?.response?.data?.message || err?.response?.data || "Cập nhật thất bại";
+      message.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
     }
   };
 
@@ -240,68 +243,49 @@ export default function AdminTrainerList() {
       render: (src, r) => (
         <img
           src={src || "/img/useravt.jpg"}
-          alt={r.name}
+          alt={r.name || "avatar"}
           style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover" }}
           onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
         />
       ),
     },
     {
-      title: "Tên",
+      title: "Họ và tên",
       dataIndex: "name",
       key: "name",
       width: 220,
-      fixed: "left",
-      ellipsis: true,
-      sorter: (a, b) => (a.name || "").localeCompare(b.name || ""),
+      render: (_, r) => {
+        const first = r.firstName || "";
+        const last = r.lastName || "";
+        return (first || last) ? `${first} ${last}`.trim() : (r.name || "—");
+      },
+    },
+    { title: "Email", dataIndex: "email", key: "email", width: 220 },
+    { title: "SĐT", dataIndex: "phoneNumber", key: "phoneNumber", width: 140 },
+    { title: "Chuyên môn", dataIndex: "specialization", key: "specialization", width: 200 },
+    {
+      title: "Lương",
+      dataIndex: "salary",
+      key: "salary",
+      width: 120,
+      render: (v) => (v == null ? "—" : `${Number(v).toLocaleString()} đ`),
     },
     {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      width: 240,
-      render: (v) => (v ? <a href={`mailto:${v}`}>{v}</a> : "—"),
-    },
-    {
-      title: "SĐT",
-      dataIndex: "phone",
-      key: "phone",
-      width: 140,
-      render: (v) => (v ? <a href={`tel:${v}`}>{v}</a> : "—"),
-    },
-    {
-      title: "Giới tính",
-      dataIndex: "gender",
-      key: "gender",
-      width: 110,
-    },
-    {
-      title: "Ngày sinh",
-      dataIndex: "dateOfBirth",
-      key: "dateOfBirth",
-      width: 140,
-      render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "—"),
-    },
-    {
-      title: "Địa chỉ",
-      dataIndex: "address",
-      key: "address",
-      width: 200,
-      ellipsis: true,
+      title: "Sẵn sàng nhận khách mới",
+      dataIndex: "isAvailableForNewClients",
+      key: "isAvailableForNewClients",
+      width: 160,
+      render: (v) => (v ? "Có" : "Không"),
     },
     {
       title: "Thao tác",
-      key: "action",
+      key: "actions",
       fixed: "right",
-      width: 200,
+      width: 180,
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => handleEdit(record)}>
-            Sửa
-          </Button>
-          <Button size="small" danger onClick={() => handleDelete(record)}>
-            Xóa
-          </Button>
+          <Button size="small" onClick={() => openEdit(record)}>Sửa</Button>
+          <Button size="small" danger onClick={() => handleDelete(record)}>Xóa</Button>
         </Space>
       ),
     },
@@ -317,100 +301,143 @@ export default function AdminTrainerList() {
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý Huấn luyện viên</h2>
 
-          {/* Form thêm */}
+          {/* Form thêm (antd) */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
-              <h5 className="mb-3">Thêm HLV mới (tạo tài khoản)</h5>
+              <h5 className="mb-3">Thêm HLV mới</h5>
 
-              <form onSubmit={handleAdd}>
+              <Form
+                form={addForm}
+                layout="vertical"
+                onFinish={handleAdd}
+                initialValues={{
+                  gender: "Male",
+                  salary: 0,
+                  isAvailableForNewClients: true,
+                  certificates: [{ certificateName: "", certificateDetail: "" }],
+                }}
+              >
                 <div className="row g-3">
-                  <div className="col-md-4">
-                    <label className="form-label">Họ & tên</label>
-                    <input
-                      name="fullName"
-                      className="form-control"
-                      placeholder="VD: Nguyễn Văn A"
-                      value={newT.fullName}
-                      onChange={(e) => setNewT((p) => ({ ...p, fullName: e.target.value }))}
-                    />
+                  <div className="col-md-6">
+                    <Form.Item name="lastName" rules={[{ required: true, message: "Nhập họ" }]}>
+                      <Input placeholder="Họ" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="firstName" rules={[{ required: true, message: "Nhập tên" }]}>
+                      <Input placeholder="Tên" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
+                      <Input placeholder="Email" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-6">
+                    <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
+                      <Input placeholder="Số điện thoại" />
+                    </Form.Item>
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label">Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      className="form-control"
-                      placeholder="VD: abc@xyz.com"
-                      value={newT.email}
-                      onChange={(e) => setNewT((p) => ({ ...p, email: e.target.value }))}
-                    />
+                    <Form.Item name="gender">
+                      <Select options={GENDER_OPTIONS} />
+                    </Form.Item>
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label">Mật khẩu</label>
-                    <input
-                      name="password"
-                      type="password"
-                      className="form-control"
-                      placeholder="Mật khẩu (tối thiểu 6 ký tự)"
-                      value={newT.password}
-                      onChange={(e) => setNewT((p) => ({ ...p, password: e.target.value }))}
-                    />
+                    <Form.Item name="dateOfBirth">
+                      <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh"/>
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Số điện thoại</label>
-                    <input
-                      name="phoneNumber"
-                      className="form-control"
-                      placeholder="VD: 0901234567"
-                      value={newT.phoneNumber}
-                      onChange={(e) => setNewT((p) => ({ ...p, phoneNumber: e.target.value }))}
-                    />
+                  <div className="col-md-4">
+                    <Form.Item name="salary">
+                      <InputNumber style={{ width: "100%" }} min={0} formatter={(v) => (v ? `${v}` : v)} placeholder="Lương"/>
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Giới tính</label>
-                    <select
-                      name="gender"
-                      className="form-select"
-                      value={newT.gender}
-                      onChange={(e) => setNewT((p) => ({ ...p, gender: e.target.value }))}
-                    >
-                      <option value="Male">Nam</option>
-                      <option value="Female">Nữ</option>
-                      <option value="Other">Khác</option>
-                    </select>
+                  <div className="col-md-12">
+                    <Form.Item name="address">
+                      <Input placeholder="Địa chỉ" />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Ngày sinh</label>
-                    <DatePicker
-                      style={{ width: "100%" }}
-                      value={newT.dateOfBirth ? dayjs(newT.dateOfBirth) : null}
-                      onChange={(d) => setNewT((p) => ({ ...p, dateOfBirth: d ? d.toISOString() : null }))}
-                    />
+                  <div className="col-md-6">
+                    <Form.Item name="specialization">
+                      <Input placeholder="Chuyên môn" />
+                    </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
-                    <label className="form-label">Địa chỉ</label>
-                    <input
-                      name="address"
-                      className="form-control"
-                      placeholder="Địa chỉ"
-                      value={newT.address}
-                      onChange={(e) => setNewT((p) => ({ ...p, address: e.target.value }))}
-                    />
+                  <div className="col-md-6">
+                    <Form.Item name="isAvailableForNewClients" valuePropName="checked">
+                      <Space>
+                        <span>Sẵn sàng nhận khách mới</span>
+                        <Form.Item name="isAvailableForNewClients" valuePropName="checked" noStyle>
+                          <Switch />
+                        </Form.Item>
+                      </Space>
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-12">
+                    <Form.Item name="trainerBio">
+                      <Input.TextArea placeholder="Mô tả / giới thiệu" rows={3} />
+                    </Form.Item>
+                  </div>
+
+                  {/* Certificates as Form.List */}
+                  <div className="col-md-12">
+                    <Form.List name="certificates">
+                      {(fields, { add, remove }) => (
+                        <div>
+                          <label className="form-label">Certificates</label>
+                          {fields.map((field) => (
+                            <Space key={field.key} align="start" style={{ display: "flex", marginBottom: 8 }}>
+                              <Form.Item
+                                {...field}
+                                name={[field.name, "certificateName"]}
+                                fieldKey={[field.fieldKey, "certificateName"]}
+                                rules={[{ required: true, message: "Tên certificate required" }]}
+                              >
+                                <Input placeholder="Tên chứng chỉ" />
+                              </Form.Item>
+
+                              <Form.Item
+                                {...field}
+                                name={[field.name, "certificateDetail"]}
+                                fieldKey={[field.fieldKey, "certificateDetail"]}
+                                rules={[{ required: true, message: "Chi tiết required" }]}
+                              >
+                                <Input placeholder="Chi tiết" />
+                              </Form.Item>
+
+                              <Button danger onClick={() => remove(field.name)}>Xóa</Button>
+                            </Space>
+                          ))}
+
+                          <Form.Item>
+                            <Button type="dashed" onClick={() => add()} block>
+                              Thêm chứng chỉ
+                            </Button>
+                          </Form.Item>
+                        </div>
+                      )}
+                    </Form.List>
                   </div>
 
                   <div className="col-md-12 text-end">
-                    <button className="btn btn-add" type="submit">
-                      Tạo tài khoản HLV
-                    </button>
+                    <Form.Item style={{ marginBottom: 0 }}>
+                      <Button type="btn btn-add" htmlType="submit">
+                        Tạo HLV
+                      </Button>
+                    </Form.Item>
                   </div>
                 </div>
-              </form>
+              </Form>
             </div>
           </div>
 
@@ -434,62 +461,96 @@ export default function AdminTrainerList() {
         </div>
       </div>
 
-      {/* Modal sửa (local) */}
+      {/* Edit Modal */}
       <Modal
         title="Cập nhật HLV"
-        open={open}
+        open={editOpen}
         onCancel={() => {
-          setOpen(false);
+          setEditOpen(false);
           setEditing(null);
+          editForm.resetFields();
         }}
-        onOk={handleUpdate}
+        onOk={() => editForm.submit()}
         okText="Lưu thay đổi"
         cancelText="Huỷ"
         destroyOnClose
       >
-        <Form
-          form={form}
-          layout="vertical"
-          preserve={false}
-          initialValues={{ gender: "Nam", photo: "/img/useravt.jpg" }}
-        >
-          <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
+        <Form form={editForm} layout="vertical" onFinish={saveEdit} preserve={false}>
+          <Form.Item name="firstName" label="Tên" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
 
-          <Space style={{ width: "100%" }} size="middle" wrap>
-            <Form.Item name="age" label="Tuổi">
-              <InputNumber min={16} style={{ width: 160 }} />
-            </Form.Item>
-
-            <Form.Item name="gender" label="Giới tính">
-              <Select style={{ width: 160 }}>
-                <Option value="Nam">Nam</Option>
-                <Option value="Nữ">Nữ</Option>
-                <Option value="Khác">Khác</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item name="dateOfBirth" label="Ngày sinh">
-              <DatePicker style={{ width: 180 }} />
-            </Form.Item>
-          </Space>
+          <Form.Item name="lastName" label="Họ" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
 
           <Form.Item name="email" label="Email" rules={[{ type: "email" }]}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="phone" label="Số điện thoại">
+          <Form.Item name="phoneNumber" label="SĐT">
             <Input />
           </Form.Item>
 
-          <Form.Item name="address" label="Địa chỉ">
+          <Form.Item name="gender" label="Giới tính">
+            <Select options={GENDER_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item name="dateOfBirth" label="Ngày sinh">
+            <DatePicker style={{ width: "100%" }} />
+          </Form.Item>
+
+          <Form.Item name="specialization" label="Chuyên môn">
             <Input />
           </Form.Item>
 
-          <Form.Item name="photo" label="Ảnh (URL)">
-            <Input />
+          <Form.Item name="trainerBio" label="Mô tả">
+            <Input.TextArea rows={3} />
           </Form.Item>
+
+          <Form.Item name="salary" label="Lương">
+            <InputNumber style={{ width: "100%" }} min={0} />
+          </Form.Item>
+
+          <Form.Item name="isAvailableForNewClients" label="Sẵn sàng nhận khách mới" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+
+          <Form.List name="certificates">
+            {(fields, { add, remove }) => (
+              <div>
+                {fields.map((field) => (
+                  <Space key={field.key} align="start" style={{ display: "flex", marginBottom: 8 }}>
+                    <Form.Item
+                      {...field}
+                      name={[field.name, "certificateName"]}
+                      fieldKey={[field.fieldKey, "certificateName"]}
+                      rules={[{ required: true, message: "Tên certificate required" }]}
+                    >
+                      <Input placeholder="Tên chứng chỉ" />
+                    </Form.Item>
+
+                    <Form.Item
+                      {...field}
+                      name={[field.name, "certificateDetail"]}
+                      fieldKey={[field.fieldKey, "certificateDetail"]}
+                      rules={[{ required: true, message: "Chi tiết required" }]}
+                    >
+                      <Input placeholder="Chi tiết" />
+                    </Form.Item>
+
+                    <Button danger onClick={() => remove(field.name)}>Xóa</Button>
+                  </Space>
+                ))}
+
+                <Form.Item>
+                  <Button type="dashed" onClick={() => add()} block>
+                    Thêm chứng chỉ
+                  </Button>
+                </Form.Item>
+              </div>
+            )}
+          </Form.List>
         </Form>
       </Modal>
     </div>
