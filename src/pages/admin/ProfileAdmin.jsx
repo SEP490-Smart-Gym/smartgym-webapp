@@ -98,13 +98,58 @@ const ProfileAdmin = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setPreview(imageUrl);
+  const handleFileChange = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Preview tạm tại client
+  const localUrl = URL.createObjectURL(file);
+  setPreview(localUrl);
+
+  try {
+    // Đọc file -> base64 (data URL)
+    const toBase64 = (file) =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file); // vd: "data:image/png;base64,...."
+      });
+
+    const base64Image = await toBase64(file);
+
+    // Gửi JSON lên API
+    const payload = {
+      profileImageUrl: base64Image, // hoặc sau này thay bằng URL thật
+    };
+
+    const res = await api.put("/UserAccount/avatar", payload);
+    const newUrl = res.data?.profileImageUrl || base64Image;
+
+    // Cập nhật state user + localStorage
+    setUser((prev) => ({
+      ...(prev || {}),
+      photo: newUrl,
+    }));
+
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      parsed.photo = newUrl;
+      localStorage.setItem("user", JSON.stringify(parsed));
     }
-  };
+
+    setPreview(newUrl); // dùng URL từ server (hoặc base64)
+    alert("Cập nhật ảnh đại diện thành công!");
+  } catch (err) {
+    console.error("Error uploading avatar:", err);
+    alert(
+      `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
+    );
+  }
+};
+
+
 
   const age = calculateAge(userInfo.birthday);
 
