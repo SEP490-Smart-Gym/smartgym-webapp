@@ -27,7 +27,7 @@ const ProfileMember = () => {
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
 
-  // 👉 Tab đang chọn: "user" hoặc "health"
+  // 👉 Tab đang chọn: "user" | "health" | "password"
   const [activeSection, setActiveSection] = useState("user");
 
   useEffect(() => {
@@ -51,6 +51,19 @@ const ProfileMember = () => {
     sucKhoe: "Tốt",
     bmi: "",
   });
+
+  // 👉 State cho Reset Password
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+
+  const [showPassword, setShowPassword] = useState({
+  current: false,
+  new: false,
+  confirm: false,
+});
 
   // 🧮 Tự động tính BMI khi cân nặng/chiều cao thay đổi
   useEffect(() => {
@@ -190,22 +203,32 @@ const ProfileMember = () => {
 
   // (tuỳ chọn) màu viền theo mức BMI
   const bmiColor =
-    !userInfo.bmi ? "#6c757d" :
-    userInfo.bmi < 16 ? "#0059ffff" :
-    userInfo.bmi < 17 ? "#0080ffff" :
-    userInfo.bmi < 18.5 ? "#00bfff" :
-    userInfo.bmi < 25   ? "#00c853" :
-    userInfo.bmi < 30   ? "#ffd54f" :
-    userInfo.bmi < 35   ? "#ff9800" :
-    userInfo.bmi < 40   ? "#ff6200ff" :
-                          "#e53935";
+    !userInfo.bmi
+      ? "#6c757d"
+      : userInfo.bmi < 16
+      ? "#0059ffff"
+      : userInfo.bmi < 17
+      ? "#0080ffff"
+      : userInfo.bmi < 18.5
+      ? "#00bfff"
+      : userInfo.bmi < 25
+      ? "#00c853"
+      : userInfo.bmi < 30
+      ? "#ffd54f"
+      : userInfo.bmi < 35
+      ? "#ff9800"
+      : userInfo.bmi < 40
+      ? "#ff6200ff"
+      : "#e53935";
 
   const handleButtonClick = () => {
-    fileInputRef.current.click();
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setPreview(imageUrl);
@@ -224,7 +247,9 @@ const ProfileMember = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+        const fullNameFromApi = `${data.firstName || ""} ${
+          data.lastName || ""
+        }`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
@@ -272,10 +297,12 @@ const ProfileMember = () => {
     e && e.preventDefault();
     try {
       // tách fullName -> firstName, lastName (đơn giản: từ đầu, từ cuối)
-      const nameParts = (userInfo.fullName || "").trim().split(" ").filter(Boolean);
+      const nameParts = (userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
       const firstName = nameParts.length > 0 ? nameParts[0] : "";
-      const lastName =
-        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
       const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
       const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
@@ -317,6 +344,59 @@ const ProfileMember = () => {
       sucKhoe: userInfo.sucKhoe,
     });
     alert("Cập nhật thông tin sức khỏe (demo) – chưa gắn API backend.");
+  };
+
+  // ⚙️ HANDLE CHANGE PASSWORD
+  const handleChangePassword = async (e) => {
+    e && e.preventDefault();
+
+    const { currentPassword, newPassword, confirmNewPassword } = passwordData;
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      alert("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      return;
+    }
+
+    try {
+      const payload = {
+        currentPassword,
+        newPassword,
+        confirmNewPassword,
+      };
+
+      await api.put("/UserAccount/change-password", payload);
+      alert("Đổi mật khẩu thành công!");
+
+      // reset form
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      });
+    } catch (err) {
+      console.error("Error changing password:", err);
+      if (err.response?.status === 400) {
+        alert(
+          err.response.data?.message ||
+            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
+        );
+      } else if (err.response?.status === 401) {
+        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        navigate("/login");
+      } else {
+        alert("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+      }
+    }
   };
 
   return (
@@ -377,32 +457,13 @@ const ProfileMember = () => {
                 </Button>
 
                 {/* Input ẩn */}
-                {/* <input
+                <input
                   type="file"
                   accept="image/*"
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   style={{ display: "none" }}
                 />
-
-                <div
-                  className="text-center"
-                  style={{ whiteSpace: "nowrap", marginTop: "10px" }}
-                >
-                  <h3
-                    style={{
-                      position: "relative",
-                      fontSize: "2rem",
-                      fontWeight: 800,
-                      color: "#0c1844",
-                      textTransform: "uppercase",
-                      letterSpacing: "2px",
-                      fontFamily: "'Rubik Glitch', cursive",
-                    }}
-                  >
-                    Jessica Jones
-                  </h3>
-                </div> */}
               </Col>
             </Row>
           </Col>
@@ -432,7 +493,7 @@ const ProfileMember = () => {
               >
                 <Form>
                   {/* Tabs chọn section */}
-                  <div className="d-flex mb-4" style={{ gap: "0.5rem" }}>
+                  <div className="d-flex mb-4 justify-content-center" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
                     <Button
                       size="sm"
                       type="button"
@@ -453,7 +514,9 @@ const ProfileMember = () => {
                       type="button"
                       style={{
                         backgroundColor:
-                          activeSection === "health" ? "#ffffff" : "transparent",
+                          activeSection === "health"
+                            ? "#ffffff"
+                            : "transparent",
                         color:
                           activeSection === "health" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
@@ -463,23 +526,28 @@ const ProfileMember = () => {
                     >
                       Physical & Health Information
                     </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      style={{
+                        backgroundColor:
+                          activeSection === "password"
+                            ? "#ffffff"
+                            : "transparent",
+                        color:
+                          activeSection === "password" ? "#0c1844" : "#ffffff",
+                        border: "1px solid #ffffff",
+                        fontWeight: activeSection === "password" ? 700 : 500,
+                      }}
+                      onClick={() => setActiveSection("password")}
+                    >
+                      Reset Password
+                    </Button>
                   </div>
 
                   {/* ====== TAB 1: USER INFORMATION ====== */}
                   {activeSection === "user" && (
                     <>
-                      <h6
-                        className="heading-small mb-4"
-                        style={{
-                          color: "#ffffff",
-                          fontSize: "1.25rem",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        User Information
-                      </h6>
 
                       <div className="pl-lg-4">
                         <Row>
@@ -652,19 +720,6 @@ const ProfileMember = () => {
                   {/* ====== TAB 2: PHYSICAL & HEALTH INFORMATION + ABOUT ME ====== */}
                   {activeSection === "health" && (
                     <>
-                      {/* Thông tin thể chất và sức khỏe */}
-                      <h6
-                        className="heading-small mb-4"
-                        style={{
-                          color: "#ffffff",
-                          fontSize: "1.25rem",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        Physical & Health Information
-                      </h6>
 
                       <div className="pl-lg-4">
                         <Row>
@@ -842,9 +897,7 @@ const ProfileMember = () => {
                               boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                             }}
                           >
-                            <div
-                              style={{ fontWeight: 700, marginBottom: 6 }}
-                            >
+                            <div style={{ fontWeight: 700, marginBottom: 6 }}>
                               Trạng thái:{" "}
                               <span>{suggestions.category || "—"}</span>
                             </div>
@@ -874,6 +927,138 @@ const ProfileMember = () => {
                       </Col>
                     </>
                   )}
+
+                  {/* ====== TAB 3: RESET PASSWORD ====== */}
+                  {activeSection === "password" && (
+                    <>
+                      <div className="pl-lg-4">
+                        {/* CURRENT PASSWORD */}
+                        <FormGroup style={{ position: "relative" }}>
+                          <Label className="form-control-label">🔐 Current Password</Label>
+                          <Input
+                            className="form-control-alternative"
+                            type={showPassword.current ? "text" : "password"}
+                            value={passwordData.currentPassword}
+                            style={{ paddingRight: "40px" }}
+                            onChange={(e) =>
+                              setPasswordData({
+                                ...passwordData,
+                                currentPassword: e.target.value,
+                              })
+                            }
+                          />
+                          <span
+                            onClick={() =>
+                              setShowPassword({
+                                ...showPassword,
+                                current: !showPassword.current,
+                              })
+                            }
+                            style={{
+                              position: "absolute",
+                              right: "12px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              cursor: "pointer",
+                              color: "#fff",
+                            }}
+                          >
+                            {showPassword.current ? "👁️" : "🙈"}
+                          </span>
+                        </FormGroup>
+
+                        {/* NEW PASSWORD + CONFIRM */}
+                        <Row>
+                          {/* NEW PASSWORD */}
+                          <Col lg="6">
+                            <FormGroup style={{ position: "relative" }}>
+                              <Label className="form-control-label">🔑 New Password</Label>
+                              <Input
+                                className="form-control-alternative"
+                                type={showPassword.new ? "text" : "password"}
+                                value={passwordData.newPassword}
+                                style={{ paddingRight: "40px" }}
+                                onChange={(e) =>
+                                  setPasswordData({
+                                    ...passwordData,
+                                    newPassword: e.target.value,
+                                  })
+                                }
+                              />
+                              <span
+                                onClick={() =>
+                                  setShowPassword({ ...showPassword, new: !showPassword.new })
+                                }
+                                style={{
+                                  position: "absolute",
+                                  right: "12px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  cursor: "pointer",
+                                  color: "#fff",
+                                }}
+                              >
+                                {showPassword.new ? "👁️" : "🙈"}
+                              </span>
+                            </FormGroup>
+                          </Col>
+
+                          {/* CONFIRM PASSWORD */}
+                          <Col lg="6">
+                            <FormGroup style={{ position: "relative" }}>
+                              <Label className="form-control-label">🔁 Confirm New Password</Label>
+                              <Input
+                                className="form-control-alternative"
+                                type={showPassword.confirm ? "text" : "password"}
+                                value={passwordData.confirmNewPassword}
+                                style={{ paddingRight: "40px" }}
+                                onChange={(e) =>
+                                  setPasswordData({
+                                    ...passwordData,
+                                    confirmNewPassword: e.target.value,
+                                  })
+                                }
+                              />
+                              <span
+                                onClick={() =>
+                                  setShowPassword({
+                                    ...showPassword,
+                                    confirm: !showPassword.confirm,
+                                  })
+                                }
+                                style={{
+                                  position: "absolute",
+                                  right: "12px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  cursor: "pointer",
+                                  color: "#fff",
+                                }}
+                              >
+                                {showPassword.confirm ? "👁️" : "🙈"}
+                              </span>
+                            </FormGroup>
+                          </Col>
+                        </Row>
+                      </div>
+
+                      <Col className="d-flex justify-content-center align-items-center mt-4">
+                        <Button
+                          color="primary"
+                          style={{
+                            transform: "none",
+                          }}
+                          type="button"
+                          onClick={handleChangePassword}
+                        >
+                          Change Password
+                        </Button>
+                      </Col>
+
+                      <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
+                    </>
+                  )}
+
                 </Form>
               </CardBody>
             </Card>
