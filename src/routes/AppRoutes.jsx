@@ -19,7 +19,7 @@ import ProfileMember from "../pages/Member/ProfileMember.jsx";
 import ProfileManager from "../pages/Manager/ProfileManager.jsx";
 import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
-import ProfileAdmin from "../pages/Admin/ProfileAdmin.jsx";
+import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";

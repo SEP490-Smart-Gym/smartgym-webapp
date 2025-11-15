@@ -285,7 +285,7 @@ export default function AdminStaffList() {
 
                   <div className="col-md-3">
                     <Form.Item name="dateOfBirth">
-                      <DatePicker style={{ width: "100%" }} />
+                      <DatePicker style={{ width: "100%" }}  placeholder="Số điện thoại" />
                     </Form.Item>
                   </div>
 

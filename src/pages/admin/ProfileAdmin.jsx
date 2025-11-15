@@ -149,8 +149,6 @@ const ProfileAdmin = () => {
   }
 };
 
-
-
   const age = calculateAge(userInfo.birthday);
 
   // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER
@@ -595,11 +593,6 @@ const ProfileAdmin = () => {
                           Update User Information
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
 
