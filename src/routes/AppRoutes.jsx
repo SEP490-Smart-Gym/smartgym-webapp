@@ -42,6 +42,7 @@ import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 // Guard
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
+import AdminManagerList from "../pages/admin/AdminManagerList.jsx";
 
 function Layout() {
   return (
@@ -141,6 +142,7 @@ export default function AppRoutes() {
           <Route path="/admin/equipments" element={<EquipmentList />} />
           <Route path="/admin/members" element={<AdminMemberList />} />
           <Route path="/admin/staffs" element={<AdminStaffList />} />
+          <Route path="/admin/managers" element={<AdminManagerList />} />
           <Route path="/admin/vouchers" element={<AdminVoucher />} />
         </Route>
 

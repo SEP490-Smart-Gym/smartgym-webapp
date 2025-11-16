@@ -14,7 +14,7 @@ import {
   message,
   Spin,
 } from "antd";
-import api from "../../config/axios"; 
+import api from "../../config/axios";
 import dayjs from "dayjs";
 
 const STATUS_OPTIONS = ["Đang hoạt động", "Đang bảo trì", "Hư hỏng", "Tồn kho"];
@@ -191,7 +191,8 @@ export default function EquipmentList() {
       title: "Tên máy",
       dataIndex: "equipmentName",
       key: "equipmentName",
-      width: 260,
+      width: 150,
+      fixed: "left",
       render: (v, r) => v || r.name || "—",
     },
     {
@@ -206,13 +207,6 @@ export default function EquipmentList() {
       dataIndex: "model",
       key: "model",
       width: 160,
-    },
-    {
-      title: "Thương hiệu",
-      dataIndex: "brand",
-      key: "brand",
-      width: 160,
-      render: (_, r) => r.brand || r.manufacturer || "—",
     },
     {
       title: "Trạng thái",
@@ -287,7 +281,7 @@ export default function EquipmentList() {
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
+                  <div className="col-md-4">
                     <Form.Item
                       name="serialNumber"
                       rules={[{ required: true, message: "Nhập serial/mã máy" }]}
@@ -296,30 +290,11 @@ export default function EquipmentList() {
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-3">
+                  <div className="col-md-4">
                     <Form.Item name="model">
                       <Input placeholder="Model (VD: Pro-500)" />
                     </Form.Item>
                   </div>
-
-                  <div className="col-md-2">
-                    <Form.Item name="status">
-                      <Select>
-                        {STATUS_OPTIONS.map((s) => (
-                          <Select.Option key={s} value={s}>
-                            {s}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </div>
-
-                  <div className="col-md-4">
-                    <Form.Item name="brand">
-                      <Input placeholder="Thương hiệu (VD: NordicTrack)" />
-                    </Form.Item>
-                  </div>
-
                   <div className="col-md-4">
                     <Form.Item name="purchaseDate">
                       <DatePicker style={{ width: "100%" }} placeholder="Ngày mua máy" />
@@ -331,22 +306,27 @@ export default function EquipmentList() {
                       <InputNumber style={{ width: "100%" }} min={0} placeholder="Giá mua (VNĐ)" />
                     </Form.Item>
                   </div>
-
+                  <div className="col-md-4">
+                    <Form.Item name="status">
+                      <Select>
+                        {STATUS_OPTIONS.map((s) => (
+                          <Select.Option key={s} value={s}>
+                            {s}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </div>
                   <div className="col-md-8">
                     <Form.Item name="location">
                       <Input placeholder="Vị trí (VD: Phòng cardio)" />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4 d-flex align-items-end">
-                    <div style={{ width: "100%", display: "flex", gap: 8 }}>
-                      <Form.Item name="imageUrl" style={{ flex: 1, marginBottom: 0 }}>
-                        <Input placeholder="Ảnh (URL)" />
-                      </Form.Item>
-                      <Button type="btn btn-add" onClick={handleAdd}>
-                        Thêm thiết bị
-                      </Button>
-                    </div>
+                  <div className="col-md-4 ">
+                    <Form.Item name="imageUrl" style={{ flex: 1, marginBottom: 0 }}>
+                      <Input placeholder="Ảnh (URL)" />
+                    </Form.Item>
                   </div>
 
                   <div className="col-12">
@@ -354,6 +334,14 @@ export default function EquipmentList() {
                       <Input.TextArea rows={2} placeholder="Mô tả (tuỳ chọn)" />
                     </Form.Item>
                   </div>
+                  <div className="col-md-8">
+                    <Form.Item name="location">
+                      <Button type="btn btn-add" onClick={handleAdd}>
+                        Thêm thiết bị
+                      </Button>
+                    </Form.Item>
+                  </div>
+
                 </div>
               </Form>
             </div>

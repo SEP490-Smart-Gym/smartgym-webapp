@@ -261,7 +261,7 @@ export default function AdminStaffList() {
                       <Input placeholder="Tên " />
                     </Form.Item>
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
                       <Input placeholder="Email" />
                     </Form.Item>
@@ -271,26 +271,22 @@ export default function AdminStaffList() {
                       <Input.Password placeholder="Mật khẩu" />
                     </Form.Item>
                   </div> */}
-                  <div className="col-md-6">
+                  <div className="col-md-3">
                     <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
                       <Input placeholder="Số điện thoại" />
                     </Form.Item>
                   </div>
-
                   <div className="col-md-3">
+                    <Form.Item name="dateOfBirth">
+                      <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh" />
+                    </Form.Item>
+                  </div>
+                  <div className="col-md-2">
                     <Form.Item name="gender">
                       <Select options={GENDER_OPTIONS} />
                     </Form.Item>
                   </div>
-
-                  <div className="col-md-3">
-                    <Form.Item name="dateOfBirth">
-                      <DatePicker style={{ width: "100%" }}  placeholder="Số điện thoại" />
-                    </Form.Item>
-                  </div>
-
-
-
+                  
                   <div className="col-md-12">
                     <Form.Item name="address">
                       <Input placeholder="Địa chỉ" />
