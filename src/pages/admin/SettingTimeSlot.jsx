@@ -4,13 +4,13 @@ import AdminSidebar from "../../components/AdminSidebar";
 import { Table, Space, Button, Modal, Form, Input, message, Spin } from "antd";
 import api from "../../config/axios";
 
-// Hàm chuẩn hóa giờ về dạng HH:mm:ss để backend TimeOnly parse được
+// Chuẩn hóa giờ về dạng HH:mm:ss để backend TimeOnly parse được
 const normalizeTime = (val) => {
   if (!val) return null;
   const t = String(val).trim();
   // match: H:MM, HH:MM, H:MM:SS, HH:MM:SS
   const match = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (!match) return t; // nếu user nhập lạ thì gửi nguyên, backend sẽ báo lỗi rõ
+  if (!match) return t; // nếu user nhập lạ thì gửi nguyên, backend báo lỗi rõ
   let h = match[1].padStart(2, "0");
   let m = match[2];
   let s = match[3] || "00";
@@ -37,7 +37,7 @@ export default function AdminStaffList() {
       const data = Array.isArray(res.data) ? res.data : res.data.items || [];
       setTimeSlots(data);
     } catch (err) {
-      console.error(err);
+      console.error("GET /TimeSlot error:", err.response?.data || err);
       message.error("Lấy danh sách ca tập thất bại");
     } finally {
       setLoading(false);
@@ -54,24 +54,25 @@ export default function AdminStaffList() {
     const endTime = normalizeTime(values.endTime);
 
     const body = {
-      request: {
-        slotName: values.slotName,
-        startTime,
-        endTime,
-      },
+      slotName: values.slotName,
+      startTime,
+      endTime,
     };
 
     try {
       const res = await api.post("/TimeSlot", body);
-      const created = res.data || body.request;
+      const created = res.data || body;
 
       setTimeSlots((prev) => [created, ...prev]);
       message.success("Tạo ca tập thành công!");
       addForm.resetFields();
     } catch (err) {
-      console.error(err);
+      console.error("POST /TimeSlot error:", err.response?.data || err);
       const detail =
-        err?.response?.data?.message || err?.response?.data || err.message;
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        JSON.stringify(err?.response?.data) ||
+        err.message;
       message.error("Tạo ca tập thất bại: " + (detail || ""));
     }
   };
@@ -93,14 +94,13 @@ export default function AdminStaffList() {
       );
       message.success("Xóa ca tập thành công");
     } catch (err) {
-      console.error(err);
+      console.error("DELETE /TimeSlot error:", err.response?.data || err);
       message.error("Xóa ca tập thất bại");
     }
   };
 
   // ===== Mở modal edit =====
   const openEdit = (record) => {
-    // Nếu backend trả "06:00:00" thì hiển thị "06:00" cho gọn
     const trimTime = (t) => {
       if (!t) return "";
       const match = String(t).match(/^(\d{2}:\d{2})/);
@@ -129,18 +129,16 @@ export default function AdminStaffList() {
     const endTime = normalizeTime(values.endTime);
 
     const body = {
-      request: {
-        slotName: values.slotName,
-        startTime,
-        endTime,
-      },
+      slotName: values.slotName,
+      startTime,
+      endTime,
     };
 
     try {
       const res = await api.put(`/TimeSlot/${id}`, body);
       message.success("Cập nhật ca tập thành công");
 
-      const updated = res.data || { ...editingSlot, ...body.request };
+      const updated = res.data || { ...editingSlot, ...body };
       setTimeSlots((prev) =>
         prev.map((s) =>
           (s.id ?? s.timeSlotId) === id ? updated : s
@@ -151,9 +149,12 @@ export default function AdminStaffList() {
       setEditingSlot(null);
       editForm.resetFields();
     } catch (err) {
-      console.error(err);
+      console.error("PUT /TimeSlot error:", err.response?.data || err);
       const detail =
-        err?.response?.data?.message || err?.response?.data || err.message;
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        JSON.stringify(err?.response?.data) ||
+        err.message;
       message.error("Cập nhật ca tập thất bại: " + (detail || ""));
     }
   };
@@ -171,7 +172,7 @@ export default function AdminStaffList() {
       dataIndex: "startTime",
       key: "startTime",
       width: 150,
-      render: (v) => (v ? String(v).substring(0, 5) : "—"), // hiển thị HH:mm
+      render: (v) => (v ? String(v).substring(0, 5) : "—"), // HH:mm
     },
     {
       title: "Giờ kết thúc",

@@ -21,6 +21,8 @@ import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
+import ManageSchedule from "../pages/Manager/Schedule.jsx";
+
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
@@ -149,9 +151,10 @@ export default function AppRoutes() {
         </Route>
 
         {/* ===== Manager protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Manager"]} />}>
           <Route path="/manager/overview" element={<Home />} />
           <Route path="/profile/manager" element={<ProfileManager />} />
+          <Route path="/manager/schedule" element={<ManageSchedule />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}
