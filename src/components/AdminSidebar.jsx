@@ -94,6 +94,12 @@ export default function AdminSidebar() {
             <span className="label">Mã khuyến mãi</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
+          <NavLink to="/admin/vouchers" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <IoTicketOutline />
+            <span className="label">Setting Time Slot</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
           <div className="admin-side-section">System</div>
           <NavLink to="/admin/settings" className="admin-side-item">
             <i className="fa fa-cog icon" />

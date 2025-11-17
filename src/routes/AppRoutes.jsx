@@ -112,7 +112,7 @@ export default function AppRoutes() {
           {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
-          <Route path="/:id/cart" element={<Payment />} />
+          <Route path="/:id/cart/:id" element={<Payment />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>

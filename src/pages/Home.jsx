@@ -61,7 +61,7 @@ export default function Home() {
   useEffect(() => {
   const fetchTrainers = async () => {
     try {
-      const res = await api.get("/guest/trainers", {
+      const res = await api.get("/guest/trainers?onlyAvailable=false", {
         params: { onlyAvailable: true },
       });
 
@@ -74,7 +74,7 @@ export default function Home() {
         rating: t.trainerRating ?? 0,
         reviews: t.totalReviews ?? 0,
         isAvailable: t.isAvailableForNewClients ?? true,
-        img: "/img/team-1.jpg", // backend CHƯA cung cấp avatar → dùng ảnh mặc định
+        img: "/img/team-1.jpg",
       }));
 
       setTrainers(normalized);

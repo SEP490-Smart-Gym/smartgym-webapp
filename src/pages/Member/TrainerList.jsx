@@ -14,7 +14,7 @@ export default function TrainerList() {
       try {
         setLoading(true);
         // 👉 Gọi API: /api/member/trainers
-        const res = await api.get("/guest/trainers?onlyAvailable=true");
+        const res = await api.get("/guest/trainers?onlyAvailable=false");
         const data = res.data || [];
 
         // data mỗi phần tử kiểu:
