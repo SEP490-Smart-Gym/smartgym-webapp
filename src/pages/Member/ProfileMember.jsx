@@ -227,13 +227,59 @@ const ProfileMember = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setPreview(imageUrl);
-    }
-  };
+  const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+    
+        // Preview tạm tại client
+        const localUrl = URL.createObjectURL(file);
+        setPreview(localUrl);
+    
+        try {
+          // Đọc file -> base64 (data URL)
+          const toBase64 = (file) =>
+            new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+    
+          const base64Image = await toBase64(file);
+    
+          // Gửi JSON lên API
+          const payload = {
+            profileImageUrl: base64Image,
+          };
+    
+          const res = await api.put("/UserAccount/avatar", payload);
+          const newUrl = res.data?.profileImageUrl || base64Image;
+    
+          // Cập nhật state user + localStorage
+          setUser((prev) => ({
+            ...(prev || {}),
+            photo: newUrl,
+          }));
+    
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            parsed.photo = newUrl;
+            localStorage.setItem("user", JSON.stringify(parsed));
+          }
+    
+          // 👉 Bắn event cho Navbar biết user đã đổi avatar
+          window.dispatchEvent(new Event("app-auth-changed"));
+    
+          setPreview(newUrl);
+          alert("Cập nhật ảnh đại diện thành công!");
+        } catch (err) {
+          console.error("Error uploading avatar:", err);
+          alert(
+            `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
+          );
+        }
+      };
 
   const age = calculateAge(userInfo.birthday);
 
@@ -247,9 +293,7 @@ const ProfileMember = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.firstName || ""} ${
-          data.lastName || ""
-        }`.trim();
+        const fullNameFromApi = `${data.lastName || "" } ${data.firstName || ""}`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
@@ -294,42 +338,73 @@ const ProfileMember = () => {
 
   // ⚙️ HANDLE UPDATE TAB USER INFORMATION
   const handleUpdateUserInfo = async (e) => {
-    e && e.preventDefault();
-    try {
-      // tách fullName -> firstName, lastName (đơn giản: từ đầu, từ cuối)
-      const nameParts = (userInfo.fullName || "")
-        .trim()
-        .split(" ")
-        .filter(Boolean);
-      const firstName = nameParts.length > 0 ? nameParts[0] : "";
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
-
-      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
-
-      const genderMap = {
-        Nam: "male",
-        Nữ: "female",
-        Khác: "other",
+        e && e.preventDefault();
+        try {
+          const nameParts = (userInfo.fullName || "")
+            .trim()
+            .split(" ")
+            .filter(Boolean);
+          const lastName = nameParts.length > 0 ? nameParts[0] : "";
+          const firstName =
+            nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+    
+          // dd/MM/yyyy -> ISO
+          const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
+          const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+    
+          // map giới tính đúng enum backend: Male / Female / Other
+          const genderMapApi = {
+            Nam: "Male",
+            Nữ: "Female",
+            Khác: "Other",
+          };
+    
+          const payload = {
+            firstName,
+            lastName,
+            email: userInfo.email || "",
+            phoneNumber: userInfo.phone || "",
+            gender: genderMapApi[userInfo.gioiTinh] || null,
+            address: userInfo.address || "",
+            dateOfBirth: dateOfBirthIso,
+          };
+    
+          console.log("UPDATE /UserAccount/update payload:", payload);
+    
+          await api.put("/UserAccount/update", payload);
+    
+          // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+          const storedUser = localStorage.getItem("user");
+          let newUser = user || {};
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            parsed.firstName = firstName;
+            parsed.lastName = lastName;
+            parsed.email = userInfo.email || parsed.email;
+            parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+            parsed.address = userInfo.address || parsed.address;
+            newUser = parsed;
+            localStorage.setItem("user", JSON.stringify(parsed));
+          }
+          setUser(newUser);
+    
+          // 👉 Bắn event cho Navbar
+          window.dispatchEvent(new Event("app-auth-changed"));
+    
+          alert("Cập nhật thông tin cá nhân thành công!");
+        } catch (err) {
+          console.error("Error updating user info:", err.response?.data || err);
+    
+          const serverData = err.response?.data;
+          let msg =
+            serverData?.title ||
+            serverData?.message ||
+            JSON.stringify(serverData) ||
+            "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
+    
+          alert(msg);
+        }
       };
-
-      const payload = {
-        firstName,
-        lastName,
-        phoneNumber: userInfo.phone || "",
-        gender: genderMap[userInfo.gioiTinh] || userInfo.gioiTinh || "",
-        address: userInfo.address || "",
-        dateOfBirth: dateOfBirthIso,
-        profileImageUrl: user?.photo || "", // nếu backend dùng trường này
-      };
-
-      await api.put("/UserAccount/update", payload);
-      alert("Cập nhật thông tin cá nhân thành công!");
-    } catch (err) {
-      console.error("Error updating user info:", err);
-      alert("Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!");
-    }
-  };
 
   // ⚙️ HANDLE UPDATE TAB HEALTH (CHƯA GẮN API, ĐỂ SAU)
   const handleUpdateHealthInfo = (e) => {

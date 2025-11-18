@@ -21,6 +21,8 @@ import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
+import ManageSchedule from "../pages/Manager/Schedule.jsx";
+
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
 import TrainerList from "../pages/Member/TrainerList.jsx";
@@ -38,6 +40,7 @@ import EquipmentList from "../pages/admin/EquipmentList.jsx";
 import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
 import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
 import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
+import TimeSlot from "../pages/admin/SettingTimeSlot.jsx";
 
 // Guard
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -112,7 +115,7 @@ export default function AppRoutes() {
           {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
-          <Route path="/:id/cart" element={<Payment />} />
+          <Route path="/:id/cart/:id" element={<Payment />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>
@@ -144,12 +147,14 @@ export default function AppRoutes() {
           <Route path="/admin/staffs" element={<AdminStaffList />} />
           <Route path="/admin/managers" element={<AdminManagerList />} />
           <Route path="/admin/vouchers" element={<AdminVoucher />} />
+          <Route path="/admin/timeslot" element={<TimeSlot />} />
         </Route>
 
         {/* ===== Manager protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["Manager"]} />}>
           <Route path="/manager/overview" element={<Home />} />
           <Route path="/profile/manager" element={<ProfileManager />} />
+          <Route path="/manager/schedule" element={<ManageSchedule />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}

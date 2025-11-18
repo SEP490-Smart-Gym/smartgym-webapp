@@ -285,7 +285,7 @@ export default function PackageDetail() {
             </button>
 
             <Link
-              to={`/${safeId}/cart`}
+              to={`/${safeId}/cart/${pkg.id}`}
               className="btn btn-lg"
               style={{
                 backgroundColor: "#C80036",

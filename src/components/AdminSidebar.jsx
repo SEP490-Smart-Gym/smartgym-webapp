@@ -5,6 +5,7 @@ import { NavLink } from "react-router-dom";
 import { RiFileListLine } from "react-icons/ri";
 import { FaUsers } from "react-icons/fa";
 import { GiWhistle } from "react-icons/gi";
+import { CiAlarmOn } from "react-icons/ci";
 
 export default function AdminSidebar() {
   const [open, setOpen] = useState(true);
@@ -92,6 +93,12 @@ export default function AdminSidebar() {
             <i className="fa fa-users icon" />
             <IoTicketOutline />
             <span className="label">Mã khuyến mãi</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
+          <NavLink to="/admin/timeslot" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <CiAlarmOn />
+            <span className="label">Setting Time Slot</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
           <div className="admin-side-section">System</div>

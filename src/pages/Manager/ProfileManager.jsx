@@ -21,6 +21,10 @@ import { FcPhone } from "react-icons/fc";
 import api from "../../config/axios";
 import { useNavigate } from "react-router-dom";
 
+
+import { storage } from "../../config/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 const ProfileManager = () => {
   const [user, setUser] = useState(null);
   const fileInputRef = useRef(null);
@@ -98,56 +102,62 @@ const ProfileManager = () => {
     }
   };
 
+  // ===== Upload avatar lên Firebase + lưu link vào DB + sync navbar =====
   const handleFileChange = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Preview tạm tại client
-  const localUrl = URL.createObjectURL(file);
-  setPreview(localUrl);
+    // Preview tạm tại client
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
 
-  try {
-    // Đọc file -> base64 (data URL)
-    const toBase64 = (file) =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file); // vd: "data:image/png;base64,...."
-      });
+    try {
+      // Tạo đường dẫn lưu file trong Storage
+      const uid = user?.id || user?.userId || "anonymous";
+      const imageRef = ref(
+        storage,
+        `avatars/${uid}_${Date.now()}_${file.name}`
+      );
 
-    const base64Image = await toBase64(file);
+      // Upload file lên Firebase Storage
+      await uploadBytes(imageRef, file);
 
-    // Gửi JSON lên API
-    const payload = {
-      profileImageUrl: base64Image, // hoặc sau này thay bằng URL thật
-    };
+      // Lấy URL public
+      const downloadUrl = await getDownloadURL(imageRef);
 
-    const res = await api.put("/UserAccount/avatar", payload);
-    const newUrl = res.data?.profileImageUrl || base64Image;
+      // Gửi JSON lên API backend để lưu link vào database
+      const payload = {
+        profileImageUrl: downloadUrl,
+      };
 
-    // Cập nhật state user + localStorage
-    setUser((prev) => ({
-      ...(prev || {}),
-      photo: newUrl,
-    }));
+      const res = await api.put("/UserAccount/avatar", payload);
+      const newUrl = res.data?.profileImageUrl || downloadUrl;
 
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      parsed.photo = newUrl;
-      localStorage.setItem("user", JSON.stringify(parsed));
+      // Cập nhật state user + localStorage
+      setUser((prev) => ({
+        ...(prev || {}),
+        photo: newUrl,
+      }));
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.photo = newUrl;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+
+      // 👉 Bắn event cho Navbar biết user đã đổi avatar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      setPreview(newUrl);
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert(
+        `Upload ảnh thất bại (HTTP ${err?.response?.status || "?"}). Vui lòng thử lại!`
+      );
     }
-
-    setPreview(newUrl); // dùng URL từ server (hoặc base64)
-    alert("Cập nhật ảnh đại diện thành công!");
-  } catch (err) {
-    console.error("Error uploading avatar:", err);
-    alert(
-      `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
-    );
-  }
-};
+  };
 
   const age = calculateAge(userInfo.birthday);
 
@@ -161,8 +171,8 @@ const ProfileManager = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.firstName || ""} ${
-          data.lastName || ""
+        const fullNameFromApi = `${data.lastName || ""} ${
+          data.firstName || ""
         }`.trim();
 
         let birthday = "";
@@ -206,42 +216,73 @@ const ProfileManager = () => {
     fetchUserInfoFromApi();
   }, [navigate]);
 
-  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
+  // ⚙️ HANDLE UPDATE TAB USER INFORMATION + sync navbar
   const handleUpdateUserInfo = async (e) => {
     e && e.preventDefault();
     try {
-      // tách fullName -> firstName, lastName (đơn giản: từ đầu, từ cuối)
       const nameParts = (userInfo.fullName || "")
         .trim()
         .split(" ")
         .filter(Boolean);
-      const firstName = nameParts.length > 0 ? nameParts[0] : "";
-      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const lastName = nameParts.length > 0 ? nameParts[0] : "";
+      const firstName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
+      // dd/MM/yyyy -> ISO
       const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
       const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
 
-      const genderMap = {
-        Nam: "male",
-        Nữ: "female",
-        Khác: "other",
+      // map giới tính đúng enum backend: Male / Female / Other
+      const genderMapApi = {
+        Nam: "Male",
+        Nữ: "Female",
+        Khác: "Other",
       };
 
       const payload = {
         firstName,
         lastName,
+        email: userInfo.email || "",
         phoneNumber: userInfo.phone || "",
-        gender: genderMap[userInfo.gioiTinh] || userInfo.gioiTinh || "",
+        gender: genderMapApi[userInfo.gioiTinh] || null,
         address: userInfo.address || "",
         dateOfBirth: dateOfBirthIso,
-        profileImageUrl: user?.photo || "", // nếu backend dùng trường này
       };
 
+      console.log("UPDATE /UserAccount/update payload:", payload);
+
       await api.put("/UserAccount/update", payload);
+
+      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+      const storedUser = localStorage.getItem("user");
+      let newUser = user || {};
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.firstName = firstName;
+        parsed.lastName = lastName;
+        parsed.email = userInfo.email || parsed.email;
+        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+        parsed.address = userInfo.address || parsed.address;
+        newUser = parsed;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      setUser(newUser);
+
+      // 👉 Bắn event cho Navbar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
       alert("Cập nhật thông tin cá nhân thành công!");
     } catch (err) {
-      console.error("Error updating user info:", err);
-      alert("Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!");
+      console.error("Error updating user info:", err.response?.data || err);
+
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
+
+      alert(msg);
     }
   };
 
@@ -276,7 +317,6 @@ const ProfileManager = () => {
       await api.put("/UserAccount/change-password", payload);
       alert("Đổi mật khẩu thành công!");
 
-      // reset form
       setPasswordData({
         currentPassword: "",
         newPassword: "",
@@ -596,7 +636,7 @@ const ProfileManager = () => {
                     </>
                   )}
 
-                  {/* ====== TAB 3: RESET PASSWORD ====== */}
+                  {/* ====== TAB 2: RESET PASSWORD ====== */}
                   {activeSection === "password" && (
                     <>
                       <div className="pl-lg-4">

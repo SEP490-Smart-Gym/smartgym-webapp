@@ -178,20 +178,25 @@ export default function Navbar() {
                         )}
 
                         {/* Manager */}
-                        {user.role === "manager" && (
+                        {user.roleName === "Manager" && (
                           <li>
                             <button className="dropdown-item" onClick={() => navigate("/profile/manager")}>
                               Profile
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button className="dropdown-item" onClick={() => navigate("/manager/schedule")}>
+                              Manage Schedule
                             </button>
                           </li>
                         )}
 
                         {/* Trainer */}
-                        {user.role === "trainer" && (
+                        {user.roleName === "Trainer" && (
                           <li>
                             <button className="dropdown-item" onClick={() => navigate("/trainer/profile")}>
                               Profile
                             </button>
+                            <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate(`/trainer/${safeId}/schedule`)}
