@@ -1,4 +1,3 @@
-// AdminStaffList.jsx
 import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import { Table, Space, Button, Modal, Form, Input, DatePicker, Select, message, Spin } from "antd";
@@ -11,13 +10,11 @@ const GENDER_OPTIONS = [
   { label: "Khác", value: "Other" },
 ];
 
-
-
 export default function AdminStaffList() {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // form add (không modal)
+  // form add (antd)
   const [addForm] = Form.useForm();
 
   // edit modal
@@ -31,10 +28,18 @@ export default function AdminStaffList() {
     try {
       const res = await api.get("/Admin/users");
       const data = Array.isArray(res.data) ? res.data : res.data.items || [];
-      const staffList = data.filter(
-        (u) => u.roleName && u.roleName.toLowerCase() === "staff"
-      );
-
+      // map/normalize nếu cần (giữ nguyên filter theo roleId nếu backend dùng)
+      const staffList = Array.isArray(data)
+        ? data.filter((u) => {
+            if (!u) return false;
+            if (u.roleName && typeof u.roleName === "string") return u.roleName.toLowerCase() === "staff";
+            if (u.roleId) return Number(u.roleId) === 3;
+            return false;
+          }).map(u => ({
+            id: u.userId ?? u.id,
+            ...u
+          }))
+        : [];
       setStaffs(staffList);
     } catch (err) {
       console.error(err);
@@ -44,15 +49,14 @@ export default function AdminStaffList() {
     }
   };
 
-
   useEffect(() => {
     fetchStaffs();
   }, []);
+
   const generatePassword = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
   };
-
 
   // ===== Thêm nhân viên (POST) =====
   const handleAdd = async (values) => {
@@ -71,11 +75,7 @@ export default function AdminStaffList() {
     };
 
     try {
-      const res = await api.post("/Admin/create-user", body);
-
-      const created = res.data;
-      setStaffs((prev) => [created, ...prev]);
-      // console.log(autoPassword);
+      await api.post("/Admin/create-user", body);
 
       Modal.success({
         title: "Tạo nhân viên thành công!",
@@ -85,18 +85,13 @@ export default function AdminStaffList() {
             <br />
             <strong>{autoPassword}</strong>
           </div>
-        )
+        ),
+        getContainer: () => document.body,
       });
-      // message.success(
-      //   <div>
-      //     Tạo nhân viên thành công! <br />
-      //     Mật khẩu: <strong>{autoPassword}</strong>
-      //   </div>
-      // );
 
+      await fetchStaffs();
 
       addForm.resetFields();
-
     } catch (err) {
       const detail = err?.response?.data?.message || err?.response?.data || err.message;
       message.error("Tạo nhân viên thất bại: " + (detail || ""));
@@ -108,7 +103,10 @@ export default function AdminStaffList() {
     if (!window.confirm("Bạn có chắc muốn xóa nhân viên này?")) return;
     try {
       await api.delete(`/Admin/user/${id}`);
-      setStaffs((prev) => prev.filter((s) => s.id !== id));
+
+      // LẤY LẠI DỮ LIỆU TỪ SERVER để table đồng bộ
+      await fetchStaffs();
+
       message.success("Xóa thành công");
     } catch (err) {
       console.error(err);
@@ -154,7 +152,13 @@ export default function AdminStaffList() {
       const res = await api.put(`/Admin/user/${id}`, body);
       message.success("Cập nhật nhân viên thành công");
       const updated = res.data || { id, ...body };
+
+      // cập nhật local nhanh và/hoặc fetch lại cho chắc chắn
       setStaffs((prev) => prev.map((s) => (s.id === id ? updated : s)));
+
+      // Nếu muốn chắc chắn khớp server -> uncomment dòng dưới
+      // await fetchStaffs();
+
       setEditOpen(false);
       setEditingStaff(null);
       editForm.resetFields();
@@ -226,7 +230,7 @@ export default function AdminStaffList() {
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => openEdit(record)}>Sửa</Button>
-          <Button size="small" danger onClick={() => handleDelete(record.userId)}>Xóa</Button>
+          <Button size="small" danger onClick={() => handleDelete(record.id)}>Xóa</Button>
         </Space>
       ),
     },
@@ -266,11 +270,6 @@ export default function AdminStaffList() {
                       <Input placeholder="Email" />
                     </Form.Item>
                   </div>
-                  {/* <div className="col-md-6">
-                    <Form.Item name="password" rules={[{ required: true, min: 6, message: "Mật khẩu >= 6 ký tự" }]}>
-                      <Input.Password placeholder="Mật khẩu" />
-                    </Form.Item>
-                  </div> */}
                   <div className="col-md-3">
                     <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
                       <Input placeholder="Số điện thoại" />
@@ -286,7 +285,7 @@ export default function AdminStaffList() {
                       <Select options={GENDER_OPTIONS} />
                     </Form.Item>
                   </div>
-                  
+
                   <div className="col-md-12">
                     <Form.Item name="address">
                       <Input placeholder="Địa chỉ" />
@@ -295,7 +294,7 @@ export default function AdminStaffList() {
 
                   <div className="col-md-4 d-flex align-items-end">
                     <Form.Item style={{ width: "100%", marginBottom: 0 }}>
-                      <Button type="btn btn-add" htmlType="submit" block>
+                      <Button className="btn btn-add" htmlType="submit" block>
                         Thêm nhân viên
                       </Button>
                     </Form.Item>

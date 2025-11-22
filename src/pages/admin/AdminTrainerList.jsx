@@ -45,39 +45,34 @@ export default function AdminTrainerList() {
   const fetchTrainers = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/Admin/users");
+      const res = await api.get("/Admin/trainers");
+      // chấp nhận response là array hoặc object có items/data
       const raw = Array.isArray(res.data) ? res.data : res.data.items || res.data.data || [];
-      const list = raw
-        .filter((u) => {
-          if (!u) return false;
-          if (u.roleId) return Number(u.roleId) === 5;
-          if (u.roleName && typeof u.roleName === "string") return u.roleName.toLowerCase() === "trainer";
-          if (u.roles && Array.isArray(u.roles)) {
-            return u.roles.some((r) => (r.name || "").toLowerCase() === "trainer" || Number(r.id) === 5);
-          }
-          return false;
-        })
-        .map((u) => ({
-          id: u.userId || u.id || (u.user && u.user.id),
-          firstName: u.firstName || "",
-          lastName: u.lastName || "",
-          name:
-            `${u.firstName || ""}${u.firstName && u.lastName ? " " : ""}${u.lastName || ""}`.trim() ||
-            u.fullName ||
-            u.name ||
-            "",
-          email: u.email,
-          phoneNumber: u.phoneNumber || u.phone || "",
-          gender: u.gender || "Male",
-          address: u.address || "",
-          dateOfBirth: u.dateOfBirth || null,
-          specialization: u.specialization || "",
-          trainerBio: u.trainerBio || "",
-          salary: u.salary ?? null,
-          isAvailableForNewClients: !!u.isAvailableForNewClients,
-          certificates: Array.isArray(u.certificates) ? u.certificates : [],
-          raw: u,
-        }));
+
+      const list = (Array.isArray(raw) ? raw : []).map((u) => ({
+        // dùng trainerId làm id chính
+        id: u.trainerId ?? u.id ?? u.userId ?? null,
+        firstName: u.firstName ?? "",
+        lastName: u.lastName ?? "",
+        // tên hiển thị kết hợp first + last, fallback các trường khác nếu có
+        name:
+          (`${u.firstName ?? ""}${u.firstName && u.lastName ? " " : ""}${u.lastName ?? ""}`).trim() ||
+          u.fullName ||
+          u.name ||
+          "",
+        // chuyên môn / rating / tổng review / sẵn sàng nhận khách
+        specialization: u.specialization ?? "",
+        trainerRating: typeof u.trainerRating === "number" ? u.trainerRating : null,
+        totalReviews: typeof u.totalReviews === "number" ? u.totalReviews : null,
+        isAvailableForNewClients: !!u.isAvailableForNewClients,
+        certificates: Array.isArray(u.certificates) ? u.certificates : [],
+        // giữ thêm một vài trường liên hệ nếu backend trả về (không bắt buộc)
+        email: u.email ?? "",
+        phoneNumber: u.phoneNumber ?? u.phone ?? "",
+        address: u.address ?? "",
+        dateOfBirth: u.dateOfBirth ?? null,
+        raw: u, // lưu nguyên object gốc để dễ debug / delete / edit
+      }));
 
       setTrainers(list);
     } catch (err) {
@@ -87,6 +82,7 @@ export default function AdminTrainerList() {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchTrainers();
@@ -108,14 +104,13 @@ export default function AdminTrainerList() {
       dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : new Date().toISOString(),
       specialization: values.specialization || "",
       trainerBio: values.trainerBio || "",
-      salary: typeof values.salary === "number" ? values.salary : 0,
       isAvailableForNewClients: !!values.isAvailableForNewClients,
       certificates:
         values.certificates && Array.isArray(values.certificates)
           ? values.certificates.map((c) => ({
-              certificateName: c.certificateName || "",
-              certificateDetail: c.certificateDetail || "",
-            }))
+            certificateName: c.certificateName || "",
+            certificateDetail: c.certificateDetail || "",
+          }))
           : [],
     };
 
@@ -186,7 +181,6 @@ export default function AdminTrainerList() {
       dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
       specialization: record.specialization,
       trainerBio: record.trainerBio,
-      salary: record.salary,
       isAvailableForNewClients: record.isAvailableForNewClients,
       certificates: record.certificates && record.certificates.length ? record.certificates : [{ certificateName: "", certificateDetail: "" }],
     });
@@ -206,7 +200,6 @@ export default function AdminTrainerList() {
       dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : null,
       specialization: values.specialization,
       trainerBio: values.trainerBio,
-      salary: values.salary,
       isAvailableForNewClients: !!values.isAvailableForNewClients,
       certificates: (values.certificates || []).map((c) => ({
         certificateName: c.certificateName || "",
@@ -232,6 +225,35 @@ export default function AdminTrainerList() {
       const msg = err?.response?.data?.message || err?.response?.data || "Cập nhật thất bại";
       message.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
     }
+  };
+  const viewCertificates = (record) => {
+    if (!record.certificates || record.certificates.length === 0) {
+      return Modal.info({
+        title: "Chứng chỉ",
+        content: "Huấn luyện viên này chưa có chứng chỉ nào.",
+        okText: "Đóng",
+        getContainer: () => document.body
+      });
+    }
+
+    Modal.info({
+      title: "Danh sách chứng chỉ",
+      width: 600,
+      content: (
+        <div>
+          {record.certificates.map((c, idx) => (
+            <div key={idx} style={{ marginBottom: 12 }}>
+              <strong>{c.certificateName}</strong>
+              <br />
+              <span>{c.certificateDetail}</span>
+              <hr />
+            </div>
+          ))}
+        </div>
+      ),
+      okText: "Đóng",
+      getContainer: () => document.body
+    });
   };
 
   const columns = [
@@ -264,18 +286,22 @@ export default function AdminTrainerList() {
     { title: "SĐT", dataIndex: "phoneNumber", key: "phoneNumber", width: 140 },
     { title: "Chuyên môn", dataIndex: "specialization", key: "specialization", width: 200 },
     {
-      title: "Lương",
-      dataIndex: "salary",
-      key: "salary",
-      width: 120,
-      render: (v) => (v == null ? "—" : `${Number(v).toLocaleString()} đ`),
-    },
-    {
       title: "Sẵn sàng nhận khách mới",
       dataIndex: "isAvailableForNewClients",
       key: "isAvailableForNewClients",
       width: 160,
       render: (v) => (v ? "Có" : "Không"),
+    },
+    {
+      title: "Chứng chỉ",
+      dataIndex: "certificates",
+      key: "certificates",
+      width: 120,
+      render: (_, record) => (
+        <Button size="small" type="link" onClick={() => viewCertificates(record)}>
+          Xem
+        </Button>
+      ),
     },
     {
       title: "Thao tác",
@@ -350,13 +376,13 @@ export default function AdminTrainerList() {
 
                   <div className="col-md-4">
                     <Form.Item name="dateOfBirth">
-                      <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh"/>
+                      <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-4">
                     <Form.Item name="salary">
-                      <InputNumber style={{ width: "100%" }} min={0} formatter={(v) => (v ? `${v}` : v)} placeholder="Lương"/>
+                      <InputNumber style={{ width: "100%" }} min={0} formatter={(v) => (v ? `${v}` : v)} placeholder="Lương" />
                     </Form.Item>
                   </div>
 
