@@ -101,82 +101,84 @@ function calcDurationMonths(startIso, endIso) {
   return Math.round(diffDays / 30); // approx
 }
 
+// 10 lý do (có "Khác (tự nhập)")
+const CANCEL_REASONS = [
+  "Không còn thời gian tập luyện",
+  "Lý do sức khỏe",
+  "Gặp vấn đề tài chính",
+  "Không phù hợp với lịch làm việc/học tập",
+  "Không hài lòng về cơ sở vật chất",
+  "Không hài lòng về dịch vụ chăm sóc khách hàng",
+  "Không hài lòng về chương trình tập",
+  "Không hài lòng về huấn luyện viên",
+  "Đã tìm được nơi tập khác phù hợp hơn",
+  "Khác (tự nhập)"
+];
+
 export default function MyPackage() {
   // danh sách lịch sử gói (từ API my-packages)
   const [gymPackagesHistory, setGymPackagesHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
+  // filter tab: all / active / cancelled / expired
+  const [filterStatus, setFilterStatus] = useState("all");
+
   // modal / confirm state
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null); // {history, master?}
-  const [confirmOpen, setConfirmOpen] = useState(false); // bật/tắt confirm
+
+  // modal chọn lý do hủy
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   // ===== GỌI API my-packages (history) =====
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      setLoadError("");
+
+      const res = await api.get("/MemberPackage/my-packages");
+      const data = res.data;
+
+      const list = Array.isArray(data) ? data : [];
+
+      const mapped = list.map((p) => ({
+        id: p.id,
+        packageId: p.packageId,
+        name: p.packageName,
+        durationMonths: calcDurationMonths(p.startDate, p.endDate),
+        startDate: p.startDate,
+        endDate: p.endDate,
+        packagePrice: p.packagePrice,
+
+        totalSessionsCount: p.totalSessionsCount,
+        remainingSessionsCount: p.remainingSessionsCount,
+        apiStatus: p.status,
+        isAutoRenewal: p.isAutoRenewal,
+        daysRemaining: p.daysRemaining,
+        isExpiringSoon: p.isExpiringSoon,
+
+        trainerId: p.trainerId,
+        trainerName: p.trainerName,
+        purchaseDate: p.purchaseDate,
+        cancellationDate: p.cancellationDate,
+        cancellationReason: p.cancellationReason,
+      }));
+
+      setGymPackagesHistory(mapped);
+    } catch (err) {
+      console.error("Error fetching my-packages:", err);
+      setLoadError("Không tải được lịch sử gói tập.");
+      setGymPackagesHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchPackages = async () => {
-      try {
-        setLoading(true);
-        setLoadError("");
-
-        const res = await api.get("/MemberPackage/my-packages");
-        const data = res.data;
-
-        const list = Array.isArray(data) ? data : [];
-
-        // Map từng phần tử:
-        // {
-        //   "id": 30,
-        //   "memberId": 39,
-        //   "trainerId": 12,
-        //   "packageId": 1,
-        //   "packageName": "Standard Monthly Test Package",
-        //   "packagePrice": 50,
-        //   "purchaseDate": "2025-11-22T03:49:05.883536",
-        //   "startDate": "2025-11-22T03:31:54.449",
-        //   "endDate": "2025-12-22T03:31:54.449",
-        //   "remainingSessionsCount": null,
-        //   "totalSessionsCount": null,
-        //   "status": "Cancelled",
-        //   "isAutoRenewal": true,
-        //   "cancellationDate": "...",
-        //   "cancellationReason": "Payment failed",
-        //   "daysRemaining": 30,
-        //   "isExpiringSoon": false
-        // }
-        const mapped = list.map((p) => ({
-          id: p.id,
-          packageId: p.packageId,
-          name: p.packageName,
-          durationMonths: calcDurationMonths(p.startDate, p.endDate),
-          startDate: p.startDate,
-          endDate: p.endDate,
-          packagePrice: p.packagePrice,
-
-          totalSessionsCount: p.totalSessionsCount,
-          remainingSessionsCount: p.remainingSessionsCount,
-          apiStatus: p.status,
-          isAutoRenewal: p.isAutoRenewal,
-          daysRemaining: p.daysRemaining,
-          isExpiringSoon: p.isExpiringSoon,
-
-          trainerId: p.trainerId,
-          trainerName: p.trainerName,
-          purchaseDate: p.purchaseDate,
-          cancellationDate: p.cancellationDate,
-          cancellationReason: p.cancellationReason,
-        }));
-
-        setGymPackagesHistory(mapped);
-      } catch (err) {
-        console.error("Error fetching my-packages:", err);
-        setLoadError("Không tải được lịch sử gói tập.");
-        setGymPackagesHistory([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPackages();
   }, []);
 
@@ -189,8 +191,37 @@ export default function MyPackage() {
     [gymPackagesHistory]
   );
 
+  // lọc theo tab
+  const filteredPackages = useMemo(() => {
+    const today = new Date();
+
+    return sortedPackages.filter((pkg) => {
+      const apiStatus = (pkg.apiStatus || "").toLowerCase();
+      const end = pkg.endDate ? new Date(pkg.endDate) : null;
+      const isExpiredByDate = end && end < today;
+
+      if (filterStatus === "all") return true;
+
+      if (filterStatus === "active") {
+        return apiStatus === "active";
+      }
+
+      if (filterStatus === "cancelled") {
+        return apiStatus === "cancelled";
+      }
+
+      if (filterStatus === "expired") {
+        // Ưu tiên status Expired, hoặc hết hạn theo ngày (trừ khi đã Cancelled)
+        if (apiStatus === "expired") return true;
+        if (apiStatus !== "cancelled" && isExpiredByDate) return true;
+        return false;
+      }
+
+      return true;
+    });
+  }, [sortedPackages, filterStatus]);
+
   const handleOpen = (historyItem) => {
-    // Chưa có packagesData master -> dùng luôn historyItem trong modal
     const master = null;
     setSelected({ history: historyItem, master });
     setOpen(true);
@@ -202,32 +233,133 @@ export default function MyPackage() {
     setConfirmOpen(false);
   };
 
-  // Khi bấm "Hủy gói" trong modal -> mở confirm
+  // Khi bấm "Hủy gói" trong modal -> mở modal chọn lý do
   const handleRequestCancel = () => {
+    setSelectedReason("");
+    setCustomReason("");
     setConfirmOpen(true);
   };
 
-  const handleCancelNo = () => {
+  const handleCancelModalClose = () => {
+    if (cancelLoading) return;
     setConfirmOpen(false);
   };
 
-  const handleCancelYes = () => {
-    // TODO: gọi API hủy gói tại đây khi backend có endpoint
-    alert(`Đã gửi yêu cầu hủy gói #${selected?.history?.id}`);
-    // đóng confirm + modal
-    setConfirmOpen(false);
-    handleClose();
+  const handleCancelSubmit = async () => {
+    if (!selected || !selected.history) return;
+
+    const id = selected.history.id;
+    if (!id) {
+      alert("Không tìm được ID gói để hủy.");
+      return;
+    }
+
+    if (!selectedReason) {
+      alert("Vui lòng chọn lý do hủy gói.");
+      return;
+    }
+
+    let finalReason = selectedReason;
+    const isOther =
+      selectedReason === "Khác (tự nhập)" || selectedReason === "Khác";
+    if (isOther) {
+      if (!customReason.trim()) {
+        alert("Vui lòng nhập lý do hủy gói.");
+        return;
+      }
+      finalReason = customReason.trim();
+    }
+
+    try {
+      setCancelLoading(true);
+
+      // Gọi API cancel:
+      // POST /MemberPackage/:id/cancel
+      // body: { cancellationReason: "..." }
+      await api.post(`/MemberPackage/${id}/cancel`, {
+        cancellationReason: finalReason,
+      });
+
+      alert("Hủy gói thành công.");
+
+      // Reload lại danh sách lịch sử gói
+      await fetchPackages();
+
+      setConfirmOpen(false);
+    } catch (err) {
+      console.error("Error cancel package:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Hủy gói thất bại.";
+      alert(detail);
+    } finally {
+      setCancelLoading(false);
+    }
   };
+
+  const renderFilterTabs = () => (
+    <ul className="nav nav-pills justify-content-center mb-4">
+      <li className="nav-item">
+        <button
+          type="button"
+          className={
+            "nav-link " + (filterStatus === "all" ? "active" : "")
+          }
+          onClick={() => setFilterStatus("all")}
+        >
+          Tất cả
+        </button>
+      </li>
+      <li className="nav-item">
+        <button
+          type="button"
+          className={
+            "nav-link " + (filterStatus === "active" ? "active" : "")
+          }
+          onClick={() => setFilterStatus("active")}
+        >
+          Đang hoạt động
+        </button>
+      </li>
+      <li className="nav-item">
+        <button
+          type="button"
+          className={
+            "nav-link " + (filterStatus === "cancelled" ? "active" : "")
+          }
+          onClick={() => setFilterStatus("cancelled")}
+        >
+          Đã hủy
+        </button>
+      </li>
+      <li className="nav-item">
+        <button
+          type="button"
+          className={
+            "nav-link " + (filterStatus === "expired" ? "active" : "")
+          }
+          onClick={() => setFilterStatus("expired")}
+        >
+          Hết hạn
+        </button>
+      </li>
+    </ul>
+  );
 
   return (
     <div className="container py-4">
       <style>{styles}</style>
 
-      <div className="row mb-4 text-center">
+      <div className="row mb-3 text-center">
         <div className="col-12">
           <h3 className="mb-0 fw-bold">Lịch sử gói tập</h3>
         </div>
       </div>
+
+      {/* Tabs filter */}
+      {renderFilterTabs()}
 
       {loading && (
         <div className="row justify-content-center mb-3">
@@ -249,7 +381,8 @@ export default function MyPackage() {
         </div>
       )}
 
-      {sortedPackages.map((pkg) => {
+      {/* Danh sách gói sau khi lọc */}
+      {filteredPackages.map((pkg) => {
         const status = getStatus(pkg);
         return (
           <div className="row justify-content-center mb-3" key={pkg.id}>
@@ -312,18 +445,38 @@ export default function MyPackage() {
         );
       })}
 
-      {!loading && !loadError && sortedPackages.length === 0 && (
-        <div className="row justify-content-center">
-          <div className="col-12 col-xl-10">
-            <div
-              className="alert alert-light border text-center"
-              role="alert"
-            >
-              Chưa có lịch sử gói tập.
+      {/* Không có gói trong tab hiện tại */}
+      {!loading &&
+        !loadError &&
+        filteredPackages.length === 0 &&
+        sortedPackages.length > 0 && (
+          <div className="row justify-content-center">
+            <div className="col-12 col-xl-10">
+              <div
+                className="alert alert-light border text-center"
+                role="alert"
+              >
+                Không có gói nào trong mục này.
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      {/* Không có lịch sử gói (tổng) */}
+      {!loading &&
+        !loadError &&
+        sortedPackages.length === 0 && (
+          <div className="row justify-content-center">
+            <div className="col-12 col-xl-10">
+              <div
+                className="alert alert-light border text-center"
+                role="alert"
+              >
+                Chưa có lịch sử gói tập.
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* ===== Modal Detail ===== */}
       {open && selected && (
@@ -465,11 +618,11 @@ export default function MyPackage() {
         </div>
       )}
 
-      {/* ===== Confirm Dialog ===== */}
+      {/* ===== Modal chọn lý do hủy gói ===== */}
       {confirmOpen && (
         <div
           className="confirm-backdrop"
-          onClick={handleCancelNo}
+          onClick={handleCancelModalClose}
           role="dialog"
           aria-modal="true"
         >
@@ -477,23 +630,65 @@ export default function MyPackage() {
             className="confirm-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <h6 className="mb-2">Bạn có chắc chắn muốn hủy gói?</h6>
-            <p className="text-muted mb-3">
-              Sau khi hủy, các quyền lợi còn lại của gói có thể không được
-              khôi phục.
+            <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
+            <p className="text-muted mb-2">
+              Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi cải thiện dịch vụ.
             </p>
-            <div className="d-flex justify-content-end gap-2">
+
+            <div className="mb-3" style={{ maxHeight: 260, overflowY: "auto" }}>
+              {CANCEL_REASONS.map((reason) => (
+                <div className="form-check mb-1" key={reason}>
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="cancelReason"
+                    id={`cancel-${reason}`}
+                    value={reason}
+                    checked={selectedReason === reason}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                    disabled={cancelLoading}
+                  />
+                  <label
+                    className="form-check-label"
+                    htmlFor={`cancel-${reason}`}
+                  >
+                    {reason}
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {(selectedReason === "Khác (tự nhập)" ||
+              selectedReason === "Khác") && (
+              <div className="mb-3">
+                <label className="form-label small">
+                  Nhập lý do chi tiết
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  disabled={cancelLoading}
+                  placeholder="Ví dụ: chuyển chỗ làm xa, không tiện đi tập..."
+                />
+              </div>
+            )}
+
+            <div className="d-flex justify-content-end gap-2 mt-3">
               <button
                 className="btn btn-light"
-                onClick={handleCancelNo}
+                onClick={handleCancelModalClose}
+                disabled={cancelLoading}
               >
                 Không
               </button>
               <button
                 className="btn btn-danger"
-                onClick={handleCancelYes}
+                onClick={handleCancelSubmit}
+                disabled={cancelLoading}
               >
-                Hủy gói
+                {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
               </button>
             </div>
           </div>

@@ -82,7 +82,7 @@ const CheckoutSteps = ({ activeStep, steps }) => (
   </Stepper>
 );
 
-// ----- PaymentForm: giữ postalCode + notes, card dùng Stripe Elements -----
+// ----- PaymentForm: giữ notes (postalCode nếu cần thêm sau) -----
 const PaymentForm = ({ paymentInfo, onChange }) => (
   <Stack spacing={3}>
     <TextField
@@ -102,34 +102,6 @@ const formatVND = (value) => {
   return `${Math.round(number).toLocaleString("vi-VN")} VND`;
 };
 
-// Fallback trainers nếu API lỗi (để UI không bị vỡ)
-const FALLBACK_TRAINERS = [
-  {
-    id: "t1",
-    name: "Trần Thảo My",
-    avatar:
-      "https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=800&auto=format&fit=crop",
-    specialties: ["Fat Loss", "Strength"],
-    unavailable: []
-  },
-  {
-    id: "t2",
-    name: "Nguyễn Minh Khoa",
-    avatar:
-      "https://images.unsplash.com/photo-1556157382-97eda2d62296?q=80&w=800&auto=format&fit=crop",
-    specialties: ["Mobility", "Beginner"],
-    unavailable: []
-  },
-  {
-    id: "t3",
-    name: "Phạm Hoàng Long",
-    avatar:
-      "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop",
-    specialties: ["Hypertrophy", "Powerlifting"],
-    unavailable: []
-  }
-];
-
 const CartComponent = () => {
   const theme = useTheme();
   const { id } = useParams(); // /checkout/:id
@@ -140,9 +112,10 @@ const CartComponent = () => {
   // ====== Cart / Package state (lấy từ API Package/active/:id) ======
   const [cartItems, setCartItems] = useState([]);
   const [packageLoading, setPackageLoading] = useState(false);
+  const [includesPT, setIncludesPT] = useState(false); // gói có PT hay không
 
   // ====== Trainer state (lấy từ API guest/trainers) ======
-  const [trainers, setTrainers] = useState(FALLBACK_TRAINERS);
+  const [trainers, setTrainers] = useState([]); // không dùng mock nữa
   const [trainerLoading, setTrainerLoading] = useState(false);
   const [trainerError, setTrainerError] = useState("");
 
@@ -151,8 +124,27 @@ const CartComponent = () => {
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
 
-  // Bước: Cart (0) → Slot (1) → Trainer (2) → Payment (3) → Confirmation (4)
-  const steps = ["Cart", "Slot", "Trainer", "Payment", "Confirmation"];
+  // Bước sẽ phụ thuộc includesPT:
+  //  - Có PT: Cart → Slot → Trainer → Payment → Confirmation
+  //  - Không có PT: Cart → Payment → Confirmation
+  const steps = useMemo(
+    () =>
+      includesPT
+        ? ["Cart", "Slot", "Trainer", "Payment", "Confirmation"]
+        : ["Cart", "Payment", "Confirmation"],
+    [includesPT]
+  );
+
+  // map index -> key logic
+  const getStepKey = useCallback(
+    (index) => {
+      const withPT = ["cart", "slot", "trainer", "payment", "confirmation"];
+      const withoutPT = ["cart", "payment", "confirmation"];
+      return includesPT ? withPT[index] : withoutPT[index];
+    },
+    [includesPT]
+  );
+
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -197,7 +189,8 @@ const CartComponent = () => {
 
   // load script https://js.stripe.com/v3/ & init Stripe Elements khi vào step Payment
   useEffect(() => {
-    if (activeStep !== 3) return;
+    const stepKey = getStepKey(activeStep);
+    if (stepKey !== "payment") return;
 
     const initStripe = () => {
       if (stripeState.stripe || !window.Stripe) return;
@@ -228,7 +221,7 @@ const CartComponent = () => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep]);
+  }, [activeStep, getStepKey]);
 
   // ====== Fetch package from API ======
   useEffect(() => {
@@ -243,13 +236,13 @@ const CartComponent = () => {
           name: pkg.packageName,
           price: pkg.price || 0,
           quantity: 1,
-          // tạm dùng ảnh đại diện chung; có thể thay bằng field từ API nếu sau này có
           image:
             "https://images.unsplash.com/photo-1558611848-73f7eb4001a1?auto=format&fit=crop&w=800&q=80",
           stock: 1
         };
 
         setCartItems([mappedItem]);
+        setIncludesPT(!!pkg.includesPersonalTrainer);
       } catch (error) {
         console.error("Error fetching package:", error);
         setSnackbar({
@@ -265,8 +258,10 @@ const CartComponent = () => {
     fetchPackage();
   }, [packageId]);
 
-  // ====== Fetch trainers from API ======
+  // ====== Fetch trainers from API (chỉ khi gói có PT) ======
   useEffect(() => {
+    if (!includesPT) return; // gói không có PT thì không cần gọi
+
     const fetchTrainers = async () => {
       try {
         setTrainerLoading(true);
@@ -275,7 +270,7 @@ const CartComponent = () => {
         const data = Array.isArray(res.data) ? res.data : [];
 
         const mapped = data
-          .filter((t) => t.isAvailableForNewClients !== false) // chỉ lấy trainer còn nhận khách
+          .filter((t) => t.isAvailableForNewClients !== false)
           .map((t) => ({
             id: t.trainerId,
             name: `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Trainer",
@@ -284,34 +279,31 @@ const CartComponent = () => {
             specialties: t.specialization
               ? t.specialization.split(",").map((s) => s.trim())
               : [],
-            // hiện tại API chưa trả slot bận theo giờ, tạm cho tất cả rảnh
-            unavailable: []
+            unavailable: [] // hiện tại API chưa trả slot bận theo giờ, tạm cho tất cả rảnh
           }));
 
-        if (mapped.length > 0) {
-          setTrainers(mapped);
-        }
+        setTrainers(mapped);
       } catch (error) {
         console.error("Error fetching trainers:", error);
-        setTrainerError(
-          "Không tải được danh sách huấn luyện viên. Đang dùng dữ liệu mặc định."
-        );
+        setTrainerError("Không tải được danh sách huấn luyện viên.");
         setSnackbar({
           open: true,
-          message: "Không tải được danh sách trainer, đang dùng dữ liệu mẫu.",
-          severity: "warning"
+          message: "Không tải được danh sách trainer.",
+          severity: "error"
         });
-        // nếu lỗi sẽ dùng FALLBACK_TRAINERS đã set mặc định
+        setTrainers([]);
       } finally {
         setTrainerLoading(false);
       }
     };
 
     fetchTrainers();
-  }, []);
+  }, [includesPT]);
 
-  // ====== Fetch TimeSlots from API /TimeSlot ======
+  // ====== Fetch TimeSlots from API /TimeSlot (chỉ khi gói có PT) ======
   useEffect(() => {
+    if (!includesPT) return;
+
     const fetchTimeSlots = async () => {
       try {
         setSlotLoading(true);
@@ -319,10 +311,9 @@ const CartComponent = () => {
         const res = await api.get("/TimeSlot");
         const data = Array.isArray(res.data) ? res.data : [];
 
-        // Cố gắng map linh hoạt: ưu tiên field có sẵn, fallback ghép start-end
         const mappedSlots = data
           .map((ts) => {
-            if (ts.timeRange) return ts.timeRange; // ví dụ "05:00-06:00"
+            if (ts.timeRange) return ts.timeRange;
             if (ts.slotName) return ts.slotName;
             const start =
               ts.startTime?.slice(0, 5) || ts.start?.slice(0, 5) || null;
@@ -342,14 +333,14 @@ const CartComponent = () => {
           message: "Không tải được danh sách khung giờ.",
           severity: "error"
         });
-        setSlots([]); // không có slot → user không chọn được
+        setSlots([]);
       } finally {
         setSlotLoading(false);
       }
     };
 
     fetchTimeSlots();
-  }, []);
+  }, [includesPT]);
 
   // Một slot bị disable nếu TẤT CẢ trainer đều bận ở slot đó
   const isSlotDisabled = (slot) =>
@@ -359,7 +350,6 @@ const CartComponent = () => {
   const getSuggestedTrainerForSlot = useCallback(
     (slot) => {
       if (!slot || trainers.length === 0) return null;
-      // ưu tiên trainer available đầu tiên theo thứ tự danh sách
       const candidate = trainers.find((t) => !t.unavailable.includes(slot));
       return candidate || null;
     },
@@ -368,15 +358,16 @@ const CartComponent = () => {
 
   const getSuggestedTrainerGlobal = useCallback(() => {
     if (trainers.length === 0) return null;
-    // chọn trainer “phù hợp nhất toàn cục” = ít giờ bận nhất
     const sorted = [...trainers].sort(
       (a, b) => (a.unavailable?.length || 0) - (b.unavailable?.length || 0)
     );
     return sorted[0] || null;
   }, [trainers]);
 
-  // Auto-suggest & auto-select nếu user chưa chọn tay
+  // Auto-suggest & auto-select nếu user chưa chọn tay (chỉ ý nghĩa khi includesPT = true)
   useEffect(() => {
+    if (!includesPT) return;
+
     if (selectedSlot) {
       const suggested = getSuggestedTrainerForSlot(selectedSlot);
       setSuggestedTrainer(suggested);
@@ -384,17 +375,18 @@ const CartComponent = () => {
       const stillOk =
         selectedTrainer && !selectedTrainer.unavailable.includes(selectedSlot);
       if (!stillOk) {
-        setSelectedTrainer(suggested || null); // mặc định chọn gợi ý
+        setSelectedTrainer(suggested || null);
         setUserTouchedTrainer(false);
       }
     } else {
       const globalSg = getSuggestedTrainerGlobal();
       setSuggestedTrainer(globalSg);
       if (!userTouchedTrainer) {
-        setSelectedTrainer(globalSg); // mặc định chọn gợi ý toàn cục
+        setSelectedTrainer(globalSg);
       }
     }
   }, [
+    includesPT,
     selectedSlot,
     getSuggestedTrainerForSlot,
     getSuggestedTrainerGlobal,
@@ -418,10 +410,20 @@ const CartComponent = () => {
       return;
     }
 
-    if (!selectedTrainer || !selectedSlot || cartItems.length === 0) {
+    // Nếu gói có PT thì bắt buộc phải có slot + trainer
+    if (includesPT && (!selectedTrainer || !selectedSlot)) {
       setSnackbar({
         open: true,
-        message: "Thiếu thông tin slot/trainer/gói tập.",
+        message: "Thiếu thông tin slot/trainer.",
+        severity: "error"
+      });
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "Giỏ hàng đang trống.",
         severity: "error"
       });
       return;
@@ -437,13 +439,11 @@ const CartComponent = () => {
 
       const pkg = cartItems[0];
 
-      // startDate: tạm dùng thời điểm hiện tại (sau này gắn với ngày + slot nếu có)
       const startDateISO = new Date().toISOString();
 
-      // 1. Tạo payment intent
       const createBody = {
         packageId: pkg.id,
-        trainerId: selectedTrainer.id,
+        trainerId: includesPT && selectedTrainer ? selectedTrainer.id : null,
         startDate: startDateISO,
         isAutoRenewal: paymentInfo.isAutoRenewal,
         discountCode: promoCode || "",
@@ -472,7 +472,6 @@ const CartComponent = () => {
 
       setPaymentIntent({ id: paymentIntentId, clientSecret });
 
-      // 2. Confirm với Stripe (logic giống HTML test page)
       setSnackbar({
         open: true,
         message: "Đang xác nhận thanh toán với Stripe...",
@@ -485,7 +484,6 @@ const CartComponent = () => {
           payment_method: {
             card: stripeCard,
             billing_details: {
-              // có thể gắn postalCode vào đây nếu muốn
               address: {
                 postal_code: paymentInfo.postalCode || undefined
               }
@@ -497,7 +495,7 @@ const CartComponent = () => {
       if (result.error) {
         console.error("Stripe error:", result.error);
         setPaymentStatus("failed");
-        setActiveStep(4);
+        setActiveStep(steps.length - 1);
         setSnackbar({
           open: true,
           message: "Stripe error: " + result.error.message,
@@ -511,7 +509,7 @@ const CartComponent = () => {
 
       if (stripePI.status !== "succeeded") {
         setPaymentStatus("failed");
-        setActiveStep(4);
+        setActiveStep(steps.length - 1);
         setSnackbar({
           open: true,
           message:
@@ -523,7 +521,6 @@ const CartComponent = () => {
         return;
       }
 
-      // 3. Gọi confirm-payment trên backend để kích hoạt gói
       setSnackbar({
         open: true,
         message: "Đang xác nhận thanh toán với hệ thống...",
@@ -534,7 +531,6 @@ const CartComponent = () => {
         paymentIntentId: stripePI.id
       });
 
-      // tuỳ response của backend, ở đây coi 200 là OK
       if (confirmRes.status === 200) {
         setPaymentStatus("success");
         setSnackbar({
@@ -552,11 +548,11 @@ const CartComponent = () => {
         });
       }
 
-      setActiveStep(4); // sang Confirmation
+      setActiveStep(steps.length - 1); // sang Confirmation
     } catch (error) {
       console.error("Payment error:", error);
       setPaymentStatus("failed");
-      setActiveStep(4);
+      setActiveStep(steps.length - 1);
       setSnackbar({
         open: true,
         message: "Có lỗi khi xử lý thanh toán. Vui lòng thử lại.",
@@ -568,20 +564,21 @@ const CartComponent = () => {
   };
 
   const guardedNext = () => {
-    // Bước Slot: phải chọn slot
-    if (activeStep === 1 && !canProceedFromSlot) {
+    const stepKey = getStepKey(activeStep);
+
+    if (includesPT && stepKey === "slot" && !canProceedFromSlot) {
       return setSnackbar({
         open: true,
         message: "Vui lòng chọn khung giờ trước.",
         severity: "warning"
       });
     }
-    // Bước Trainer: nếu user chưa chọn → auto chọn gợi ý trước khi đi tiếp
-    if (activeStep === 2 && !selectedTrainer && suggestedTrainer) {
+
+    if (includesPT && stepKey === "trainer" && !selectedTrainer && suggestedTrainer) {
       setSelectedTrainer(suggestedTrainer);
       setUserTouchedTrainer(false);
     }
-    if (activeStep === 2 && !canProceedFromTrainer) {
+    if (includesPT && stepKey === "trainer" && !canProceedFromTrainer) {
       return setSnackbar({
         open: true,
         message: "Vui lòng chọn trainer.",
@@ -589,12 +586,10 @@ const CartComponent = () => {
       });
     }
 
-    // Bước Payment: chạy flow thanh toán thật (Stripe + confirm-payment)
-    if (activeStep === 3) {
+    if (stepKey === "payment") {
       return handlePaymentSubmit();
     }
 
-    // Các bước khác: giữ logic cũ
     setLoading(true);
     setTimeout(() => {
       setActiveStep((prev) => prev + 1);
@@ -663,10 +658,12 @@ const CartComponent = () => {
     }
   };
 
-  const renderStepContent = (step) => {
-    switch (step) {
-      // 0. Cart
-      case 0:
+  const renderStepContent = (stepIndex) => {
+    const stepKey = getStepKey(stepIndex);
+
+    switch (stepKey) {
+      // ===== 0. Cart =====
+      case "cart":
         return (
           <Grid
             container
@@ -713,7 +710,6 @@ const CartComponent = () => {
                           </Typography>
 
                           <Stack direction="row" spacing={1}>
-                            {/* Nếu sau này cho phép tăng số lượng, có thể dùng FiMinus/FiPlus */}
                             <IconButton
                               color="error"
                               onClick={() => handleRemoveItem(item.id)}
@@ -764,8 +760,8 @@ const CartComponent = () => {
           </Grid>
         );
 
-      // 1. Slot
-      case 1:
+      // ===== 1. Slot (chỉ khi includesPT = true) =====
+      case "slot":
         return (
           <Stack spacing={3}>
             <StyledPaper>
@@ -851,8 +847,8 @@ const CartComponent = () => {
           </Stack>
         );
 
-      // 2. Trainer (sort: available trước, busy sau)
-      case 2: {
+      // ===== Trainer (chỉ khi includesPT = true) =====
+      case "trainer": {
         const sortedTrainers = [...trainers].sort((a, b) => {
           const aAvail = selectedSlot
             ? !a.unavailable.includes(selectedSlot)
@@ -874,7 +870,9 @@ const CartComponent = () => {
             )}
 
             {trainerLoading && (
-              <Alert severity="info">Đang tải danh sách huấn luyện viên...</Alert>
+              <Alert severity="info">
+                Đang tải danh sách huấn luyện viên...
+              </Alert>
             )}
             {trainerError && <Alert severity="warning">{trainerError}</Alert>}
 
@@ -890,7 +888,7 @@ const CartComponent = () => {
                   <Grid item xs={12} md={4} key={t.id}>
                     <StyledCard
                       onClick={() => {
-                        if (!available) return; // 🚫 không cho chọn trainer bận
+                        if (!available) return;
                         setSelectedTrainer(t);
                         setUserTouchedTrainer(true);
                       }}
@@ -953,7 +951,6 @@ const CartComponent = () => {
                               />
                             ))}
                           </Stack>
-                          {/* Hàng badge trạng thái lựa chọn + đề xuất */}
                           <Stack
                             direction="row"
                             spacing={1}
@@ -1015,33 +1012,35 @@ const CartComponent = () => {
         );
       }
 
-      // 3. Payment (Stripe Elements + form)
-      case 3:
+      // ===== Payment =====
+      case "payment":
         return (
           <StyledPaper>
             <Typography variant="h6" gutterBottom>
               Payment Information
             </Typography>
             <Stack spacing={1} sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Slot: <strong>{selectedSlot || "Chưa chọn"}</strong>
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Trainer đã chọn:{" "}
-                <strong>{selectedTrainer?.name || "—"}</strong>
-              </Typography>
+              {includesPT && (
+                <>
+                  <Typography variant="body2" color="text.secondary">
+                    Slot: <strong>{selectedSlot || "Chưa chọn"}</strong>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Trainer đã chọn:{" "}
+                    <strong>{selectedTrainer?.name || "—"}</strong>
+                  </Typography>
+                </>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Tổng thanh toán: <strong>{formatVND(total)}</strong>
               </Typography>
             </Stack>
 
-            {/* phần form phụ (postalCode, notes) */}
             <PaymentForm
               paymentInfo={paymentInfo}
               onChange={handlePaymentFieldChange}
             />
 
-            {/* phần Stripe Elements tương đương HTML: #card-element */}
             <Box sx={{ mt: 3 }}>
               <Typography variant="subtitle1" gutterBottom>
                 Thông tin thẻ (Stripe)
@@ -1063,8 +1062,8 @@ const CartComponent = () => {
           </StyledPaper>
         );
 
-      // 4. Confirmation
-      case 4:
+      // ===== Confirmation =====
+      case "confirmation":
         return (
           <StyledPaper>
             <Stack spacing={3} alignItems="center">
@@ -1115,18 +1114,28 @@ const CartComponent = () => {
     }
   };
 
+  const currentStepKey = getStepKey(activeStep);
+
+  const nextDisabled =
+    loading ||
+    (currentStepKey === "cart" &&
+      (cartItems.length === 0 || packageLoading)) ||
+    (includesPT &&
+      currentStepKey === "slot" &&
+      (!selectedSlot ||
+        (selectedSlot && isSlotDisabled(selectedSlot))));
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
         Checkout
       </Typography>
 
-      {/* Bước: Cart → Slot → Trainer → Payment → Confirmation */}
       <CheckoutSteps activeStep={activeStep} steps={steps} />
       {renderStepContent(activeStep)}
 
-      {/* Ẩn nút điều hướng trên màn hình Confirmation (index 4) */}
-      {activeStep !== 4 && (
+      {/* Ẩn nút điều hướng trên màn hình Confirmation */}
+      {currentStepKey !== "confirmation" && (
         <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
           <Button
             variant="outlined"
@@ -1138,20 +1147,13 @@ const CartComponent = () => {
           </Button>
           <Button
             variant="contained"
-            endIcon={activeStep === 3 ? <FiLock /> : <FiArrowRight />}
+            endIcon={currentStepKey === "payment" ? <FiLock /> : <FiArrowRight />}
             onClick={handleNext}
-            disabled={
-              loading ||
-              (activeStep === 0 && (cartItems.length === 0 || packageLoading)) ||
-              (activeStep === 1 && !selectedSlot) ||
-              (activeStep === 1 &&
-                selectedSlot &&
-                isSlotDisabled(selectedSlot))
-            }
+            disabled={nextDisabled}
           >
             {loading ? (
               <CircularProgress size={24} />
-            ) : activeStep === 3 ? (
+            ) : currentStepKey === "payment" ? (
               "Place Order"
             ) : (
               "Continue"
