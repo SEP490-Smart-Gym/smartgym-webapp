@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import api from "../../config/axios";
 
+// mock event ban đầu (có thể bỏ khi dùng API thật cho lịch sử)
 const mockData = [
   { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
   { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
@@ -9,14 +11,6 @@ const mockData = [
   { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
   { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
   { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
-];
-
-/** 👉 Thay mảng này bằng mockdata trainer ở trang home của bạn */
-const trainersMock = [
-  { id: "t1", name: "Anna Nguyen" },
-  { id: "t2", name: "Duc Tran" },
-  { id: "t3", name: "Hoang Le" },
-  { id: "t4", name: "Mika Pham" },
 ];
 
 function parseTimeRange(timeStr) {
@@ -64,17 +58,6 @@ function loadScript(src) {
   });
 }
 
-/** Tạo danh sách slot mỗi tiếng từ 05:00 đến 21:00 (16 slot) */
-function buildTimeSlots() {
-  const slots = [];
-  for (let h = 5; h < 21; h++) {
-    const start = `${String(h).padStart(2,"0")}:00`;
-    const end = `${String(h+1).padStart(2,"0")}:00`;
-    slots.push({ id: `${start}-${end}`, label: `${start} - ${end}`, start, end });
-  }
-  return slots;
-}
-
 /** Helpers cho ngày dd/MM/yyyy */
 function formatTodayVN() {
   const d = new Date();
@@ -98,7 +81,7 @@ function toDateFromDDMMYYYY(vn) {
   if (d.getFullYear() !== yyyy || (d.getMonth()+1) !== mm || d.getDate() !== dd) return null;
   return d;
 }
-/** dd/mm/yyyy -> yyyy-mm-dd (cho normalize) */
+/** dd/mm/yyyy -> yyyy-mm-dd (cho API) */
 function parseVNDateToISO(vn) {
   const d = toDateFromDDMMYYYY(vn);
   if (!d) return null;
@@ -133,13 +116,135 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [vnDate, setVnDate] = useState(formatTodayVN());
 
+  // ==== NEW: trainers & timeSlots & memberPackageId từ API ====
+  const [trainers, setTrainers] = useState([]); // {id, name}
+  const [trainersLoading, setTrainersLoading] = useState(false);
+  const [trainersError, setTrainersError] = useState("");
+
+  const [allSlots, setAllSlots] = useState([]); // {id, label, start, end}
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
+
+  const [memberPackageId, setMemberPackageId] = useState(null);
+  const [packageError, setPackageError] = useState("");
+
   // Slot state
-  const allSlots = buildTimeSlots();
   const [disabledSlots, setDisabledSlots] = useState(new Set());
   const [selectedSlotId, setSelectedSlotId] = useState("");
 
-  // NEW: state event đang xem chi tiết
+  // trainer select state
+  const [selectedTrainerId, setSelectedTrainerId] = useState("");
+
+  // event đang xem chi tiết
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // ==== GỌI API trainer, timeslot, active package ====
+  useEffect(() => {
+  let cancelled = false;
+
+  (async () => {
+    setTrainersLoading(true);
+    setSlotsLoading(true);
+    setPackageError("");
+    setTrainersError("");
+    setSlotsError("");
+
+    try {
+      // 1) luôn cố load TimeSlot trước (thường là public)
+      const slotRes = await api.get("/TimeSlot");
+      if (!cancelled) {
+        const slotData = Array.isArray(slotRes.data) ? slotRes.data : [];
+        const mappedSlots = slotData
+          .filter(s => s.isActive !== false)
+          .map(s => {
+            const start = (s.startTime || "").slice(0, 5); // "08:00:00" -> "08:00"
+            const end   = (s.endTime || "").slice(0, 5);
+            const label = s.slotName ? s.slotName : `${start} - ${end}`;
+            return {
+              id: s.id,
+              label,
+              start,
+              end,
+            };
+          });
+
+        setAllSlots(mappedSlots);
+        if (mappedSlots.length > 0) {
+          setSelectedSlotId(String(mappedSlots[0].id));
+        }
+      }
+    } catch (err) {
+      console.error("Error loading TimeSlot:", err);
+      if (!cancelled) {
+        setSlotsError("Không tải được danh sách khung giờ.");
+      }
+    } finally {
+      if (!cancelled) {
+        setSlotsLoading(false);
+      }
+    }
+
+    // 2) Trainers (có thể yêu cầu đăng nhập)
+    try {
+      const trainerRes = await api.get("/member/trainers");
+      if (!cancelled) {
+        const trainerData = Array.isArray(trainerRes.data) ? trainerRes.data : [];
+        const mappedTrainers = trainerData
+          .filter(t => t.isAvailableForNewClients !== false)
+          .map(t => ({
+            id: t.trainerId,
+            name: `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Trainer",
+          }));
+        setTrainers(mappedTrainers);
+        if (mappedTrainers.length > 0) {
+          setSelectedTrainerId(String(mappedTrainers[0].id));
+        }
+      }
+    } catch (err) {
+      console.error("Error loading trainers:", err);
+      if (!cancelled) {
+        if (err?.response?.status === 401) {
+          setTrainersError("Bạn cần đăng nhập để xem danh sách huấn luyện viên.");
+        } else {
+          setTrainersError("Không tải được danh sách Trainer.");
+        }
+        // không throw nữa để tránh văng ra ngoài
+      }
+    } finally {
+      if (!cancelled) {
+        setTrainersLoading(false);
+      }
+    }
+
+    // 3) Active member package (cũng cần login)
+    try {
+      const pkgRes = await api.get("/MemberPackage/my-active-package");
+      if (!cancelled) {
+        const pkg = pkgRes.data;
+        if (pkg && pkg.id) {
+          setMemberPackageId(pkg.id);
+        } else {
+          setPackageError("Không tìm thấy gói tập đang hoạt động.");
+        }
+      }
+    } catch (err) {
+      console.error("Error loading active package:", err);
+      if (!cancelled) {
+        if (err?.response?.status === 401) {
+          setPackageError("Bạn cần đăng nhập để sử dụng lịch đặt buổi tập.");
+        } else {
+          setPackageError("Không lấy được gói tập đang hoạt động.");
+        }
+        // không throw nữa
+      }
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   // 1 ngày chỉ 1 slot → helper
   function dayAlreadyBooked(dateObj) {
@@ -153,13 +258,12 @@ export default function Calendar() {
     const now = new Date();
     const disabled = new Set();
     if (!dateObj) return disabled;
-
     for (const s of allSlots) {
       const [h, m] = s.start.split(":").map(Number);
       const slotDateTime = new Date(dateObj);
       slotDateTime.setHours(h, m, 0, 0);
       const diffHours = (slotDateTime - now) / (1000 * 60 * 60);
-      if (diffHours < 24) disabled.add(s.id);
+      if (diffHours < 24) disabled.add(String(s.id));
     }
     return disabled;
   }
@@ -171,14 +275,12 @@ export default function Calendar() {
       return;
     }
 
-    // Tính lại date + time giống format trong dataRef.current
     const eventDate = event.start || event.date;
     const isoDate = dateObjToISO(eventDate);
     const startStr = hhmm(event.start);
     const endStr = event.end ? hhmm(event.end) : "";
     const timeStr = endStr ? `${startStr}-${endStr}` : startStr;
 
-    // Xoá event khỏi "cơ sở dữ liệu" tạm dataRef.current
     dataRef.current = dataRef.current.filter(ev => {
       if (ev.date !== isoDate) return true;
       if (ev.time && timeStr && ev.time !== timeStr) return true;
@@ -186,19 +288,16 @@ export default function Calendar() {
       return false;
     });
 
-    // Render lại calendar với data mới
     if (window.jQuery && holderRef.current) {
       window.jQuery(holderRef.current).calendar({
         data: normalizeMockData(dataRef.current),
       });
     }
 
-    // Reset state schedule (triggers re-calc disabledSlots / dayAlreadyBooked)
     setSelectedDate(prev => new Date(prev));
     setSelectedSlotId("");
     setDisabledSlots(new Set());
 
-    // Đóng modal chi tiết
     setSelectedEvent(null);
     try {
       const ModalClass = (window.bootstrap && window.bootstrap.Modal);
@@ -211,20 +310,26 @@ export default function Calendar() {
     }
   };
 
-  // cập nhật disable khi đổi ngày
+  // cập nhật disable khi đổi ngày hoặc khi slot list thay đổi
   useEffect(() => {
+    if (!allSlots.length) {
+      setDisabledSlots(new Set());
+      setSelectedSlotId("");
+      return;
+    }
+
     if (dayAlreadyBooked(selectedDate)) {
-      const all = new Set(allSlots.map(s => s.id));
+      const all = new Set(allSlots.map(s => String(s.id)));
       setDisabledSlots(all);
       setSelectedSlotId("");
       return;
     }
     const ds = computeDisabledSlots(selectedDate);
     setDisabledSlots(ds);
-    const firstValid = allSlots.find(s => !ds.has(s.id));
-    setSelectedSlotId(firstValid ? firstValid.id : "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+    const firstValid = allSlots.find(s => !ds.has(String(s.id)));
+    setSelectedSlotId(firstValid ? String(firstValid.id) : "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, allSlots.length]);
 
   useEffect(() => {
     (async () => {
@@ -232,7 +337,6 @@ export default function Calendar() {
 
       let BootstrapBundle = null;
       try {
-        // nạp bootstrap bundle nếu chưa có
         BootstrapBundle = await import("bootstrap/dist/js/bootstrap.bundle.min.js");
       } catch (e) {
         console.error("Bootstrap JS not available", e);
@@ -275,7 +379,7 @@ export default function Calendar() {
       const tmplEl = tmplRef.current;
       const t = $.quicktmpl(tmplEl ? tmplEl.innerHTML : "");
 
-      // Popover helpers (BS5) — đã tránh optional chaining sau new
+      // Popover helpers
       let currentPopover = null;
       const POPOVER_OPTS = { html:true, container:"body", placement:"auto", trigger:"manual", sanitize:false };
       function getOrCreatePopover(elem, opts) {
@@ -354,7 +458,7 @@ export default function Calendar() {
           draw();
         });
 
-        // ✅ CLICK CHIP EVENT → mở modal detail
+        // CLICK CHIP EVENT → mở modal detail
         $el.on("click", ".event-chip", function (e) {
           e.preventDefault(); e.stopPropagation();
           const index = +this.getAttribute("data-index");
@@ -418,7 +522,7 @@ export default function Calendar() {
           nextmonthcss: "next-month",
           mode: "month",
           data: [],
-          onOpenEvent: null, // callback mở modal
+          onOpenEvent: null,
         },
         window.jQuery,
         window,
@@ -436,7 +540,6 @@ export default function Calendar() {
             end: ev.end,
             status: ev.status || "present",
           });
-          // mở modal chi tiết
           try {
             const ModalClass = (window.bootstrap && window.bootstrap.Modal) || (BootstrapBundle && BootstrapBundle.Modal);
             if (ModalClass) {
@@ -563,12 +666,12 @@ export default function Calendar() {
         </button>
       </div>
 
-      {/* MODAL: CHỌN TRAINER + TIMESLOT + DATE (react-datepicker dd/MM/yyyy) */}
+      {/* MODAL: CHỌN TRAINER + TIMESLOT + DATE */}
       <div className="modal fade" id="bookingModal" tabIndex="-1" aria-hidden="true" ref={bookingModalRef}>
         <div className="modal-dialog">
           <form
             className="modal-content"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
               const vnDateFromForm = (fd.get("date_vn") || "").toString().trim();
@@ -578,17 +681,36 @@ export default function Calendar() {
                 return;
               }
 
-              // 1 ngày chỉ 1 slot
+              if (!memberPackageId) {
+                alert("❌ Bạn chưa có gói tập đang hoạt động. Vui lòng mua gói trước khi đặt lịch.");
+                return;
+              }
+
               if (dataRef.current.some(ev => ev.date === isoDate)) {
                 alert("❌ Mỗi ngày chỉ được đặt 1 slot. Vui lòng chọn ngày khác.");
                 return;
               }
 
               const trainerId = fd.get("trainer");
-              const trainerName = trainersMock.find(t => t.id === trainerId)?.name || "Trainer";
-              const slot = selectedSlotId;
-              if (!slot || disabledSlots.has(slot)) return;
-              const [start, end] = slot.split("-");
+              if (!trainerId) {
+                alert("❌ Vui lòng chọn Trainer.");
+                return;
+              }
+              const trainerName = trainers.find(t => String(t.id) === String(trainerId))?.name || "Trainer";
+
+              const slotId = selectedSlotId;
+              if (!slotId || disabledSlots.has(String(slotId))) {
+                alert("❌ Khung giờ không hợp lệ.");
+                return;
+              }
+
+              const slotObj = allSlots.find(s => String(s.id) === String(slotId));
+              if (!slotObj) {
+                alert("❌ Không tìm thấy thông tin khung giờ. Vui lòng tải lại trang.");
+                return;
+              }
+
+              const { start, end, id: timeSlotId } = slotObj;
 
               // phải trước 24h
               const [sh, sm] = start.split(":").map(Number);
@@ -600,41 +722,61 @@ export default function Calendar() {
                 return;
               }
 
-              // double check trùng trainer + slot
+              const timeLabel = `${start}-${end}`;
+
               const conflict = dataRef.current.find(
-                ev => ev.date === isoDate && ev.time === `${start}-${end}` && ev.title.includes(trainerName)
+                ev => ev.date === isoDate && ev.time === timeLabel && ev.title.includes(trainerName)
               );
               if (conflict) {
                 alert("❌ Trainer hiện đang có lịch, vui lòng chọn Trainer khác.");
                 return;
               }
 
-              // thêm mới
-              dataRef.current.push({
-                date: isoDate,
-                time: `${start}-${end}`,
-                title: `Training với ${trainerName}`,
-              });
-
-              window.jQuery(holderRef.current).calendar({
-                data: normalizeMockData(dataRef.current),
-              });
-
-              // đóng modal + reset
               try {
-                const ModalClass = (window.bootstrap && window.bootstrap.Modal);
-                if (ModalClass) {
-                  const inst = ModalClass.getInstance(bookingModalRef.current) || new ModalClass(bookingModalRef.current);
-                  inst.hide();
+                // Gọi API book session
+                await api.post("/TrainingSession/book", {
+                  trainerId: Number(trainerId),
+                  sessionDate: isoDate,
+                  timeSlotId: timeSlotId,
+                  memberPackageId: memberPackageId,
+                  notes: "" // nếu cần thêm field ghi chú thì lấy từ form
+                });
+
+                // Nếu success → thêm event vào calendar local
+                dataRef.current.push({
+                  date: isoDate,
+                  time: timeLabel,
+                  title: `Training với ${trainerName}`,
+                  status: "not yet",
+                });
+
+                if (window.jQuery && holderRef.current) {
+                  window.jQuery(holderRef.current).calendar({
+                    data: normalizeMockData(dataRef.current),
+                  });
                 }
-              } catch (_) {
-                bookingModalRef.current?.querySelector('.btn-close')?.click();
+
+                alert("✅ Đặt lịch thành công!");
+
+                // đóng modal + reset
+                try {
+                  const ModalClass = (window.bootstrap && window.bootstrap.Modal);
+                  if (ModalClass) {
+                    const inst = ModalClass.getInstance(bookingModalRef.current) || new ModalClass(bookingModalRef.current);
+                    inst.hide();
+                  }
+                } catch (_) {
+                  bookingModalRef.current?.querySelector(".btn-close")?.click();
+                }
+                e.currentTarget.reset();
+                setSelectedDate(new Date());
+                setVnDate(formatTodayVN());
+                setSelectedSlotId(allSlots.length ? String(allSlots[0].id) : "");
+                setDisabledSlots(new Set());
+              } catch (err) {
+                console.error("Book session error:", err);
+                alert("❌ Có lỗi khi đặt lịch. Vui lòng thử lại sau.");
               }
-              e.currentTarget.reset();
-              setSelectedDate(new Date());
-              setVnDate(formatTodayVN());
-              setSelectedSlotId("");
-              setDisabledSlots(new Set());
             }}
           >
             <div className="modal-header">
@@ -646,8 +788,21 @@ export default function Calendar() {
               {/* Trainer select */}
               <div className="mb-3">
                 <label className="form-label">Trainer</label>
-                <select name="trainer" className="form-select" required defaultValue={trainersMock[0]?.id || ""}>
-                  {trainersMock.map(t => (
+                {trainersLoading && (
+                  <div className="form-text text-muted">Đang tải danh sách Trainer...</div>
+                )}
+                {trainersError && (
+                  <div className="form-text text-danger">{trainersError}</div>
+                )}
+                <select
+                  name="trainer"
+                  className="form-select"
+                  required
+                  value={selectedTrainerId}
+                  onChange={(e) => setSelectedTrainerId(e.target.value)}
+                  disabled={trainersLoading || !trainers.length}
+                >
+                  {trainers.map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
@@ -670,7 +825,7 @@ export default function Calendar() {
                     showYearDropdown
                     dropdownMode="select"
                     isClearable={false}
-                    minDate={new Date()}       // 🔒 chặn ngày quá khứ
+                    minDate={new Date()}       // chặn ngày quá khứ
                     className="form-control"
                     wrapperClassName="w-100"
                   />
@@ -685,22 +840,32 @@ export default function Calendar() {
 
               {/* Timeslot select */}
               <div className="mb-3">
-                <label className="form-label">Timeslot (mỗi tiếng một slot)</label>
+                <label className="form-label">Timeslot</label>
+                {slotsLoading && (
+                  <div className="form-text text-muted">Đang tải khung giờ...</div>
+                )}
+                {slotsError && (
+                  <div className="form-text text-danger">{slotsError}</div>
+                )}
                 <select
                   name="slot"
                   className="form-select"
                   required
                   value={selectedSlotId}
                   onChange={(e) => setSelectedSlotId(e.target.value)}
-                  disabled={dayAlreadyBooked(selectedDate)}
+                  disabled={dayAlreadyBooked(selectedDate) || !allSlots.length}
                 >
                   {allSlots.map(s => (
-                    <option key={s.id} value={s.id} disabled={disabledSlots.has(s.id)}>
+                    <option
+                      key={s.id}
+                      value={s.id}
+                      disabled={disabledSlots.has(String(s.id))}
+                    >
                       {s.label}
                     </option>
                   ))}
                 </select>
-                {(dayAlreadyBooked(selectedDate) || allSlots.every(s => disabledSlots.has(s.id))) && (
+                {(dayAlreadyBooked(selectedDate) || (allSlots.length && allSlots.every(s => disabledSlots.has(String(s.id))))) && (
                   <div className="form-text text-danger mt-1">
                     {dayAlreadyBooked(selectedDate)
                       ? "Ngày này đã có lịch."
@@ -708,6 +873,12 @@ export default function Calendar() {
                   </div>
                 )}
               </div>
+
+              {packageError && (
+                <div className="alert alert-warning py-2 mb-0">
+                  {packageError}
+                </div>
+              )}
             </div>
 
             <div className="modal-footer">
@@ -717,8 +888,11 @@ export default function Calendar() {
                 className="btn btn-primary"
                 disabled={
                   !selectedSlotId ||
-                  disabledSlots.has(selectedSlotId) ||
-                  dayAlreadyBooked(selectedDate)
+                  disabledSlots.has(String(selectedSlotId)) ||
+                  dayAlreadyBooked(selectedDate) ||
+                  !trainers.length ||
+                  !allSlots.length ||
+                  !memberPackageId
                 }
               >
                 Lưu
@@ -728,7 +902,7 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* ==== MODAL CHI TIẾT EVENT (mở khi click chip event) ==== */}
+      {/* MODAL CHI TIẾT EVENT */}
       <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
         <div className="modal-dialog">
           <div className="modal-content">

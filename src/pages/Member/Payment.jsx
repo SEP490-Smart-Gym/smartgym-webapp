@@ -1,15 +1,53 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef
+} from "react";
 import {
-  Box, Stepper, Step, StepLabel, Card, CardContent, CardMedia, Typography,
-  IconButton, TextField, Button, Stack, Grid, Divider, Paper, useTheme, styled,
-  Container, CircularProgress, Snackbar, Alert, Chip, Tooltip
+  Box,
+  Stepper,
+  Step,
+  StepLabel,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  IconButton,
+  TextField,
+  Button,
+  Stack,
+  Grid,
+  Divider,
+  Paper,
+  useTheme,
+  styled,
+  Container,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  Chip,
+  Tooltip
 } from "@mui/material";
 import {
-  FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiCreditCard,
-  FiArrowLeft, FiArrowRight, FiLock, FiClock
+  FiMinus,
+  FiPlus,
+  FiTrash2,
+  FiShoppingBag,
+  FiCreditCard,
+  FiArrowLeft,
+  FiArrowRight,
+  FiLock,
+  FiClock
 } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import api from "../../config/axios";
+
+// ============ CONSTANTS ============
+// Publishable key dùng cho Stripe (như trong HTML test page)
+const STRIPE_PUBLISHABLE_KEY =
+  "pk_test_51SS4bPRq7GZWeiD8KPMbvTaHs21UB7LUYmSVcqyNtQ6RghCpQvmgUFMkTGzvsKbxKodpE7jEVmZVDXICO2gK3Yz100upoioxdl";
 
 // ================== Styled ==================
 const StyledCard = styled(Card)(({ theme }) => ({
@@ -44,18 +82,17 @@ const CheckoutSteps = ({ activeStep, steps }) => (
   </Stepper>
 );
 
-const PaymentForm = () => (
+// ----- PaymentForm: giữ postalCode + notes, card dùng Stripe Elements -----
+const PaymentForm = ({ paymentInfo, onChange }) => (
   <Stack spacing={3}>
-    <TextField label="Card Number" fullWidth placeholder="1234 5678 9012 3456" />
-    <Grid container spacing={2}>
-      <Grid item xs={6}>
-        <TextField label="Expiry Date" fullWidth placeholder="MM/YY" />
-      </Grid>
-      <Grid item xs={6}>
-        <TextField label="CVV" fullWidth placeholder="123" type="password" />
-      </Grid>
-    </Grid>
-    <TextField label="Mã bưu điện" fullWidth />
+    <TextField
+      label="Ghi chú"
+      fullWidth
+      multiline
+      minRows={2}
+      value={paymentInfo.notes}
+      onChange={(e) => onChange("notes", e.target.value)}
+    />
   </Stack>
 );
 
@@ -96,7 +133,7 @@ const FALLBACK_TRAINERS = [
 const CartComponent = () => {
   const theme = useTheme();
   const { id } = useParams(); // /checkout/:id
-  const packageId = id || 1;   // nếu không có id thì tạm dùng 1
+  const packageId = id || 1; // nếu không có id thì tạm dùng 1
 
   const SINGLE_SERVICE = true; // vẫn giữ logic chỉ 1 dịch vụ
 
@@ -110,7 +147,7 @@ const CartComponent = () => {
   const [trainerError, setTrainerError] = useState("");
 
   // ====== TimeSlot state (lấy từ API /TimeSlot) ======
-  const [slots, setSlots] = useState([]);           // mảng string kiểu "05:00-06:00"
+  const [slots, setSlots] = useState([]); // mảng string kiểu "05:00-06:00"
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
 
@@ -135,6 +172,63 @@ const CartComponent = () => {
   const [selectedTrainer, setSelectedTrainer] = useState(null);
   const [userTouchedTrainer, setUserTouchedTrainer] = useState(false); // user đã tự chọn trainer?
   const [suggestedTrainer, setSuggestedTrainer] = useState(null); // trainer gợi ý luôn hiển thị
+
+  // ====== Payment states ======
+  const [paymentInfo, setPaymentInfo] = useState({
+    postalCode: "",
+    notes: "",
+    isAutoRenewal: true
+  });
+
+  const [paymentIntent, setPaymentIntent] = useState(null); // { id, clientSecret }
+  const [paymentStatus, setPaymentStatus] = useState(null); // "success" | "failed" | null
+
+  const handlePaymentFieldChange = (field, value) => {
+    setPaymentInfo((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // ====== Stripe Elements (từ HTML test) ======
+  const [stripeState, setStripeState] = useState({
+    stripe: null,
+    elements: null
+  });
+  const [stripeCard, setStripeCard] = useState(null);
+  const cardElementRef = useRef(null);
+
+  // load script https://js.stripe.com/v3/ & init Stripe Elements khi vào step Payment
+  useEffect(() => {
+    if (activeStep !== 3) return;
+
+    const initStripe = () => {
+      if (stripeState.stripe || !window.Stripe) return;
+      const stripe = window.Stripe(STRIPE_PUBLISHABLE_KEY);
+      const elements = stripe.elements();
+      const card = elements.create("card");
+      if (cardElementRef.current) {
+        card.mount(cardElementRef.current);
+      }
+      setStripeState({ stripe, elements });
+      setStripeCard(card);
+    };
+
+    if (window.Stripe) {
+      initStripe();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://js.stripe.com/v3/";
+      script.async = true;
+      script.onload = initStripe;
+      document.body.appendChild(script);
+    }
+
+    // cleanup nếu cần (unmount card khi rời step)
+    return () => {
+      if (stripeCard) {
+        stripeCard.unmount();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep]);
 
   // ====== Fetch package from API ======
   useEffect(() => {
@@ -199,7 +293,9 @@ const CartComponent = () => {
         }
       } catch (error) {
         console.error("Error fetching trainers:", error);
-        setTrainerError("Không tải được danh sách huấn luyện viên. Đang dùng dữ liệu mặc định.");
+        setTrainerError(
+          "Không tải được danh sách huấn luyện viên. Đang dùng dữ liệu mặc định."
+        );
         setSnackbar({
           open: true,
           message: "Không tải được danh sách trainer, đang dùng dữ liệu mẫu.",
@@ -226,7 +322,7 @@ const CartComponent = () => {
         // Cố gắng map linh hoạt: ưu tiên field có sẵn, fallback ghép start-end
         const mappedSlots = data
           .map((ts) => {
-            if (ts.timeRange) return ts.timeRange;        // ví dụ "05:00-06:00"
+            if (ts.timeRange) return ts.timeRange; // ví dụ "05:00-06:00"
             if (ts.slotName) return ts.slotName;
             const start =
               ts.startTime?.slice(0, 5) || ts.start?.slice(0, 5) || null;
@@ -310,6 +406,167 @@ const CartComponent = () => {
   const canProceedFromSlot = !!selectedSlot;
   const canProceedFromTrainer = !!selectedTrainer;
 
+  // ======== PAYMENT HANDLER (Stripe + confirm-payment) =========
+  const handlePaymentSubmit = async () => {
+    if (!stripeState.stripe || !stripeCard) {
+      setSnackbar({
+        open: true,
+        message:
+          "Đang khởi tạo form thanh toán Stripe, vui lòng thử lại sau vài giây.",
+        severity: "warning"
+      });
+      return;
+    }
+
+    if (!selectedTrainer || !selectedSlot || cartItems.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "Thiếu thông tin slot/trainer/gói tập.",
+        severity: "error"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setSnackbar({
+        open: true,
+        message: "Đang tạo payment intent...",
+        severity: "info"
+      });
+
+      const pkg = cartItems[0];
+
+      // startDate: tạm dùng thời điểm hiện tại (sau này gắn với ngày + slot nếu có)
+      const startDateISO = new Date().toISOString();
+
+      // 1. Tạo payment intent
+      const createBody = {
+        packageId: pkg.id,
+        trainerId: selectedTrainer.id,
+        startDate: startDateISO,
+        isAutoRenewal: paymentInfo.isAutoRenewal,
+        discountCode: promoCode || "",
+        notes: paymentInfo.notes || ""
+      };
+
+      const createRes = await api.post(
+        "/Payment/create-payment-intent",
+        createBody
+      );
+
+      const {
+        clientSecret,
+        paymentIntentId,
+        amount,
+        discountAmount,
+        finalAmount,
+        currency,
+        pendingMemberPackageId,
+        pendingPaymentId
+      } = createRes.data;
+
+      if (!clientSecret || !paymentIntentId) {
+        throw new Error("Thiếu clientSecret hoặc paymentIntentId từ API.");
+      }
+
+      setPaymentIntent({ id: paymentIntentId, clientSecret });
+
+      // 2. Confirm với Stripe (logic giống HTML test page)
+      setSnackbar({
+        open: true,
+        message: "Đang xác nhận thanh toán với Stripe...",
+        severity: "info"
+      });
+
+      const result = await stripeState.stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: stripeCard,
+            billing_details: {
+              // có thể gắn postalCode vào đây nếu muốn
+              address: {
+                postal_code: paymentInfo.postalCode || undefined
+              }
+            }
+          }
+        }
+      );
+
+      if (result.error) {
+        console.error("Stripe error:", result.error);
+        setPaymentStatus("failed");
+        setActiveStep(4);
+        setSnackbar({
+          open: true,
+          message: "Stripe error: " + result.error.message,
+          severity: "error"
+        });
+        return;
+      }
+
+      const stripePI = result.paymentIntent;
+      console.log("Stripe status:", stripePI.status, stripePI.id);
+
+      if (stripePI.status !== "succeeded") {
+        setPaymentStatus("failed");
+        setActiveStep(4);
+        setSnackbar({
+          open: true,
+          message:
+            "Thanh toán chưa thành công (trạng thái: " +
+            stripePI.status +
+            ").",
+          severity: "error"
+        });
+        return;
+      }
+
+      // 3. Gọi confirm-payment trên backend để kích hoạt gói
+      setSnackbar({
+        open: true,
+        message: "Đang xác nhận thanh toán với hệ thống...",
+        severity: "info"
+      });
+
+      const confirmRes = await api.post("/Payment/confirm-payment", {
+        paymentIntentId: stripePI.id
+      });
+
+      // tuỳ response của backend, ở đây coi 200 là OK
+      if (confirmRes.status === 200) {
+        setPaymentStatus("success");
+        setSnackbar({
+          open: true,
+          message: "Thanh toán thành công! Gói tập đã được kích hoạt.",
+          severity: "success"
+        });
+      } else {
+        setPaymentStatus("failed");
+        setSnackbar({
+          open: true,
+          message:
+            "Thanh toán Stripe thành công nhưng xác nhận với hệ thống thất bại.",
+          severity: "error"
+        });
+      }
+
+      setActiveStep(4); // sang Confirmation
+    } catch (error) {
+      console.error("Payment error:", error);
+      setPaymentStatus("failed");
+      setActiveStep(4);
+      setSnackbar({
+        open: true,
+        message: "Có lỗi khi xử lý thanh toán. Vui lòng thử lại.",
+        severity: "error"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const guardedNext = () => {
     // Bước Slot: phải chọn slot
     if (activeStep === 1 && !canProceedFromSlot) {
@@ -332,6 +589,12 @@ const CartComponent = () => {
       });
     }
 
+    // Bước Payment: chạy flow thanh toán thật (Stripe + confirm-payment)
+    if (activeStep === 3) {
+      return handlePaymentSubmit();
+    }
+
+    // Các bước khác: giữ logic cũ
     setLoading(true);
     setTimeout(() => {
       setActiveStep((prev) => prev + 1);
@@ -680,11 +943,7 @@ const CartComponent = () => {
                               }
                             />
                           </Stack>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            flexWrap="wrap"
-                          >
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
                             {t.specialties.map((s) => (
                               <Chip
                                 key={s}
@@ -756,7 +1015,7 @@ const CartComponent = () => {
         );
       }
 
-      // 3. Payment
+      // 3. Payment (Stripe Elements + form)
       case 3:
         return (
           <StyledPaper>
@@ -771,8 +1030,36 @@ const CartComponent = () => {
                 Trainer đã chọn:{" "}
                 <strong>{selectedTrainer?.name || "—"}</strong>
               </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tổng thanh toán: <strong>{formatVND(total)}</strong>
+              </Typography>
             </Stack>
-            <PaymentForm />
+
+            {/* phần form phụ (postalCode, notes) */}
+            <PaymentForm
+              paymentInfo={paymentInfo}
+              onChange={handlePaymentFieldChange}
+            />
+
+            {/* phần Stripe Elements tương đương HTML: #card-element */}
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Thông tin thẻ (Stripe)
+              </Typography>
+              <Box
+                ref={cardElementRef}
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  border: "1px solid #ddd",
+                  minHeight: 50
+                }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Thông tin thẻ được xử lý an toàn bởi Stripe. Chúng tôi không lưu
+                số thẻ của bạn.
+              </Typography>
+            </Box>
           </StyledPaper>
         );
 
@@ -781,12 +1068,29 @@ const CartComponent = () => {
         return (
           <StyledPaper>
             <Stack spacing={3} alignItems="center">
-              <CircularProgress size={60} sx={{ color: "success.main" }} />
-              <Typography variant="h5">Order Confirmed!</Typography>
-              <Typography color="text.secondary" align="center">
-                Cảm ơn bạn đã đặt lịch. Mã đơn #12345.
-                Chúng tôi sẽ gửi email xác nhận và nhắc lịch trước buổi tập.
-              </Typography>
+              {paymentStatus === "success" ? (
+                <>
+                  <CircularProgress size={60} sx={{ color: "success.main" }} />
+                  <Typography variant="h5">Thanh toán thành công!</Typography>
+                  <Typography color="text.secondary" align="center">
+                    Cảm ơn bạn đã đặt lịch. Gói tập đã được kích hoạt.
+                    <br />
+                    Chúng tôi sẽ gửi email xác nhận và nhắc lịch trước buổi tập.
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <CircularProgress size={60} sx={{ color: "error.main" }} />
+                  <Typography variant="h5" color="error">
+                    Thanh toán thất bại
+                  </Typography>
+                  <Typography color="text.secondary" align="center">
+                    Rất tiếc, giao dịch không thành công hoặc bị huỷ.
+                    <br />
+                    Vui lòng thử lại hoặc liên hệ nhân viên để được hỗ trợ.
+                  </Typography>
+                </>
+              )}
               <Button
                 variant="contained"
                 startIcon={<FiShoppingBag />}
@@ -796,6 +1100,8 @@ const CartComponent = () => {
                   setSelectedTrainer(null);
                   setSuggestedTrainer(null);
                   setUserTouchedTrainer(false);
+                  setPaymentIntent(null);
+                  setPaymentStatus(null);
                 }}
               >
                 Quay về Trang Chủ

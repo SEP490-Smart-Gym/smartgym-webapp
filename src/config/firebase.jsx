@@ -14,7 +14,7 @@ const firebaseConfig = {
   authDomain: "gym--login.firebaseapp.com",
   projectId: "gym--login",
   // storageBucket: "gym--login.firebasestorage.app",
-   storageBucket: "gym--login.appspot.com",
+  storageBucket: "gym--login.appspot.com",
   messagingSenderId: "829657598189",
   appId: "1:829657598189:web:d346b5261269f8fb6fa4e4",
   measurementId: "G-54ZHYQ43TR",
