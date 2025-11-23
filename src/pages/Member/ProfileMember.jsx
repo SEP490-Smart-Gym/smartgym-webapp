@@ -784,11 +784,6 @@ const ProfileMember = () => {
                           Update User Information
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
 

@@ -22,6 +22,7 @@ import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
 import ManageSchedule from "../pages/Manager/Schedule.jsx";
+import StaffSchedule from "../pages/Staff/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -136,6 +137,7 @@ export default function AppRoutes() {
           <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/dashboard" element={<Home />} />
           <Route path="/profile/staff" element={<ProfileStaff />} />
+          <Route path="/staff/schedule" element={<StaffSchedule />} />
         </Route>
 
         {/* ===== Admin protected ===== */}

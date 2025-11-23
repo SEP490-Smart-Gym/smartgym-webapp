@@ -208,6 +208,13 @@ export default function Navbar() {
                             >
                               Manage Equipment
                             </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/staff/schedule")}
+                            >
+                              Lịch làm việc
+                            </button>
                           </li>
                         )}
 
