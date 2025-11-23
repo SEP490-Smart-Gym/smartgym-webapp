@@ -700,110 +700,110 @@ export default function Calendar() {
   return (
     <div className="container mt-5 mb-5">
       <style>{`
-/* ===== NAV & TITLES ===== */
-.nav-arrow{
-  font-weight:800;
-  font-size:22px;
-  line-height:1;
-  padding:2px 10px;
-  border:none;
-  background:transparent;
-  cursor:pointer;
-}
-.nav-arrow:focus{ outline:none; }
+        /* ===== NAV & TITLES ===== */
+        .nav-arrow{
+        font-weight:800;
+        font-size:22px;
+        line-height:1;
+        padding:2px 10px;
+        border:none;
+        background:transparent;
+        cursor:pointer;
+        }
+        .nav-arrow:focus{ outline:none; }
 
-.btn-link.no-underline{ text-decoration:none !important; }
-.btn-link.bold{ font-weight:700 !important; }
+        .btn-link.no-underline{ text-decoration:none !important; }
+        .btn-link.bold{ font-weight:700 !important; }
 
-/* ===== BOOKING BUTTON ===== */
-.btn-booking{
-  background:#c80036;
-  border-color:#c80036;
-  font-weight:700;
-}
-.btn-booking:hover,
-.btn-booking:focus{
-  filter:brightness(0.92);
-  background:#b10030;
-  border-color:#b10030;
-}
+        /* ===== BOOKING BUTTON ===== */
+        .btn-booking{
+        background:#c80036;
+        border-color:#c80036;
+        font-weight:700;
+        }
+        .btn-booking:hover,
+        .btn-booking:focus{
+        filter:brightness(0.92);
+        background:#b10030;
+        border-color:#b10030;
+        }
 
-/* ===== CALENDAR TABLE ===== */
-.calendar-table{ width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; }
-.calendar-table th, .calendar-table td{ vertical-align:top; }
-.calendar-table thead .c-weeks th, .calendar-table tbody td.calendar-day{ width:14.285714%; }
+        /* ===== CALENDAR TABLE ===== */
+        .calendar-table{ width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; }
+        .calendar-table th, .calendar-table td{ vertical-align:top; }
+        .calendar-table thead .c-weeks th, .calendar-table tbody td.calendar-day{ width:14.285714%; }
 
-/* ===== DAY CELL ===== */
-.calendar-day{
-  position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
-  overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
-}
-.calendar-day .date{ font-weight:600; margin-bottom:6px; }
-.current{ background:#fff; }
-.prev-month, .next-month{ background:#f4f5f7 !important; color:#9aa0a6; opacity:.9; }
-.prev-month .date, .next-month .date{ color:#9aa0a6; font-weight:600; }
+        /* ===== DAY CELL ===== */
+        .calendar-day{
+        position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
+        overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
+        }
+        .calendar-day .date{ font-weight:600; margin-bottom:6px; }
+        .current{ background:#fff; }
+        .prev-month, .next-month{ background:#f4f5f7 !important; color:#9aa0a6; opacity:.9; }
+        .prev-month .date, .next-month .date{ color:#9aa0a6; font-weight:600; }
 
-/* ===== TODAY ===== */
-.calendar-day.today{
-  background:#fff7cc !important;
-  border:1px solid #ffd24d !important;
-  box-shadow:inset 0 0 0 2px #ffe58a;
-}
-.calendar-day.today .date{ font-weight:800; color:#b45309; }
+        /* ===== TODAY ===== */
+        .calendar-day.today{
+        background:#fff7cc !important;
+        border:1px solid #ffd24d !important;
+        box-shadow:inset 0 0 0 2px #ffe58a;
+        }
+        .calendar-day.today .date{ font-weight:800; color:#b45309; }
 
-/* ===== HAS EVENT ===== */
-.calendar-day.has-event{ background:#fff3f5 !important; border:1px solid #ffc7d2 !important; }
-.calendar-day.has-event .date{ font-weight:700; color:#c80036; }
-.calendar-day.has-event.today{ background:#ffe9a8 !important; border-color:#ffcc66 !important; }
+        /* ===== HAS EVENT ===== */
+        .calendar-day.has-event{ background:#fff3f5 !important; border:1px solid #ffc7d2 !important; }
+        .calendar-day.has-event .date{ font-weight:700; color:#c80036; }
+        .calendar-day.has-event.today{ background:#ffe9a8 !important; border-color:#ffcc66 !important; }
 
-/* ===== EVENT CHIP ===== */
-.event-chip{
-  margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
-  cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
-}
-.event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-badge{
-  display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.3px;
-}
+        /* ===== EVENT CHIP ===== */
+        .event-chip{
+        margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
+        cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
+        }
+        .event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .event-chip-badge{
+        display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
+        text-transform:uppercase; letter-spacing:.3px;
+        }
 
-/* ===== STATUS COLORS ===== */
-.event-chip.status-present{ background:#e6ffed; border-color:#9ae6b4; }
-.event-chip.status-present .event-chip-badge{ background:#34d399; color:#053321; }
+        /* ===== STATUS COLORS ===== */
+        .event-chip.status-present{ background:#e6ffed; border-color:#9ae6b4; }
+        .event-chip.status-present .event-chip-badge{ background:#34d399; color:#053321; }
 
-.event-chip.status-absent{ background:#ffe6e6; border-color:#ffb3b3; }
-.event-chip.status-absent .event-chip-badge{ background:#f87171; color:#4a0a0a; }
+        .event-chip.status-absent{ background:#ffe6e6; border-color:#ffb3b3; }
+        .event-chip.status-absent .event-chip-badge{ background:#f87171; color:#4a0a0a; }
 
-.event-chip.status-not\\ yet,
-.event-chip.status-not-yet{
-  background:#f1f5f9;
-  border-color:#cbd5e1;
-}
-.event-chip.status-not\\ yet .event-chip-badge,
-.event-chip.status-not-yet .event-chip-badge{
-  background:#94a3b8; color:#0f172a;
-}
+        .event-chip.status-not\\ yet,
+        .event-chip.status-not-yet{
+        background:#f1f5f9;
+        border-color:#cbd5e1;
+        }
+        .event-chip.status-not\\ yet .event-chip-badge,
+        .event-chip.status-not-yet .event-chip-badge{
+        background:#94a3b8; color:#0f172a;
+        }
 
-/* ===== YEAR VIEW ===== */
-.calendar-table td.calendar-month{
-  width:25%; padding:12px; cursor:pointer; border:1px solid #e5e7eb; background:#fff;
-  transition:background-color .15s ease, border-color .15s ease;
-}
-.calendar-table td.calendar-month:hover{ background:#fafafa; }
-.calendar-table td.calendar-month .badge{ margin-left:.5rem; vertical-align:middle; }
+        /* ===== YEAR VIEW ===== */
+        .calendar-table td.calendar-month{
+        width:25%; padding:12px; cursor:pointer; border:1px solid #e5e7eb; background:#fff;
+        transition:background-color .15s ease, border-color .15s ease;
+        }
+        .calendar-table td.calendar-month:hover{ background:#fafafa; }
+        .calendar-table td.calendar-month .badge{ margin-left:.5rem; vertical-align:middle; }
 
-/* ===== POPOVER ===== */
-.popover{ z-index:1080; max-width:320px; }
-.popover .list-group-item{ text-align:left; }
+        /* ===== POPOVER ===== */
+        .popover{ z-index:1080; max-width:320px; }
+        .popover .list-group-item{ text-align:left; }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 576px){
-  .calendar-day{ min-height:90px; padding:6px; }
-  .event-chip{ font-size:11px; }
-  .event-chip-time{ font-size:10px; }
-  .nav-arrow{ font-size:20px; padding:2px 8px; }
-}
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 576px){
+        .calendar-day{ min-height:90px; padding:6px; }
+        .event-chip{ font-size:11px; }
+        .event-chip-time{ font-size:10px; }
+        .nav-arrow{ font-size:20px; padding:2px 8px; }
+        }
       `}</style>
 
       {/* TIÊU ĐỀ + NÚT BOOKING */}

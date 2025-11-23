@@ -101,6 +101,37 @@ function calcDurationMonths(startIso, endIso) {
   return Math.round(diffDays / 30); // approx
 }
 
+/**
+ * Lấy số ngày còn lại hiển thị cho UI.
+ * - Nếu gói đã hủy: dùng (endDate - cancellationDate) => cố định, không giảm theo thời gian thực
+ * - Các trường hợp khác: dùng daysRemaining từ API (nếu là số)
+ */
+function getDaysRemainingDisplay(pkg) {
+  if (!pkg) return null;
+
+  const baseVal =
+    typeof pkg.daysRemaining === "number" ? pkg.daysRemaining : null;
+  const apiStatus = (pkg.apiStatus || "").toLowerCase();
+
+  if (apiStatus !== "cancelled") {
+    return baseVal;
+  }
+
+  if (!pkg.cancellationDate || !pkg.endDate) {
+    return baseVal;
+  }
+
+  const cancel = new Date(pkg.cancellationDate);
+  const end = new Date(pkg.endDate);
+  if (Number.isNaN(cancel.getTime()) || Number.isNaN(end.getTime())) {
+    return baseVal;
+  }
+
+  const diffMs = end - cancel;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+}
+
 // 10 lý do (có "Khác (tự nhập)")
 const CANCEL_REASONS = [
   "Không còn thời gian tập luyện",
@@ -112,7 +143,7 @@ const CANCEL_REASONS = [
   "Không hài lòng về chương trình tập",
   "Không hài lòng về huấn luyện viên",
   "Đã tìm được nơi tập khác phù hợp hơn",
-  "Khác (tự nhập)"
+  "Khác (tự nhập)",
 ];
 
 export default function MyPackage() {
@@ -304,9 +335,7 @@ export default function MyPackage() {
       <li className="nav-item">
         <button
           type="button"
-          className={
-            "nav-link " + (filterStatus === "all" ? "active" : "")
-          }
+          className={"nav-link " + (filterStatus === "all" ? "active" : "")}
           onClick={() => setFilterStatus("all")}
         >
           Tất cả
@@ -315,9 +344,7 @@ export default function MyPackage() {
       <li className="nav-item">
         <button
           type="button"
-          className={
-            "nav-link " + (filterStatus === "active" ? "active" : "")
-          }
+          className={"nav-link " + (filterStatus === "active" ? "active" : "")}
           onClick={() => setFilterStatus("active")}
         >
           Đang hoạt động
@@ -384,6 +411,8 @@ export default function MyPackage() {
       {/* Danh sách gói sau khi lọc */}
       {filteredPackages.map((pkg) => {
         const status = getStatus(pkg);
+        const daysRemainDisplay = getDaysRemainingDisplay(pkg);
+
         return (
           <div className="row justify-content-center mb-3" key={pkg.id}>
             <div className="col-12 col-xl-10">
@@ -415,10 +444,10 @@ export default function MyPackage() {
                       <div className="fw-semibold">
                         {formatDDMMYYYY(pkg.endDate)}
                       </div>
-                      {typeof pkg.daysRemaining === "number" && (
+                      {daysRemainDisplay !== null && (
                         <div className="text-muted small mt-2">
                           Còn lại:{" "}
-                          <strong>{pkg.daysRemaining} ngày</strong>
+                          <strong>{daysRemainDisplay} ngày</strong>
                         </div>
                       )}
                     </div>
@@ -463,20 +492,18 @@ export default function MyPackage() {
         )}
 
       {/* Không có lịch sử gói (tổng) */}
-      {!loading &&
-        !loadError &&
-        sortedPackages.length === 0 && (
-          <div className="row justify-content-center">
-            <div className="col-12 col-xl-10">
-              <div
-                className="alert alert-light border text-center"
-                role="alert"
-              >
-                Chưa có lịch sử gói tập.
-              </div>
+      {!loading && !loadError && sortedPackages.length === 0 && (
+        <div className="row justify-content-center">
+          <div className="col-12 col-xl-10">
+            <div
+              className="alert alert-light border text-center"
+              role="alert"
+            >
+              Chưa có lịch sử gói tập.
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* ===== Modal Detail ===== */}
       {open && selected && (
@@ -531,14 +558,18 @@ export default function MyPackage() {
                     {formatDDMMYYYY(selected.history.endDate)}
                   </strong>
                 </div>
-                {typeof selected.history.daysRemaining === "number" && (
-                  <div className="text-muted small mt-1">
-                    Còn lại:{" "}
-                    <strong>
-                      {selected.history.daysRemaining} ngày
-                    </strong>
-                  </div>
-                )}
+                {(() => {
+                  const daysRemainDisplay = getDaysRemainingDisplay(
+                    selected.history
+                  );
+                  if (daysRemainDisplay === null) return null;
+                  return (
+                    <div className="text-muted small mt-1">
+                      Còn lại:{" "}
+                      <strong>{daysRemainDisplay} ngày</strong>
+                    </div>
+                  );
+                })()}
                 {selected.history.cancellationReason && (
                   <div className="text-muted small mt-1">
                     Lý do hủy:{" "}
@@ -556,8 +587,8 @@ export default function MyPackage() {
                   <div className="fw-semibold">
                     {selected.history.totalSessionsCount ?? "—"} buổi
                   </div>
-                  {typeof selected.history.remainingSessionsCount ===
-                    "number" && (
+                  {typeof selected.history
+                    .remainingSessionsCount === "number" && (
                     <div className="text-muted small mt-1">
                       Còn lại:{" "}
                       <strong>
@@ -607,7 +638,9 @@ export default function MyPackage() {
                 className="btn btn-primary"
                 onClick={() =>
                   alert(
-                    `Mua lại gói #${selected.history?.packageId ?? "?"}`
+                    `Mua lại gói #${
+                      selected.history?.packageId ?? "?"
+                    }`
                   )
                 }
               >
@@ -632,10 +665,14 @@ export default function MyPackage() {
           >
             <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
             <p className="text-muted mb-2">
-              Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi cải thiện dịch vụ.
+              Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
+              cải thiện dịch vụ.
             </p>
 
-            <div className="mb-3" style={{ maxHeight: 260, overflowY: "auto" }}>
+            <div
+              className="mb-3"
+              style={{ maxHeight: 260, overflowY: "auto" }}
+            >
               {CANCEL_REASONS.map((reason) => (
                 <div className="form-check mb-1" key={reason}>
                   <input
