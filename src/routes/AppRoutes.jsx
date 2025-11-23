@@ -125,7 +125,7 @@ export default function AppRoutes() {
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
-          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
+          <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} />
         </Route>
 
         {/* ===== Staff protected ===== */}
