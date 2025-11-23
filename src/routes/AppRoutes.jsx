@@ -32,6 +32,7 @@ import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
 import TrainerSchedule from "../pages/Member/Schedule.jsx";
 import Payment from "../pages/Member/Payment.jsx";
+import ChatBot from "../pages/Member/ChatBox.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -116,6 +117,7 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
+          <Route path="/chatbot/:id" element={<ChatBot />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>

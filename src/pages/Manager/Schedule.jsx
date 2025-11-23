@@ -248,21 +248,10 @@ export default function ManageSchedule() {
     }
   };
 
+  /** ✅ openPersonModal chỉ set state, modal mở bằng data-bs-toggle */
   const openPersonModal = (person, type) => {
     if (!person) return;
     setSelectedPerson({ ...person, type });
-
-    try {
-      const ModalClass = window.bootstrap && window.bootstrap.Modal;
-      const el =
-        personModalRef.current || document.getElementById("personDetailModal");
-      if (ModalClass && el) {
-        const inst = ModalClass.getInstance(el) || new ModalClass(el);
-        inst.show();
-      }
-    } catch (e) {
-      console.warn("Cannot open person modal:", e);
-    }
   };
 
   const startEditShift = (shift, index) => {
@@ -330,12 +319,10 @@ export default function ManageSchedule() {
         ...sh,
         staff: editingStaffIds.map((id) => ({
           personId: id,
-          // ngày tương lai: mặc định not yet
           status: isFutureDay ? "not yet" : (getStaffById(id)?.status || "present"),
         })),
         trainers: editingTrainerIds.map((id) => ({
           personId: id,
-          // ngày tương lai: mặc định not yet
           status: isFutureDay ? "not yet" : (getTrainerById(id)?.status || "present"),
         })),
       };
@@ -393,7 +380,6 @@ export default function ManageSchedule() {
       const $ = window.jQuery;
       if (!$) return;
 
-      // quicktmpl
       $.extend({
         quicktmpl: function (template) {
           return new Function(
@@ -416,7 +402,6 @@ export default function ManageSchedule() {
         },
       });
 
-      // Date helpers
       $.extend(Date.prototype, {
         toDateCssClass: function () {
           return (
@@ -441,7 +426,6 @@ export default function ManageSchedule() {
       const tmplEl = tmplRef.current;
       const t = $.quicktmpl(tmplEl ? tmplEl.innerHTML : "");
 
-      // Popover helpers
       let currentPopover = null;
       const POPOVER_OPTS = {
         html: true,
@@ -1007,6 +991,8 @@ export default function ManageSchedule() {
                                         key={i}
                                         type="button"
                                         className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#personDetailModal"
                                         onClick={() => openPersonModal(staff, "staff")}
                                       >
                                         {staff.name}
@@ -1036,6 +1022,8 @@ export default function ManageSchedule() {
                                         key={i}
                                         type="button"
                                         className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#personDetailModal"
                                         onClick={() => openPersonModal(trainer, "trainer")}
                                       >
                                         {trainer.name}
@@ -1216,7 +1204,20 @@ export default function ManageSchedule() {
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-                onClick={() => setSelectedPerson(null)}
+                onClick={() => {
+                  setSelectedPerson(null);
+                  try {
+                    const ModalClass = window.bootstrap && window.bootstrap.Modal;
+                    if (ModalClass && eventModalRef.current) {
+                      const inst =
+                        ModalClass.getInstance(eventModalRef.current) ||
+                        new ModalClass(eventModalRef.current);
+                      inst.show();
+                    }
+                  } catch (e) {
+                    console.warn("Cannot re-open event modal:", e);
+                  }
+                }}
               />
             </div>
             <div className="modal-body">
@@ -1260,7 +1261,20 @@ export default function ManageSchedule() {
                 type="button"
                 className="btn btn-light"
                 data-bs-dismiss="modal"
-                onClick={() => setSelectedPerson(null)}
+                onClick={() => {
+                  setSelectedPerson(null);
+                  try {
+                    const ModalClass = window.bootstrap && window.bootstrap.Modal;
+                    if (ModalClass && eventModalRef.current) {
+                      const inst =
+                        ModalClass.getInstance(eventModalRef.current) ||
+                        new ModalClass(eventModalRef.current);
+                      inst.show();
+                    }
+                  } catch (e) {
+                    console.warn("Cannot re-open event modal:", e);
+                  }
+                }}
               >
                 Đóng
               </button>
@@ -1288,7 +1302,7 @@ export default function ManageSchedule() {
     thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
     first = new Date(thedate);
     last = new Date(thedate);
-    last.setDate(thedate.getDate()+6);
+    last.setDate(last.getDate()+6);
   } else if (mode === 'day') {
     thedate = new Date(date);
     first = new Date(thedate);
