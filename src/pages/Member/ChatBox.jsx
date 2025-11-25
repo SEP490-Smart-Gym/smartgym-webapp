@@ -18,25 +18,18 @@ import { format } from "date-fns";
 import { GiNinjaStar } from "react-icons/gi";
 import { BsEmojiLaughingFill } from "react-icons/bs";
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  maxWidth: "50%",          // desktop: 50% chiều ngang trang
-  minWidth: "450px",
-  margin: "auto",
-  height: "120vh",
+const StyledCard = styled(Card)(({ theme, isPopup }) => ({
+  maxWidth: isPopup ? "100%" : "50%",
+  minWidth: isPopup ? "100%" : "450px",
+  height: isPopup ? "100%" : "120vh",
+  borderRadius: isPopup ? "20px" : "25px",
+  overflow: "hidden",
   display: "flex",
   flexDirection: "column",
   boxShadow: "0 8px 32px rgba(99, 102, 241, 0.2)",
   background: "linear-gradient(145deg, #ffffff 0%, #e8f5fe 100%)",
-  borderRadius: "25px",
-
-  // Tablet & mobile: full width + full height
-  [theme.breakpoints.down("md")]: {
-    maxWidth: "100%",
-    minWidth: "100%",
-    height: "100vh",
-    borderRadius: 0
-  }
 }));
+
 
 const MessageContainer = styled(Box)({
   flex: 1,
