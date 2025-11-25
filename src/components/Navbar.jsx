@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
-// import { AiFillCaretDown } from "react-icons/ai";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
 
 export default function Navbar() {
@@ -69,14 +68,18 @@ export default function Navbar() {
         {/* Phần phải */}
         <div className="w-100 h-100">
           {/* Topbar */}
-          <div className="topbar px-0 py-2 d-none d-lg-block" style={{ height: 45, position: "relative", zIndex: 10 }}>
+          <div
+            className="topbar px-0 py-2 d-none d-lg-block"
+            style={{ height: 45, position: "relative", zIndex: 10 }}
+          >
             <div className="row gx-0 align-items-center">
               <div className="col-lg-8 text-center text-lg-center mb-lg-0">
                 <div className="d-flex flex-wrap">
                   <div className="pe-4"></div>
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
-                      <i className="fa fa-clock text-primary me-2"></i>Mon - Sun: 5.00 am-9.00 pm
+                      <i className="fa fa-clock text-primary me-2"></i>
+                      Mon - Sun: 5.00 am-9.00 pm
                     </span>
                   </div>
                 </div>
@@ -86,7 +89,11 @@ export default function Navbar() {
                 <div className="d-flex justify-content-end align-items-center small">
                   {!user ? (
                     <>
-                      <NavLink to="/login" className="login-btn  me-3 pe-3" style={{ color: "white" }}>
+                      <NavLink
+                        to="/login"
+                        className="login-btn  me-3 pe-3"
+                        style={{ color: "white" }}
+                      >
                         <span>Login</span>
                       </NavLink>
                       <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
@@ -112,7 +119,13 @@ export default function Navbar() {
                           onError={(e) => {
                             e.currentTarget.src = "/img/useravt.jpg";
                           }}
-                          style={{ width: 32, height: 32, objectFit: "cover", border: "1px solid #ddd", background: "#f8f9fa" }}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            objectFit: "cover",
+                            border: "1px solid #ddd",
+                            background: "#f8f9fa",
+                          }}
                         />
                         <span className="user-name-text" style={{ color: "white" }}>
                           {user.lastName && user.firstName
@@ -122,26 +135,41 @@ export default function Navbar() {
                       </button>
 
                       <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                        {user.email && <li><span className="dropdown-item-text">{user.email}</span></li>}
-                        <li><hr className="dropdown-divider" /></li>
+                        {user.email && (
+                          <li>
+                            <span className="dropdown-item-text">{user.email}</span>
+                          </li>
+                        )}
+                        <li>
+                          <hr className="dropdown-divider" />
+                        </li>
 
                         {/* Admin */}
                         {user.roleName === "Admin" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/admin/packages")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/packages")}
+                            >
                               Quản lý
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/admin/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/profile")}
+                            >
                               Profile
                             </button>
                           </li>
                         )}
 
-                        {/* Member (role = "member") */}
+                        {/* Member (role = "Member") */}
                         {user.roleName === "Member" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/member/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/profile")}
+                            >
                               Profile
                             </button>
 
@@ -155,7 +183,10 @@ export default function Navbar() {
                             </button>
 
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/mypackages")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/mypackages")}
+                            >
                               My Packages
                             </button>
                           </li>
@@ -164,7 +195,10 @@ export default function Navbar() {
                         {/* Staff */}
                         {user.roleName === "Staff" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/profile/staff")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/profile/staff")}
+                            >
                               Profile
                             </button>
                             <hr className="dropdown-divider" />
@@ -174,17 +208,30 @@ export default function Navbar() {
                             >
                               Manage Equipment
                             </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/staff/schedule")}
+                            >
+                              Lịch làm việc
+                            </button>
                           </li>
                         )}
 
                         {/* Manager */}
                         {user.roleName === "Manager" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/profile/manager")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/profile/manager")}
+                            >
                               Profile
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/manager/schedule")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/manager/schedule")}
+                            >
                               Manage Schedule
                             </button>
                           </li>
@@ -193,7 +240,10 @@ export default function Navbar() {
                         {/* Trainer */}
                         {user.roleName === "Trainer" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/trainer/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/trainer/profile")}
+                            >
                               Profile
                             </button>
                             <hr className="dropdown-divider" />
@@ -217,10 +267,18 @@ export default function Navbar() {
                   )}
 
                   <div className="d-flex ps-3">
-                    <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-facebook-f"></i></a>
-                    <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-twitter"></i></a>
-                    <a className="btn p-0 text-primary me-3" href="#"><i className="fab fa-instagram"></i></a>
-                    <a className="btn p-0 text-primary me-0" href="#"><i className="fab fa-linkedin-in"></i></a>
+                    <a className="btn p-0 text-primary me-3" href="#">
+                      <i className="fab fa-facebook-f"></i>
+                    </a>
+                    <a className="btn p-0 text-primary me-3" href="#">
+                      <i className="fab fa-twitter"></i>
+                    </a>
+                    <a className="btn p-0 text-primary me-3" href="#">
+                      <i className="fab fa-instagram"></i>
+                    </a>
+                    <a className="btn p-0 text-primary me-0" href="#">
+                      <i className="fab fa-linkedin-in"></i>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -237,16 +295,29 @@ export default function Navbar() {
                 </h1>
               </NavLink>
 
-              <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+              <button
+                className="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarCollapse"
+              >
                 <span className="fa fa-bars"></span>
               </button>
 
               <div className="collapse navbar-collapse" id="navbarCollapse">
                 <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
-                  <NavLink end to="/" className="nav-item nav-link">Home</NavLink>
-                  <HashLink smooth to="/#about-section" className="nav-item nav-link">About</HashLink>
-                  <HashLink smooth to="/#package-section" className="nav-item nav-link">Packages</HashLink>
-                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">Blogs</HashLink>
+                  <NavLink end to="/" className="nav-item nav-link">
+                    Home
+                  </NavLink>
+                  <HashLink smooth to="/#about-section" className="nav-item nav-link">
+                    About
+                  </HashLink>
+                  <HashLink smooth to="/#package-section" className="nav-item nav-link">
+                    Packages
+                  </HashLink>
+                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">
+                    Blogs
+                  </HashLink>
 
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}
@@ -277,7 +348,19 @@ export default function Navbar() {
                     </div>
                   </div>
 
-                  <NavLink to="/contact" className="nav-item nav-link">Contact</NavLink>
+                  {/* ChatBox chỉ hiển thị khi role = Member */}
+                  {user?.roleName === "Member" && (
+                    <NavLink
+                      to={`/chatbot/${safeId}`}
+                      className="nav-item nav-link"
+                    >
+                      ChatBox
+                    </NavLink>
+                  )}
+
+                  <NavLink to="/contact" className="nav-item nav-link">
+                    Contact
+                  </NavLink>
 
                   <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
                     <button
@@ -285,7 +368,9 @@ export default function Navbar() {
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
                     >
-                      <i className="fas fa-search"><FaSearch /></i>
+                      <i className="fas fa-search">
+                        <FaSearch />
+                      </i>
                     </button>
                   </div>
 

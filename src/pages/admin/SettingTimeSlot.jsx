@@ -1,7 +1,7 @@
 // AdminStaffList.jsx (quản lý Time Slot)
 import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Space, Button, Modal, Form, Input, message, Spin } from "antd";
+import { Table, Space, Button, Modal, Form, Input, message, Spin, Switch } from "antd";
 import api from "../../config/axios";
 
 // Chuẩn hóa giờ về dạng HH:mm:ss để backend TimeOnly parse được
@@ -16,6 +16,12 @@ const normalizeTime = (val) => {
   let s = match[3] || "00";
   return `${h}:${m}:${s}`;
 };
+
+// Sort theo startTime (tăng dần)
+const sortTimeSlots = (arr) =>
+  [...arr].sort((a, b) =>
+    String(a.startTime || "").localeCompare(String(b.startTime || ""))
+  );
 
 export default function AdminStaffList() {
   const [timeSlots, setTimeSlots] = useState([]);
@@ -35,7 +41,7 @@ export default function AdminStaffList() {
     try {
       const res = await api.get("/TimeSlot");
       const data = Array.isArray(res.data) ? res.data : res.data.items || [];
-      setTimeSlots(data);
+      setTimeSlots(sortTimeSlots(data));
     } catch (err) {
       console.error("GET /TimeSlot error:", err.response?.data || err);
       message.error("Lấy danh sách ca tập thất bại");
@@ -48,7 +54,7 @@ export default function AdminStaffList() {
     fetchTimeSlots();
   }, []);
 
-  // ===== Thêm TimeSlot (POST) =====
+  // ===== Thêm TimeSlot (POST) - xong gọi lại fetchTimeSlots để reload bảng =====
   const handleAdd = async (values) => {
     const startTime = normalizeTime(values.startTime);
     const endTime = normalizeTime(values.endTime);
@@ -57,15 +63,16 @@ export default function AdminStaffList() {
       slotName: values.slotName,
       startTime,
       endTime,
+      isActive: true, // mặc định ca mới là active
     };
 
     try {
-      const res = await api.post("/TimeSlot", body);
-      const created = res.data || body;
-
-      setTimeSlots((prev) => [created, ...prev]);
+      setLoading(true);
+      await api.post("/TimeSlot", body);
       message.success("Tạo ca tập thành công!");
       addForm.resetFields();
+      // 🔁 Reload lại toàn bộ danh sách từ backend
+      await fetchTimeSlots();
     } catch (err) {
       console.error("POST /TimeSlot error:", err.response?.data || err);
       const detail =
@@ -74,6 +81,8 @@ export default function AdminStaffList() {
         JSON.stringify(err?.response?.data) ||
         err.message;
       message.error("Tạo ca tập thất bại: " + (detail || ""));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,14 +97,16 @@ export default function AdminStaffList() {
     if (!window.confirm("Bạn có chắc muốn xóa ca tập này?")) return;
 
     try {
+      setLoading(true);
       await api.delete(`/TimeSlot/${id}`);
-      setTimeSlots((prev) =>
-        prev.filter((s) => (s.id ?? s.timeSlotId) !== id)
-      );
+      // Sau khi xóa xong, reload lại từ backend cho chắc
+      await fetchTimeSlots();
       message.success("Xóa ca tập thành công");
     } catch (err) {
       console.error("DELETE /TimeSlot error:", err.response?.data || err);
       message.error("Xóa ca tập thất bại");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,6 +122,7 @@ export default function AdminStaffList() {
       slotName: record.slotName || "",
       startTime: trimTime(record.startTime),
       endTime: trimTime(record.endTime),
+      isActive: record.isActive ?? true,
     });
     setEditingSlot(record);
     setEditOpen(true);
@@ -132,18 +144,19 @@ export default function AdminStaffList() {
       slotName: values.slotName,
       startTime,
       endTime,
+      isActive:
+        typeof values.isActive === "boolean"
+          ? values.isActive
+          : editingSlot.isActive ?? true,
     };
 
     try {
-      const res = await api.put(`/TimeSlot/${id}`, body);
+      setLoading(true);
+      await api.put(`/TimeSlot/${id}`, body);
       message.success("Cập nhật ca tập thành công");
 
-      const updated = res.data || { ...editingSlot, ...body };
-      setTimeSlots((prev) =>
-        prev.map((s) =>
-          (s.id ?? s.timeSlotId) === id ? updated : s
-        )
-      );
+      // Reload lại danh sách từ backend để data luôn chuẩn
+      await fetchTimeSlots();
 
       setEditOpen(false);
       setEditingSlot(null);
@@ -156,6 +169,8 @@ export default function AdminStaffList() {
         JSON.stringify(err?.response?.data) ||
         err.message;
       message.error("Cập nhật ca tập thất bại: " + (detail || ""));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,10 +197,31 @@ export default function AdminStaffList() {
       render: (v) => (v ? String(v).substring(0, 5) : "—"),
     },
     {
+      title: "Hoạt động",
+      dataIndex: "isActive",
+      key: "isActive",
+      width: 120,
+      render: (v) => (
+        <span style={{ whiteSpace: "nowrap" }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              marginRight: 6,
+              backgroundColor: v ? "#52c41a" : "#ff4d4f",
+            }}
+          />
+          {v ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    {
       title: "Thao tác",
       key: "actions",
       fixed: "right",
-      width: 180,
+      width: 200,
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => openEdit(record)}>
@@ -212,8 +248,10 @@ export default function AdminStaffList() {
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm ca tập mới</h5>
+
               <Form form={addForm} layout="vertical" onFinish={handleAdd}>
                 <div className="row g-3">
+
                   <div className="col-md-4">
                     <Form.Item
                       name="slotName"
@@ -226,9 +264,7 @@ export default function AdminStaffList() {
                   <div className="col-md-4">
                     <Form.Item
                       name="startTime"
-                      rules={[
-                        { required: true, message: "Nhập giờ bắt đầu" },
-                      ]}
+                      rules={[{ required: true, message: "Nhập giờ bắt đầu" }]}
                     >
                       <Input placeholder="Giờ bắt đầu (VD: 6:00 hoặc 06:00)" />
                     </Form.Item>
@@ -237,25 +273,31 @@ export default function AdminStaffList() {
                   <div className="col-md-4">
                     <Form.Item
                       name="endTime"
-                      rules={[
-                        { required: true, message: "Nhập giờ kết thúc" },
-                      ]}
+                      rules={[{ required: true, message: "Nhập giờ kết thúc" }]}
                     >
                       <Input placeholder="Giờ kết thúc (VD: 7:00 hoặc 07:00)" />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4 d-flex align-items-end">
-                    <Form.Item style={{ width: "100%", marginBottom: 0 }}>
-                      <Button type="btn btn-add" htmlType="submit" block>
+                  {/* Nút nằm giữa toàn card */}
+                  <div className="col-12 d-flex justify-content-center mt-2">
+                    <Form.Item style={{ width: "260px", marginBottom: 0 }}>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        block
+                        disabled={loading}
+                      >
                         Thêm ca tập
                       </Button>
                     </Form.Item>
                   </div>
+
                 </div>
               </Form>
             </div>
           </div>
+
 
           {/* Table danh sách TimeSlot */}
           <div className="card shadow-sm">
@@ -291,7 +333,7 @@ export default function AdminStaffList() {
         onOk={() => editForm.submit()}
         okText="Lưu thay đổi"
         cancelText="Hủy"
-        destroyOnHidden
+        destroyOnClose
       >
         <Form form={editForm} layout="vertical" onFinish={saveEdit}>
           <Form.Item
@@ -316,6 +358,10 @@ export default function AdminStaffList() {
             rules={[{ required: true, message: "Nhập giờ kết thúc" }]}
           >
             <Input placeholder="VD: 7:00 hoặc 07:00" />
+          </Form.Item>
+
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
           </Form.Item>
         </Form>
       </Modal>

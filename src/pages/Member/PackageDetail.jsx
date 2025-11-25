@@ -15,6 +15,10 @@ export default function PackageDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // check gói đang active
+  const [hasActivePackage, setHasActivePackage] = useState(false);
+  const [activeCheckLoading, setActiveCheckLoading] = useState(false);
+
   const [activeIndex, setActiveIndex] = useState(0);
   // ID 4 số ngẫu nhiên
   const [safeId] = useState(() =>
@@ -83,10 +87,47 @@ export default function PackageDetail() {
     }
   }, [routeId]);
 
+  // Fetch gói đang active của member
+  useEffect(() => {
+    const fetchActivePackage = async () => {
+      try {
+        setActiveCheckLoading(true);
+        setHasActivePackage(false);
+
+        const res = await api.get("/MemberPackage/my-active-package");
+        const data = res.data;
+
+        // Nếu có object và status là Active thì coi như có gói đang hoạt động
+        if (data && typeof data === "object") {
+          const status = (data.status || "").toLowerCase();
+          if (status === "active") {
+            setHasActivePackage(true);
+          } else {
+            setHasActivePackage(false);
+          }
+        } else {
+          setHasActivePackage(false);
+        }
+      } catch (err) {
+        // Nếu 404 / 400 thì coi như không có gói active
+        if (err?.response?.status === 404 || err?.response?.status === 400) {
+          setHasActivePackage(false);
+        } else {
+          console.error("Fetch my-active-package error:", err);
+          // lỗi khác thì không chặn user, nên để false
+          setHasActivePackage(false);
+        }
+      } finally {
+        setActiveCheckLoading(false);
+      }
+    };
+
+    fetchActivePackage();
+  }, []);
+
   // Dùng iconIndex nếu có, fallback = 1
-  const iconIndex = Number.isFinite(pkg?.iconIndex) && pkg.iconIndex > 0
-    ? pkg.iconIndex
-    : 1;
+  const iconIndex =
+    Number.isFinite(pkg?.iconIndex) && pkg.iconIndex > 0 ? pkg.iconIndex : 1;
 
   const mainCandidate = featureImgs[(iconIndex - 1) % featureImgs.length];
   const thumbnails = useMemo(
@@ -262,6 +303,28 @@ export default function PackageDetail() {
             </ul>
           </div>
 
+          {/* Thông báo đang có gói hoạt động */}
+          {hasActivePackage && (
+            <div
+              className="alert alert-warning mt-3"
+              role="alert"
+              style={{ fontSize: "0.95rem" }}
+            >
+              <strong>Lưu ý:</strong> Bạn đang có dịch vụ đang hoạt động nên
+              không thể đăng ký thêm dịch vụ mới vào lúc này.
+            </div>
+          )}
+
+          {/* Nếu đang check active package, có thể show nhỏ */}
+          {activeCheckLoading && !hasActivePackage && (
+            <div
+              className="text-muted mt-2"
+              style={{ fontSize: "0.85rem" }}
+            >
+              Đang kiểm tra tình trạng gói tập hiện tại...
+            </div>
+          )}
+
           {/* Buttons */}
           <div
             style={{
@@ -284,27 +347,49 @@ export default function PackageDetail() {
               ← Quay lại
             </button>
 
-            <Link
-              to={`/${safeId}/cart/${pkg.id}`}
-              className="btn btn-lg"
-              style={{
-                backgroundColor: "#C80036",
-                color: "#fff",
-                fontWeight: 700,
-                padding: "0.6rem 1.4rem",
-                border: "none",
-                borderRadius: "8px",
-                transition: "all 0.2s ease",
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.filter = "brightness(1.1)")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.filter = "brightness(1)")
-              }
-            >
-              <span>Đăng ký ngay</span>
-            </Link>
+            {/* Chỉ cho đăng ký khi không có gói active */}
+            {!hasActivePackage && (
+              <Link
+                to={`/${safeId}/cart/${pkg.id}`}
+                className="btn btn-lg"
+                style={{
+                  backgroundColor: "#C80036",
+                  color: "#fff",
+                  fontWeight: 700,
+                  padding: "0.6rem 1.4rem",
+                  border: "none",
+                  borderRadius: "8px",
+                  transition: "all 0.2s ease",
+                  pointerEvents: activeCheckLoading ? "none" : "auto",
+                  opacity: activeCheckLoading ? 0.7 : 1,
+                }}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.filter = "brightness(1.1)")
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.filter = "brightness(1)")
+                }
+              >
+                <span>Đăng ký ngay</span>
+              </Link>
+            )}
+
+            {/* Nếu muốn vẫn show nút nhưng disable hẳn khi đã có gói active */}
+            {hasActivePackage && (
+              <button
+                className="btn btn-lg btn-secondary"
+                style={{
+                  borderRadius: "8px",
+                  fontWeight: 700,
+                  padding: "0.6rem 1.4rem",
+                  cursor: "not-allowed",
+                  opacity: 0.8,
+                }}
+                disabled
+              >
+                Không thể đăng ký thêm
+              </button>
+            )}
           </div>
         </div>
       </div>

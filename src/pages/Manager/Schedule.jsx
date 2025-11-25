@@ -1,24 +1,69 @@
 import React, { useEffect, useRef, useState } from "react";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 
+/** ===== MOCK DIRECTORY: Staff & Trainers ===== */
+const staffPool = [
+  { id: "s1", name: "Staff A", role: "Lễ tân", phone: "0901 111 111", email: "staffA@gym.com", status: "present" },
+  { id: "s2", name: "Staff B", role: "Thu ngân", phone: "0902 222 222", email: "staffB@gym.com", status: "not yet" },
+  { id: "s3", name: "Staff C", role: "Hỗ trợ sàn", phone: "0903 333 333", email: "staffC@gym.com", status: "absent" },
+  { id: "s4", name: "Staff D", role: "Lễ tân", phone: "0904 444 444", email: "staffD@gym.com", status: "present" },
+];
+
+const trainerPool = [
+  { id: "t1", name: "Trainer 1", role: "PT Yoga", phone: "0911 111 111", email: "t1@gym.com", status: "present" },
+  { id: "t2", name: "Trainer 2", role: "PT Gym", phone: "0912 222 222", email: "t2@gym.com", status: "not yet" },
+  { id: "t3", name: "Trainer 3", role: "PT Cardio", phone: "0913 333 333", email: "t3@gym.com", status: "present" },
+  { id: "t4", name: "Trainer 4", role: "PT Boxing", phone: "0914 444 444", email: "t4@gym.com", status: "absent" },
+];
+
+/** ===== MOCK LỊCH TRỰC: mỗi ngày 2 ca ===== */
 const mockData = [
-  { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
-  { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
-  { date: "2025-11-20", time: "08:00-09:00", title: "Training session", status: "not yet" },
-  { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
-  { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
-  { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
+  {
+    date: "2025-11-05",
+    title: "Lịch trực",
+    status: "not yet",
+    shifts: [
+      {
+        name: "Ca sáng",
+        time: "05:00-13:00",
+        staff: [
+          { personId: "s1", status: "present" },
+          { personId: "s2", status: "not yet" },
+        ],
+        trainers: [{ personId: "t1", status: "present" }],
+      },
+      {
+        name: "Ca chiều",
+        time: "13:00-21:00",
+        staff: [{ personId: "s3", status: "present" }],
+        trainers: [
+          { personId: "t2", status: "not yet" },
+          { personId: "t3", status: "present" },
+        ],
+      },
+    ],
+  },
+  {
+    date: "2025-11-12",
+    title: "Lịch trực",
+    status: "not yet",
+    shifts: [
+      {
+        name: "Ca sáng",
+        time: "05:00-13:00",
+        staff: [{ personId: "s4", status: "present" }],
+        trainers: [{ personId: "t4", status: "present" }],
+      },
+      {
+        name: "Ca chiều",
+        time: "13:00-21:00",
+        staff: [{ personId: "s2", status: "present" }],
+        trainers: [{ personId: "t1", status: "not yet" }],
+      },
+    ],
+  },
 ];
 
-/** 👉 Thay mảng này bằng mockdata trainer ở trang home của bạn */
-const trainersMock = [
-  { id: "t1", name: "Anna Nguyen" },
-  { id: "t2", name: "Duc Tran" },
-  { id: "t3", name: "Hoang Le" },
-  { id: "t4", name: "Mika Pham" },
-];
-
+/** ===== Helpers thời gian & format ===== */
 function parseTimeRange(timeStr) {
   if (!timeStr) return [0, 0, 0, 0];
   const [start, end] = timeStr.split("-");
@@ -26,29 +71,70 @@ function parseTimeRange(timeStr) {
   const [eh, em] = end ? end.split(":").map((v) => +v) : [sh, sm];
   return [sh, sm, eh, em];
 }
-function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
 function normalizeMockData(arr) {
   const today = startOfDay(new Date());
   const seen = new Set();
   const out = [];
+
   for (const it of arr) {
     const d = new Date(it.date);
-    const k = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
-    if (seen.has(k)) continue; // mỗi ngày 1 event theo thiết kế gốc (cho display)
+    const k = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    if (seen.has(k)) continue;
     seen.add(k);
-    const [sh, sm, eh, em] = parseTimeRange(it.time);
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm, 0, 0);
-    const end = eh || em ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em, 0, 0) : null;
+
+    let start, end;
+    if (Array.isArray(it.shifts) && it.shifts.length > 0) {
+      let minH = 23,
+        minM = 59,
+        maxH = 0,
+        maxM = 0;
+      for (const shift of it.shifts) {
+        if (!shift.time) continue;
+        const [sh, sm, eh, em] = parseTimeRange(shift.time);
+        if (sh < minH || (sh === minH && sm < minM)) {
+          minH = sh;
+          minM = sm;
+        }
+        if (eh > maxH || (eh === maxH && em < maxM)) {
+          maxH = eh;
+          maxM = em;
+        }
+      }
+      if (minH === 23 && maxH === 0) {
+        start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        end = null;
+      } else {
+        start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), minH, minM, 0, 0);
+        end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), maxH, maxM, 0, 0);
+      }
+    } else {
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      end = null;
+    }
+
     const dateOnly = startOfDay(d);
-    const status = dateOnly.getTime() > today.getTime() ? "not yet" : (it.status || "present");
+    const status =
+      dateOnly.getTime() > today.getTime() ? "not yet" : it.status || "present";
+
     out.push({
-      title: it.title,
-      start, end, allDay:false, status,
-      text: `<div><strong>${it.title}</strong><br/>${it.time||""}<br/><em>Status: ${status}</em></div>`
+      title: it.title || "Lịch trực",
+      start,
+      end,
+      allDay: false,
+      status,
+      shifts: it.shifts || [],
+      rawDate: it.date,
+      text: `<div><strong>${it.title || "Lịch trực"}</strong><br/><em>Status: ${status}</em></div>`,
     });
   }
-  out.sort((a,b)=>+a.start-+b.start);
+
+  out.sort((a, b) => +a.start - +b.start);
   return out;
 }
 
@@ -64,146 +150,97 @@ function loadScript(src) {
   });
 }
 
-/** Tạo danh sách slot mỗi tiếng từ 05:00 đến 21:00 (16 slot) */
-function buildTimeSlots() {
-  const slots = [];
-  for (let h = 5; h < 21; h++) {
-    const start = `${String(h).padStart(2,"0")}:00`;
-    const end = `${String(h+1).padStart(2,"0")}:00`;
-    slots.push({ id: `${start}-${end}`, label: `${start} - ${end}`, start, end });
-  }
-  return slots;
-}
-
-/** Helpers cho ngày dd/MM/yyyy */
-function formatTodayVN() {
-  const d = new Date();
-  return toDDMMYYYY(d);
-}
-function toDDMMYYYY(date) {
-  if (!date) return "";
-  const dd = String(date.getDate()).padStart(2,"0");
-  const mm = String(date.getMonth()+1).padStart(2,"0");
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-function toDateFromDDMMYYYY(vn) {
-  if (!vn) return null;
-  const m = vn.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const dd = parseInt(m[1],10), mm = parseInt(m[2],10), yyyy = parseInt(m[3],10);
-  const iso = `${yyyy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  if (d.getFullYear() !== yyyy || (d.getMonth()+1) !== mm || d.getDate() !== dd) return null;
-  return d;
-}
-/** dd/mm/yyyy -> yyyy-mm-dd (cho normalize) */
-function parseVNDateToISO(vn) {
-  const d = toDateFromDDMMYYYY(vn);
-  if (!d) return null;
-  return dateObjToISO(d);
-}
-
 /** Date -> yyyy-mm-dd */
 function dateObjToISO(d) {
   const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/** format HH:MM từ Date */
-function hhmm(d) {
-  if (!d) return "";
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+/** dd/mm/yyyy cho UI */
+function toDDMMYYYY(date) {
+  if (!date) return "";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
-export default function Schedule() {
+/** Helpers person */
+function getStaffById(id) {
+  return staffPool.find((s) => s.id === id) || null;
+}
+function getTrainerById(id) {
+  return trainerPool.find((t) => t.id === id) || null;
+}
+function getPersonInitials(name = "") {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+function statusBadgeClass(status) {
+  const st = (status || "").toLowerCase();
+  if (st === "present") return "badge bg-success";
+  if (st === "absent") return "badge bg-danger";
+  if (st === "not yet") return "badge bg-secondary";
+  return "badge bg-secondary";
+}
+
+export default function ManageSchedule() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
-
-  const dataRef = useRef([...mockData]);
-  const bookingModalRef = useRef(null);
   const eventModalRef = useRef(null);
+  const personModalRef = useRef(null);
 
-  // Date state cho DatePicker
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [vnDate, setVnDate] = useState(formatTodayVN());
+  const [allSchedule, setAllSchedule] = useState([...mockData]);
+  const dataRef = useRef([...mockData]);
 
-  // Slot state
-  const allSlots = buildTimeSlots();
-  const [disabledSlots, setDisabledSlots] = useState(new Set());
-  const [selectedSlotId, setSelectedSlotId] = useState("");
-
-  // NEW: state event đang xem chi tiết
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedPerson, setSelectedPerson] = useState(null);
 
-  // 1 ngày chỉ 1 slot → helper
-  function dayAlreadyBooked(dateObj) {
-    if (!dateObj) return false;
-    const iso = dateObjToISO(dateObj);
-    return dataRef.current.some(ev => ev.date === iso);
-  }
+  const [editingShiftIndex, setEditingShiftIndex] = useState(null);
+  const [editingStaffIds, setEditingStaffIds] = useState([]);
+  const [editingTrainerIds, setEditingTrainerIds] = useState([]);
 
-  // Tính slot disable theo 24h
-  function computeDisabledSlots(dateObj) {
-    const now = new Date();
-    const disabled = new Set();
-    if (!dateObj) return disabled;
-
-    for (const s of allSlots) {
-      const [h, m] = s.start.split(":").map(Number);
-      const slotDateTime = new Date(dateObj);
-      slotDateTime.setHours(h, m, 0, 0);
-      const diffHours = (slotDateTime - now) / (1000 * 60 * 60);
-      if (diffHours < 24) disabled.add(s.id);
-    }
-    return disabled;
-  }
+  // ngày quá khứ + hôm nay không được sửa
+  const isPastOrToday = (() => {
+    if (!selectedEvent) return false;
+    const d = new Date(selectedEvent.date || selectedEvent.start);
+    const today = new Date();
+    d.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return d.getTime() <= today.getTime();
+  })();
 
   const handleCancelEvent = (event) => {
     if (!event) return;
+    if (!window.confirm(`Bạn có chắc muốn xoá lịch trực ngày này?`)) return;
 
-    if (!window.confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
-      return;
-    }
-
-    // Tính lại date + time giống format trong dataRef.current
     const eventDate = event.start || event.date;
     const isoDate = dateObjToISO(eventDate);
-    const startStr = hhmm(event.start);
-    const endStr = event.end ? hhmm(event.end) : "";
-    const timeStr = endStr ? `${startStr}-${endStr}` : startStr;
 
-    // Xoá event khỏi "cơ sở dữ liệu" tạm dataRef.current
-    dataRef.current = dataRef.current.filter(ev => {
-      if (ev.date !== isoDate) return true;
-      if (ev.time && timeStr && ev.time !== timeStr) return true;
-      if (ev.title !== event.title) return true;
-      return false;
-    });
+    const newSchedule = allSchedule.filter((ev) => ev.date !== isoDate);
+    setAllSchedule(newSchedule);
+    dataRef.current = newSchedule;
 
-    // Render lại calendar với data mới
     if (window.jQuery && holderRef.current) {
       window.jQuery(holderRef.current).calendar({
         data: normalizeMockData(dataRef.current),
       });
     }
 
-    // Reset state schedule (triggers re-calc disabledSlots / dayAlreadyBooked)
-    setSelectedDate(prev => new Date(prev));
-    setSelectedSlotId("");
-    setDisabledSlots(new Set());
-
-    // Đóng modal chi tiết
     setSelectedEvent(null);
     try {
-      const ModalClass = (window.bootstrap && window.bootstrap.Modal);
+      const ModalClass = window.bootstrap && window.bootstrap.Modal;
       if (ModalClass && eventModalRef.current) {
-        const inst = ModalClass.getInstance(eventModalRef.current) || new ModalClass(eventModalRef.current);
+        const inst =
+          ModalClass.getInstance(eventModalRef.current) ||
+          new ModalClass(eventModalRef.current);
         inst.hide();
       }
     } catch (e) {
@@ -211,20 +248,123 @@ export default function Schedule() {
     }
   };
 
-  // cập nhật disable khi đổi ngày
-  useEffect(() => {
-    if (dayAlreadyBooked(selectedDate)) {
-      const all = new Set(allSlots.map(s => s.id));
-      setDisabledSlots(all);
-      setSelectedSlotId("");
+  /** ✅ openPersonModal chỉ set state, modal mở bằng data-bs-toggle */
+  const openPersonModal = (person, type) => {
+    if (!person) return;
+    setSelectedPerson({ ...person, type });
+  };
+
+  const startEditShift = (shift, index) => {
+    setEditingShiftIndex(index);
+    const staffIds = Array.isArray(shift.staff)
+      ? shift.staff.map((s) => s.personId)
+      : [];
+    const trainerIds = Array.isArray(shift.trainers)
+      ? shift.trainers.map((t) => t.personId)
+      : [];
+    setEditingStaffIds(staffIds);
+    setEditingTrainerIds(trainerIds);
+  };
+
+  const cancelEditShift = () => {
+    setEditingShiftIndex(null);
+    setEditingStaffIds([]);
+    setEditingTrainerIds([]);
+  };
+
+  const saveEditShift = () => {
+    if (selectedEvent == null || editingShiftIndex == null) return;
+
+    const isoDate =
+      selectedEvent.rawDate || dateObjToISO(selectedEvent.date || selectedEvent.start);
+
+    const dayIndex = allSchedule.findIndex((d) => d.date === isoDate);
+    const baseShifts =
+      dayIndex >= 0
+        ? allSchedule[dayIndex].shifts || []
+        : selectedEvent.shifts || [];
+
+    // chặn trùng người giữa 2 ca
+    const otherStaffIds = baseShifts
+      .filter((_, idx) => idx !== editingShiftIndex)
+      .flatMap((sh) => (sh.staff || []).map((s) => s.personId));
+    const otherTrainerIds = baseShifts
+      .filter((_, idx) => idx !== editingShiftIndex)
+      .flatMap((sh) => (sh.trainers || []).map((t) => t.personId));
+
+    const duplicatedStaff = editingStaffIds.filter((id) =>
+      otherStaffIds.includes(id)
+    );
+    const duplicatedTrainers = editingTrainerIds.filter((id) =>
+      otherTrainerIds.includes(id)
+    );
+
+    if (duplicatedStaff.length || duplicatedTrainers.length) {
+      alert(
+        "❌ Một số nhân viên/huấn luyện viên đã được phân ca khác trong ngày. Không thể cho trực 2 ca cùng ngày."
+      );
       return;
     }
-    const ds = computeDisabledSlots(selectedDate);
-    setDisabledSlots(ds);
-    const firstValid = allSlots.find(s => !ds.has(s.id));
-    setSelectedSlotId(firstValid ? firstValid.id : "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+
+    // xác định có phải ngày tương lai không
+    const dayDate = new Date(isoDate);
+    const today = new Date();
+    dayDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const isFutureDay = dayDate.getTime() > today.getTime();
+
+    const newShifts = baseShifts.map((sh, idx) => {
+      if (idx !== editingShiftIndex) return sh;
+      return {
+        ...sh,
+        staff: editingStaffIds.map((id) => ({
+          personId: id,
+          status: isFutureDay ? "not yet" : (getStaffById(id)?.status || "present"),
+        })),
+        trainers: editingTrainerIds.map((id) => ({
+          personId: id,
+          status: isFutureDay ? "not yet" : (getTrainerById(id)?.status || "present"),
+        })),
+      };
+    });
+
+    const newSchedule = [...allSchedule];
+    if (dayIndex >= 0) {
+      newSchedule[dayIndex] = {
+        ...newSchedule[dayIndex],
+        shifts: newShifts,
+      };
+    } else {
+      newSchedule.push({
+        date: isoDate,
+        title: selectedEvent.title || "Lịch trực",
+        status: "not yet",
+        shifts: newShifts,
+      });
+    }
+
+    setAllSchedule(newSchedule);
+    dataRef.current = newSchedule;
+
+    setSelectedEvent((prev) =>
+      prev
+        ? {
+            ...prev,
+            shifts: newShifts,
+            rawDate: isoDate,
+            isNew: false,
+          }
+        : prev
+    );
+
+    if (window.jQuery && holderRef.current) {
+      window.jQuery(holderRef.current).calendar({
+        data: normalizeMockData(dataRef.current),
+      });
+    }
+
+    cancelEditShift();
+  };
 
   useEffect(() => {
     (async () => {
@@ -232,7 +372,6 @@ export default function Schedule() {
 
       let BootstrapBundle = null;
       try {
-        // nạp bootstrap bundle nếu chưa có
         BootstrapBundle = await import("bootstrap/dist/js/bootstrap.bundle.min.js");
       } catch (e) {
         console.error("Bootstrap JS not available", e);
@@ -241,7 +380,6 @@ export default function Schedule() {
       const $ = window.jQuery;
       if (!$) return;
 
-      // quicktmpl
       $.extend({
         quicktmpl: function (template) {
           return new Function(
@@ -249,114 +387,180 @@ export default function Schedule() {
             "var p=[],print=function(){p.push.apply(p,arguments);};with(obj){p.push('" +
               template
                 .replace(/[\r\t\n]/g, " ")
-                .split('{{').join('\t')
+                .split("{{")
+                .join("\t")
                 .replace(/((^|\}\})[^\t]*)'/g, "$1\r")
                 .replace(/\t:(.*?)\}\}/g, "',$1,'")
-                .split('}}').join("p.push('")
-                .split('\t').join("');")
-                .split('\r').join("\\'") +
+                .split("}}")
+                .join("p.push('")
+                .split("\t")
+                .join("');")
+                .split("\r")
+                .join("\\'") +
               "');}return p.join('');"
           );
         },
       });
 
-      // Date helpers
       $.extend(Date.prototype, {
-        toDateCssClass: function () { return "_" + this.getFullYear() + "_" + (this.getMonth()+1) + "_" + this.getDate(); },
-        toDateInt: function () { return (this.getFullYear()*12 + this.getMonth())*32 + this.getDate(); },
+        toDateCssClass: function () {
+          return (
+            "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate()
+          );
+        },
+        toDateInt: function () {
+          return (this.getFullYear() * 12 + this.getMonth()) * 32 + this.getDate();
+        },
         toTimeString: function () {
-          const h=this.getHours(), m=this.getMinutes();
-          const hh = h>12? h-12 : h; const ampm = h>=12? " CH":" SA";
-          if (h===0 && m===0) return "";
-          return m>0? `${hh}:${String(m).padStart(2,"0")}${ampm}` : `${hh}${ampm}`;
+          const h = this.getHours(),
+            m = this.getMinutes();
+          const hh = h > 12 ? h - 12 : h;
+          const ampm = h >= 12 ? " CH" : " SA";
+          if (h === 0 && m === 0) return "";
+          return m > 0
+            ? `${hh}:${String(m).padStart(2, "0")}${ampm}`
+            : `${hh}${ampm}`;
         },
       });
 
       const tmplEl = tmplRef.current;
       const t = $.quicktmpl(tmplEl ? tmplEl.innerHTML : "");
 
-      // Popover helpers (BS5) — đã tránh optional chaining sau new
       let currentPopover = null;
-      const POPOVER_OPTS = { html:true, container:"body", placement:"auto", trigger:"manual", sanitize:false };
+      const POPOVER_OPTS = {
+        html: true,
+        container: "body",
+        placement: "auto",
+        trigger: "manual",
+        sanitize: false,
+      };
       function getOrCreatePopover(elem, opts) {
-        const PopCtor = (window.bootstrap && window.bootstrap.Popover)
-          ? window.bootstrap.Popover
-          : (BootstrapBundle && BootstrapBundle.Popover);
+        const PopCtor =
+          (window.bootstrap && window.bootstrap.Popover) ||
+          (BootstrapBundle && BootstrapBundle.Popover);
         if (!PopCtor) return null;
         let instance = PopCtor.getInstance ? PopCtor.getInstance(elem) : null;
         if (!instance) instance = new PopCtor(elem, { ...POPOVER_OPTS, ...opts });
         return instance;
       }
       function hideCurrent() {
-        if (currentPopover) { try { currentPopover.hide(); } catch {} currentPopover = null; }
+        if (currentPopover) {
+          try {
+            currentPopover.hide();
+          } catch {}
+          currentPopover = null;
+        }
       }
       $(document).on("click", (e) => {
-        if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event-chip").length) hideCurrent();
+        if (
+          !$(e.target).closest(
+            ".popover, .js-cal-years, .js-cal-months, .event-chip"
+          ).length
+        )
+          hideCurrent();
       });
 
       function calendar($el, options) {
         $el
           .on("click", ".js-cal-prev", function () {
-            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() - 1);
-            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() - 1);
-            else if (options.mode === "week") options.date.setDate(options.date.getDate() - 7);
+            if (options.mode === "year")
+              options.date.setFullYear(options.date.getFullYear() - 1);
+            else if (options.mode === "month")
+              options.date.setMonth(options.date.getMonth() - 1);
+            else if (options.mode === "week")
+              options.date.setDate(options.date.getDate() - 7);
             else options.date.setDate(options.date.getDate() - 1);
-            hideCurrent(); draw();
+            hideCurrent();
+            draw();
           })
           .on("click", ".js-cal-next", function () {
-            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() + 1);
-            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() + 1);
-            else if (options.mode === "week") options.date.setDate(options.date.getDate() + 7);
+            if (options.mode === "year")
+              options.date.setFullYear(options.date.getFullYear() + 1);
+            else if (options.mode === "month")
+              options.date.setMonth(options.date.getMonth() + 1);
+            else if (options.mode === "week")
+              options.date.setDate(options.date.getDate() + 7);
             else options.date.setDate(options.date.getDate() + 1);
-            hideCurrent(); draw();
+            hideCurrent();
+            draw();
           })
           .on("click", ".js-cal-months", function (e) {
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
             const btn = this;
             let s = '<div class="list-group">';
             for (let m = 0; m < 12; m++) {
               const label = `${options.months[m]}`;
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(options.date.getFullYear(), m, 1).toISOString()}"
+                         data-date="${new Date(
+                           options.date.getFullYear(),
+                           m,
+                           1
+                         ).toISOString()}"
                          data-mode="month">${label}</button>`;
             }
             s += "</div>";
             const pop = getOrCreatePopover(btn, { content: s });
             if (!pop) return false;
-            if (currentPopover && currentPopover === pop) { pop.hide(); currentPopover=null; return false; }
-            hideCurrent(); pop.show(); currentPopover = pop; return false;
+            if (currentPopover && currentPopover === pop) {
+              pop.hide();
+              currentPopover = null;
+              return false;
+            }
+            hideCurrent();
+            pop.show();
+            currentPopover = pop;
+            return false;
           })
           .on("click", ".js-cal-years", function (e) {
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault();
+            e.stopPropagation();
             const btn = this;
             const base = options.date.getFullYear();
-            const start = base - 6, end = base + 6;
+            const start = base - 6,
+              end = base + 6;
             let s = '<div class="list-group">';
             for (let y = start; y <= end; y++) {
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(y, options.date.getMonth(), 1).toISOString()}"
+                         data-date="${new Date(
+                           y,
+                           options.date.getMonth(),
+                           1
+                         ).toISOString()}"
                          data-mode="month">${y}</button>`;
             }
             s += "</div>";
             const pop = getOrCreatePopover(btn, { content: s });
             if (!pop) return false;
-            if (currentPopover && currentPopover === pop) { pop.hide(); currentPopover=null; return false; }
-            hideCurrent(); pop.show(); currentPopover = pop; return false;
+            if (currentPopover && currentPopover === pop) {
+              pop.hide();
+              currentPopover = null;
+              return false;
+            }
+            hideCurrent();
+            pop.show();
+            currentPopover = pop;
+            return false;
           });
 
-        $(document).off("click.calOpt").on("click.calOpt", ".js-cal-option", function () {
-          const $t = $(this);
-          const o = $t.data();
-          if (o.date) o.date = new Date(o.date);
-          $.extend(options, o);
-          hideCurrent();
-          $(".popover").remove();
-          draw();
-        });
+        // js-cal-option cho month/year (không đụng ô ngày)
+        $(document)
+          .off("click.calOpt")
+          .on("click.calOpt", ".js-cal-option", function () {
+            const $t = $(this);
+            if ($t.hasClass("calendar-day")) return;
+            const o = $t.data();
+            if (o.date) o.date = new Date(o.date);
+            $.extend(options, o);
+            hideCurrent();
+            $(".popover").remove();
+            draw();
+          });
 
-        // ✅ CLICK CHIP EVENT → mở modal detail
+        // CLICK CHIP EVENT → mở modal detail
         $el.on("click", ".event-chip", function (e) {
-          e.preventDefault(); e.stopPropagation();
+          e.preventDefault();
+          e.stopPropagation();
           const index = +this.getAttribute("data-index");
           if (!isNaN(index) && options.data[index]) {
             options.onOpenEvent && options.onOpenEvent(options.data[index]);
@@ -364,34 +568,128 @@ export default function Schedule() {
           return false;
         });
 
+        // CLICK NGÀY
+        $el.on("click", ".calendar-day", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const dateStr = this.getAttribute("data-date");
+          if (!dateStr) return;
+          const clickedDate = new Date(dateStr);
+          const dayIso = dateObjToISO(clickedDate);
+
+          const existingEvent = (options.data || []).find((ev) => {
+            const evDateIso = dateObjToISO(ev.start || ev.date);
+            return evDateIso === dayIso;
+          });
+
+          if (existingEvent) {
+            options.onOpenEvent && options.onOpenEvent(existingEvent);
+            return false;
+          }
+
+          // chặn ngày quá khứ + hôm nay
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const clickedNorm = new Date(clickedDate);
+          clickedNorm.setHours(0, 0, 0, 0);
+          if (clickedNorm.getTime() <= today.getTime()) {
+            alert("Không thể thêm lịch cho ngày đã qua hoặc hôm nay.");
+            return false;
+          }
+
+          const newEvent = {
+            title: "Lịch trực",
+            start: clickedDate,
+            end: null,
+            status: "not yet",
+            shifts: [
+              { name: "Ca sáng", time: "05:00-13:00", staff: [], trainers: [] },
+              { name: "Ca chiều", time: "13:00-21:00", staff: [], trainers: [] },
+            ],
+            rawDate: dayIso,
+            isNew: true,
+          };
+          options.onOpenEvent && options.onOpenEvent(newEvent);
+          return false;
+        });
+
         function monthAddEvent(index, event) {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
           if (!dayCell.length || dayCell.hasClass("has-event")) return;
-          const time = event.start.toTimeString();
-          const status = (event.status || "").toLowerCase();
+
+          let staffIds = [];
+          let trainerIds = [];
+          (event.shifts || []).forEach((shift) => {
+            if (Array.isArray(shift.staff)) {
+              staffIds.push(...shift.staff.map((s) => s.personId));
+            }
+            if (Array.isArray(shift.trainers)) {
+              trainerIds.push(...shift.trainers.map((t) => t.personId));
+            }
+          });
+          staffIds = [...new Set(staffIds)];
+          trainerIds = [...new Set(trainerIds)];
+          const totalStaff = staffIds.length;
+          const totalTrainer = trainerIds.length;
+
           const $chip = $(`
-            <div class="event-chip status-${status.replace(/\s+/g,'-')}" data-index="${index}" title="${event.title}">
+            <div class="event-chip" data-index="${index}" title="${event.title}">
+              <div class="event-chip-avatars"></div>
               <div class="event-chip-title">${event.title}</div>
-              <div class="event-chip-time">${time}${event.end ? " - " + event.end.toTimeString() : ""}</div>
-              <div class="event-chip-badge">${status}</div>
+              <div class="event-chip-time">
+                ${totalStaff} Staff • ${totalTrainer} Trainer
+              </div>
             </div>
           `);
+
+          const $avatarWrap = $chip.find(".event-chip-avatars");
+          const combined = [
+            ...staffIds.map((id) => ({ type: "staff", id })),
+            ...trainerIds.map((id) => ({ type: "trainer", id })),
+          ];
+          const maxShow = 4;
+          combined.slice(0, maxShow).forEach((p) => {
+            const person =
+              p.type === "staff" ? getStaffById(p.id) : getTrainerById(p.id);
+            const initials = getPersonInitials(person?.name || "?");
+            const cls =
+              p.type === "staff"
+                ? "avatar-circle staff-avatar"
+                : "avatar-circle trainer-avatar";
+            $avatarWrap.append(`<div class="${cls}">${initials}</div>`);
+          });
+          if (combined.length > maxShow) {
+            const more = combined.length - maxShow;
+            $avatarWrap.append(
+              `<div class="avatar-circle more-avatar">+${more}</div>`
+            );
+          }
+
           dayCell.addClass("has-event").append($chip);
         }
 
         function yearAddEvents(events, year) {
           const counts = new Array(12).fill(0);
-          $.each(events, (i, v) => { if (v.start.getFullYear() === year) counts[v.start.getMonth()]++; });
-          $.each(counts, (i, v) => { if (v !== 0) $(".month-" + i).append('<span class="badge bg-info ms-2">'+v+"</span>"); });
+          $.each(events, (i, v) => {
+            if (v.start.getFullYear() === year) counts[v.start.getMonth()]++;
+          });
+          $.each(counts, (i, v) => {
+            if (v !== 0)
+              $(".month-" + i).append(
+                '<span class="badge bg-info ms-2">' + v + "</span>"
+              );
+          });
         }
 
         function draw() {
           $el.html(t(options));
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
-            if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
+            if (options.mode === "year")
+              yearAddEvents(options.data, options.date.getFullYear());
+            else if (options.mode === "month" || options.mode === "week")
+              $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -399,26 +697,64 @@ export default function Schedule() {
 
       (function (defaults, $, window, document) {
         $.extend({
-          calendar: function (options) { return $.extend(defaults, options); },
+          calendar: function (options) {
+            return $.extend(defaults, options);
+          },
         }).fn.extend({
           calendar: function (options) {
             options = $.extend({}, defaults, options);
-            return $(this).each(function () { calendar($(this), options); });
+            return $(this).each(function () {
+              calendar($(this), options);
+            });
           },
         });
       })(
         {
-          days: ["Thứ hai","Thứ ba","Thứ tư","Thứ năm","Thứ sáu","Thứ bảy","Chủ nhật"],
-          months: ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6","Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"],
-          shortMonths: ["Th1","Th2","Th3","Th4","Th5","Th6","Th7","Th8","Th9","Th10","Th11","Th12"],
+          days: [
+            "Thứ hai",
+            "Thứ ba",
+            "Thứ tư",
+            "Thứ năm",
+            "Thứ sáu",
+            "Thứ bảy",
+            "Chủ nhật",
+          ],
+          months: [
+            "Tháng 1",
+            "Tháng 2",
+            "Tháng 3",
+            "Tháng 4",
+            "Tháng 5",
+            "Tháng 6",
+            "Tháng 7",
+            "Tháng 8",
+            "Tháng 9",
+            "Tháng 10",
+            "Tháng 11",
+            "Tháng 12",
+          ],
+          shortMonths: [
+            "Th1",
+            "Th2",
+            "Th3",
+            "Th4",
+            "Th5",
+            "Th6",
+            "Th7",
+            "Th8",
+            "Th9",
+            "Th10",
+            "Th11",
+            "Th12",
+          ],
           date: new Date(),
-          daycss: ["","","","","","c-saturday","c-sunday"],
+          daycss: ["", "", "", "", "", "c-saturday", "c-sunday"],
           thismonthcss: "current",
           lastmonthcss: "prev-month",
           nextmonthcss: "next-month",
           mode: "month",
           data: [],
-          onOpenEvent: null, // callback mở modal
+          onOpenEvent: null,
         },
         window.jQuery,
         window,
@@ -429,18 +765,28 @@ export default function Schedule() {
       window.jQuery(holderRef.current).calendar({
         data: normalized,
         onOpenEvent: (ev) => {
+          setEditingShiftIndex(null);
+          setEditingStaffIds([]);
+          setEditingTrainerIds([]);
+
           setSelectedEvent({
             title: ev.title,
             date: ev.start,
             start: ev.start,
             end: ev.end,
             status: ev.status || "present",
+            shifts: ev.shifts || [],
+            rawDate: ev.rawDate,
+            isNew: ev.isNew || false,
           });
-          // mở modal chi tiết
           try {
-            const ModalClass = (window.bootstrap && window.bootstrap.Modal) || (BootstrapBundle && BootstrapBundle.Modal);
+            const ModalClass =
+              (window.bootstrap && window.bootstrap.Modal) ||
+              (BootstrapBundle && BootstrapBundle.Modal);
             if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
+              const inst = ModalClass.getOrCreateInstance(
+                document.getElementById("eventDetailModal")
+              );
               inst.show();
             }
           } catch (e) {
@@ -469,19 +815,6 @@ export default function Schedule() {
 .btn-link.no-underline{ text-decoration:none !important; }
 .btn-link.bold{ font-weight:700 !important; }
 
-/* ===== BOOKING BUTTON ===== */
-.btn-booking{
-  background:#c80036;
-  border-color:#c80036;
-  font-weight:700;
-}
-.btn-booking:hover,
-.btn-booking:focus{
-  filter:brightness(0.92);
-  background:#b10030;
-  border-color:#b10030;
-}
-
 /* ===== CALENDAR TABLE ===== */
 .calendar-table{ width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; }
 .calendar-table th, .calendar-table td{ vertical-align:top; }
@@ -489,7 +822,7 @@ export default function Schedule() {
 
 /* ===== DAY CELL ===== */
 .calendar-day{
-  position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
+  position:relative; padding:8px; min-height:120px; background:#fff; border:1px solid #e5e7eb;
   overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
 }
 .calendar-day .date{ font-weight:600; margin-bottom:6px; }
@@ -509,24 +842,21 @@ export default function Schedule() {
 /* ===== EVENT CHIP ===== */
 .event-chip{
   margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
-  cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
+  cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:3px; max-width:100%;
 }
+.event-chip-avatars{
+  display:flex; gap:4px; flex-wrap:wrap; margin-bottom:2px;
+}
+.avatar-circle{
+  width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:600; color:#fff;
+}
+.staff-avatar{ background:#1f3bb6; }
+.trainer-avatar{ background:#16a34a; }
+.more-avatar{ background:#6b7280; }
+
 .event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-badge{
-  display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.3px;
-}
-
-/* ===== STATUS COLORS ===== */
-.event-chip.status-present{ background:#e6ffed; border-color:#9ae6b4; }
-.event-chip.status-present .event-chip-badge{ background:#34d399; color:#053321; }
-
-.event-chip.status-absent{ background:#ffe6e6; border-color:#ffb3b3; }
-.event-chip.status-absent .event-chip-badge{ background:#f87171; color:#4a0a0a; }
-
-.event-chip.status-not\\ yet, .event-chip.status-not-yet{ background:#f1f5f9; border-color:#cbd5e1; }
-.event-chip.status-not\\ yet .event-chip-badge, .event-chip.status-not-yet .event-chip-badge{ background:#94a3b8; color:#0f172a; }
 
 /* ===== YEAR VIEW ===== */
 .calendar-table td.calendar-month{
@@ -542,231 +872,281 @@ export default function Schedule() {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 576px){
-  .calendar-day{ min-height:90px; padding:6px; }
+  .calendar-day{ min-height:100px; padding:6px; }
   .event-chip{ font-size:11px; }
   .event-chip-time{ font-size:10px; }
   .nav-arrow{ font-size:20px; padding:2px 8px; }
 }
       `}</style>
 
-      {/* TIÊU ĐỀ + NÚT BOOKING */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Lịch</h1>
-        <button
-          type="button"
-          className="btn btn-booking"
-          data-bs-toggle="modal"
-          data-bs-target="#bookingModal"
-          aria-label="Booking"
-        >
-          Booking
-        </button>
+      {/* TIÊU ĐỀ CĂN GIỮA */}
+      <div className="mb-3 text-center">
+        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
+          Quản lý lịch trực
+        </h1>
       </div>
 
-      {/* MODAL: CHỌN TRAINER + TIMESLOT + DATE (react-datepicker dd/MM/yyyy) */}
-      <div className="modal fade" id="bookingModal" tabIndex="-1" aria-hidden="true" ref={bookingModalRef}>
-        <div className="modal-dialog">
-          <form
-            className="modal-content"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const vnDateFromForm = (fd.get("date_vn") || "").toString().trim();
-              const isoDate = parseVNDateToISO(vnDateFromForm);
-              if (!isoDate) {
-                alert("❌ Ngày không hợp lệ. Vui lòng chọn theo định dạng dd/mm/yyyy.");
-                return;
-              }
-
-              // 1 ngày chỉ 1 slot
-              if (dataRef.current.some(ev => ev.date === isoDate)) {
-                alert("❌ Mỗi ngày chỉ được đặt 1 slot. Vui lòng chọn ngày khác.");
-                return;
-              }
-
-              const trainerId = fd.get("trainer");
-              const trainerName = trainersMock.find(t => t.id === trainerId)?.name || "Trainer";
-              const slot = selectedSlotId;
-              if (!slot || disabledSlots.has(slot)) return;
-              const [start, end] = slot.split("-");
-
-              // phải trước 24h
-              const [sh, sm] = start.split(":").map(Number);
-              const bookingDateTime = new Date(`${isoDate}T${String(sh).padStart(2,"0")}:${String(sm).padStart(2,"0")}:00`);
-              const now = new Date();
-              const diffHours = (bookingDateTime - now) / (1000 * 60 * 60);
-              if (diffHours < 24) {
-                alert("❌ Vui lòng đặt lịch trước ít nhất 24 giờ.");
-                return;
-              }
-
-              // double check trùng trainer + slot
-              const conflict = dataRef.current.find(
-                ev => ev.date === isoDate && ev.time === `${start}-${end}` && ev.title.includes(trainerName)
-              );
-              if (conflict) {
-                alert("❌ Trainer hiện đang có lịch, vui lòng chọn Trainer khác.");
-                return;
-              }
-
-              // thêm mới
-              dataRef.current.push({
-                date: isoDate,
-                time: `${start}-${end}`,
-                title: `Training với ${trainerName}`,
-              });
-
-              window.jQuery(holderRef.current).calendar({
-                data: normalizeMockData(dataRef.current),
-              });
-
-              // đóng modal + reset
-              try {
-                const ModalClass = (window.bootstrap && window.bootstrap.Modal);
-                if (ModalClass) {
-                  const inst = ModalClass.getInstance(bookingModalRef.current) || new ModalClass(bookingModalRef.current);
-                  inst.hide();
-                }
-              } catch (_) {
-                bookingModalRef.current?.querySelector('.btn-close')?.click();
-              }
-              e.currentTarget.reset();
-              setSelectedDate(new Date());
-              setVnDate(formatTodayVN());
-              setSelectedSlotId("");
-              setDisabledSlots(new Set());
-            }}
-          >
-            <div className="modal-header">
-              <h5 className="modal-title">Chọn Trainer</h5>
-              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
-            </div>
-
-            <div className="modal-body">
-              {/* Trainer select */}
-              <div className="mb-3">
-                <label className="form-label">Trainer</label>
-                <select name="trainer" className="form-select" required defaultValue={trainersMock[0]?.id || ""}>
-                  {trainersMock.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Date dd/mm/yyyy */}
-              <div className="mb-3">
-                <label className="form-label d-block">Ngày (dd/mm/yyyy)</label>
-                <div style={{ position: "relative", width: "100%" }}>
-                  <DatePicker
-                    id="booking-date-picker"
-                    selected={selectedDate}
-                    onChange={(date) => {
-                      setSelectedDate(date);
-                      setVnDate(date ? toDDMMYYYY(date) : "");
-                    }}
-                    dateFormat="dd/MM/yyyy"
-                    placeholderText="dd/mm/yyyy"
-                    showMonthDropdown
-                    showYearDropdown
-                    dropdownMode="select"
-                    isClearable={false}
-                    minDate={new Date()}       // 🔒 chặn ngày quá khứ
-                    className="form-control"
-                    wrapperClassName="w-100"
-                  />
-                  <input type="hidden" name="date_vn" value={vnDate || ""} />
-                </div>
-                {dayAlreadyBooked(selectedDate) && (
-                  <div className="form-text text-danger mt-2">
-                    Ngày này đã có lịch. Mỗi ngày chỉ được 1 slot — vui lòng chọn ngày khác.
-                  </div>
-                )}
-              </div>
-
-              {/* Timeslot select */}
-              <div className="mb-3">
-                <label className="form-label">Timeslot (mỗi tiếng một slot)</label>
-                <select
-                  name="slot"
-                  className="form-select"
-                  required
-                  value={selectedSlotId}
-                  onChange={(e) => setSelectedSlotId(e.target.value)}
-                  disabled={dayAlreadyBooked(selectedDate)}
-                >
-                  {allSlots.map(s => (
-                    <option key={s.id} value={s.id} disabled={disabledSlots.has(s.id)}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-                {(dayAlreadyBooked(selectedDate) || allSlots.every(s => disabledSlots.has(s.id))) && (
-                  <div className="form-text text-danger mt-1">
-                    {dayAlreadyBooked(selectedDate)
-                      ? "Ngày này đã có lịch."
-                      : "Không còn khung giờ khả dụng."}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button type="button" className="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={
-                  !selectedSlotId ||
-                  disabledSlots.has(selectedSlotId) ||
-                  dayAlreadyBooked(selectedDate)
-                }
-              >
-                Lưu
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* ==== MODAL CHI TIẾT EVENT (mở khi click chip event) ==== */}
-      <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
-        <div className="modal-dialog">
+      {/* MODAL CHI TIẾT LỊCH */}
+      <div
+        className="modal fade"
+        id="eventDetailModal"
+        tabIndex="-1"
+        aria-hidden="true"
+        ref={eventModalRef}
+      >
+        <div className="modal-dialog modal-lg">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">{selectedEvent?.title || "Chi tiết sự kiện"}</h5>
+              <h5 className="modal-title">
+                {selectedEvent?.title || "Chi tiết lịch trực"}
+              </h5>
               <button
                 type="button"
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => {
+                  setSelectedEvent(null);
+                  cancelEditShift();
+                }}
               />
             </div>
             <div className="modal-body">
               {selectedEvent ? (
                 <>
-                  <div className="mb-2 text-muted">Ngày: <strong>{toDDMMYYYY(selectedEvent.date)}</strong></div>
-                  <div className="mb-2">
-                    Thời gian:{" "}
-                    <strong>
-                      {hhmm(selectedEvent.start)}
-                      {selectedEvent.end ? ` - ${hhmm(selectedEvent.end)}` : ""}
-                    </strong>
+                  <div className="mb-3 text-muted">
+                    Ngày:{" "}
+                    <strong>{toDDMMYYYY(selectedEvent.date || selectedEvent.start)}</strong>
                   </div>
-                  <div className="mb-2">
-                    Trạng thái:{" "}
-                    <span
-                      className={
-                        (selectedEvent.status || "").toLowerCase() === "present"
-                          ? "badge bg-success"
-                          : (selectedEvent.status || "").toLowerCase() === "absent"
-                          ? "badge bg-danger"
-                          : "badge bg-secondary"
-                      }
-                    >
-                      {selectedEvent.status}
-                    </span>
-                  </div>
+
+                  {(selectedEvent.shifts || []).map((shift, idx) => {
+                    const isEditing = editingShiftIndex === idx;
+
+                    const allShiftsForDay = selectedEvent.shifts || [];
+                    const otherStaffIds = allShiftsForDay
+                      .filter((_, i) => i !== idx)
+                      .flatMap((sh) => (sh.staff || []).map((s) => s.personId));
+                    const otherTrainerIds = allShiftsForDay
+                      .filter((_, i) => i !== idx)
+                      .flatMap((sh) => (sh.trainers || []).map((t) => t.personId));
+
+                    return (
+                      <div
+                        key={idx}
+                        className="border rounded-3 p-3 mb-3"
+                        style={{ background: "#fafafa" }}
+                      >
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <h6 className="mb-0">
+                            Ca {idx + 1}: {shift.name || ""}
+                          </h6>
+
+                          {!isEditing && !isPastOrToday ? (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => startEditShift(shift, idx)}
+                            >
+                              Chỉnh sửa ca này
+                            </button>
+                          ) : isEditing && !isPastOrToday ? (
+                            <div className="d-flex gap-2">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-secondary"
+                                onClick={cancelEditShift}
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-success"
+                                onClick={saveEditShift}
+                              >
+                                Lưu ca này
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {shift.time && !isEditing && (
+                          <div className="mb-2">
+                            Giờ: <strong>{shift.time}</strong>
+                          </div>
+                        )}
+
+                        {/* VIEW MODE */}
+                        {!isEditing && (
+                          <>
+                            {/* Staff list */}
+                            <div className="mb-2">
+                              <div className="fw-semibold mb-1">Staff trực:</div>
+                              {Array.isArray(shift.staff) && shift.staff.length > 0 ? (
+                                <div className="d-flex flex-wrap gap-2">
+                                  {shift.staff.map((s, i) => {
+                                    const staff = getStaffById(s.personId);
+                                    if (!staff) return null;
+                                    return (
+                                      <button
+                                        key={i}
+                                        type="button"
+                                        className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#personDetailModal"
+                                        onClick={() => openPersonModal(staff, "staff")}
+                                      >
+                                        {staff.name}
+                                        <span className={statusBadgeClass(s.status)}>
+                                          {s.status}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-muted">Chưa phân công staff.</div>
+                              )}
+                            </div>
+
+                            {/* Trainer list */}
+                            <div>
+                              <div className="fw-semibold mb-1">Trainer trực:</div>
+                              {Array.isArray(shift.trainers) &&
+                              shift.trainers.length > 0 ? (
+                                <div className="d-flex flex-wrap gap-2">
+                                  {shift.trainers.map((t, i) => {
+                                    const trainer = getTrainerById(t.personId);
+                                    if (!trainer) return null;
+                                    return (
+                                      <button
+                                        key={i}
+                                        type="button"
+                                        className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#personDetailModal"
+                                        onClick={() => openPersonModal(trainer, "trainer")}
+                                      >
+                                        {trainer.name}
+                                        <span className={statusBadgeClass(t.status)}>
+                                          {t.status}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-muted">Chưa phân công trainer.</div>
+                              )}
+                            </div>
+                          </>
+                        )}
+
+                        {/* EDIT MODE – chỉ cho ngày tương lai */}
+                        {isEditing && !isPastOrToday && (
+                          <>
+                            <div className="mb-2">
+                              <small className="text-muted">
+                                Chọn bằng checkbox, mỗi ca có thể nhiều người.  
+                                Người đã được phân ca khác trong ngày sẽ bị khóa.
+                              </small>
+                            </div>
+                            <div className="row g-3">
+                              <div className="col-md-6">
+                                <label className="form-label">Chọn Staff</label>
+                                <div
+                                  className="border rounded-3 p-2"
+                                  style={{ maxHeight: 220, overflowY: "auto" }}
+                                >
+                                  {staffPool.map((s) => {
+                                    const alreadyInOther = otherStaffIds.includes(s.id);
+                                    return (
+                                      <div className="form-check" key={s.id}>
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          id={`shift-${idx}-staff-${s.id}`}
+                                          checked={editingStaffIds.includes(s.id)}
+                                          disabled={alreadyInOther}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setEditingStaffIds((prev) =>
+                                                prev.includes(s.id) ? prev : [...prev, s.id]
+                                              );
+                                            } else {
+                                              setEditingStaffIds((prev) =>
+                                                prev.filter((x) => x !== s.id)
+                                              );
+                                            }
+                                          }}
+                                        />
+                                        <label
+                                          className="form-check-label"
+                                          htmlFor={`shift-${idx}-staff-${s.id}`}
+                                        >
+                                          {s.name}{" "}
+                                          <span className="text-muted">({s.role})</span>
+                                          {alreadyInOther && (
+                                            <span className="text-danger ms-1">
+                                              (đã trực ca khác)
+                                            </span>
+                                          )}
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label">Chọn Trainer</label>
+                                <div
+                                  className="border rounded-3 p-2"
+                                  style={{ maxHeight: 220, overflowY: "auto" }}
+                                >
+                                  {trainerPool.map((t) => {
+                                    const alreadyInOther = otherTrainerIds.includes(t.id);
+                                    return (
+                                      <div className="form-check" key={t.id}>
+                                        <input
+                                          className="form-check-input"
+                                          type="checkbox"
+                                          id={`shift-${idx}-trainer-${t.id}`}
+                                          checked={editingTrainerIds.includes(t.id)}
+                                          disabled={alreadyInOther}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setEditingTrainerIds((prev) =>
+                                                prev.includes(t.id) ? prev : [...prev, t.id]
+                                              );
+                                            } else {
+                                              setEditingTrainerIds((prev) =>
+                                                prev.filter((x) => x !== t.id)
+                                              );
+                                            }
+                                          }}
+                                        />
+                                        <label
+                                          className="form-check-label"
+                                          htmlFor={`shift-${idx}-trainer-${t.id}`}
+                                        >
+                                          {t.name}{" "}
+                                          <span className="text-muted">({t.role})</span>
+                                          {alreadyInOther && (
+                                            <span className="text-danger ms-1">
+                                              (đã trực ca khác)
+                                            </span>
+                                          )}
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </>
               ) : (
                 <div className="text-muted">Không có dữ liệu sự kiện.</div>
@@ -781,15 +1161,120 @@ export default function Schedule() {
                     className="btn btn-danger me-auto"
                     onClick={() => handleCancelEvent(selectedEvent)}
                   >
-                    Hủy lịch
+                    Xoá lịch trực ngày này
                   </button>
-              )}
+                )}
 
               <button
                 type="button"
                 className="btn btn-light"
                 data-bs-dismiss="modal"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => {
+                  setSelectedEvent(null);
+                  cancelEditShift();
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL THÔNG TIN NHÂN VIÊN/TRAINER */}
+      <div
+        className="modal fade"
+        id="personDetailModal"
+        tabIndex="-1"
+        aria-hidden="true"
+        ref={personModalRef}
+      >
+        <div className="modal-dialog">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">
+                {selectedPerson
+                  ? `${selectedPerson.type === "staff" ? "Nhân viên" : "Trainer"}: ${
+                      selectedPerson.name
+                    }`
+                  : "Thông tin"}
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={() => {
+                  setSelectedPerson(null);
+                  try {
+                    const ModalClass = window.bootstrap && window.bootstrap.Modal;
+                    if (ModalClass && eventModalRef.current) {
+                      const inst =
+                        ModalClass.getInstance(eventModalRef.current) ||
+                        new ModalClass(eventModalRef.current);
+                      inst.show();
+                    }
+                  } catch (e) {
+                    console.warn("Cannot re-open event modal:", e);
+                  }
+                }}
+              />
+            </div>
+            <div className="modal-body">
+              {selectedPerson ? (
+                <>
+                  <div className="d-flex align-items-center mb-3">
+                    <div
+                      className={`avatar-circle ${
+                        selectedPerson.type === "staff"
+                          ? "staff-avatar"
+                          : "trainer-avatar"
+                      }`}
+                      style={{ width: 40, height: 40, fontSize: 16 }}
+                    >
+                      {getPersonInitials(selectedPerson.name)}
+                    </div>
+                    <div className="ms-3">
+                      <div className="fw-semibold">{selectedPerson.name}</div>
+                      <div className="text-muted">{selectedPerson.role}</div>
+                    </div>
+                  </div>
+                  <p className="mb-1">
+                    <strong>Điện thoại:</strong> {selectedPerson.phone}
+                  </p>
+                  <p className="mb-1">
+                    <strong>Email:</strong> {selectedPerson.email}
+                  </p>
+                  <p className="mb-0">
+                    <strong>Trạng thái:</strong>{" "}
+                    <span className={statusBadgeClass(selectedPerson.status)}>
+                      {selectedPerson.status}
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <div className="text-muted">Không có dữ liệu.</div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-light"
+                data-bs-dismiss="modal"
+                onClick={() => {
+                  setSelectedPerson(null);
+                  try {
+                    const ModalClass = window.bootstrap && window.bootstrap.Modal;
+                    if (ModalClass && eventModalRef.current) {
+                      const inst =
+                        ModalClass.getInstance(eventModalRef.current) ||
+                        new ModalClass(eventModalRef.current);
+                      inst.show();
+                    }
+                  } catch (e) {
+                    console.warn("Cannot re-open event modal:", e);
+                  }
+                }}
               >
                 Đóng
               </button>

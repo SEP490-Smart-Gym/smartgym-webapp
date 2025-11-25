@@ -542,22 +542,21 @@ export default function Home() {
             </div>
 
             <div className="row gy-5 gy-lg-4 gx-4">
-              {trainers.map((t, i) => (
-  <div className="col-md-6 col-lg-3" key={t.id}>
-    <div className="team-item">
-      <Link to={`/trainer/${t.id}`}>
-        <div className="team-img">
-          <img src={t.img} className="img-fluid w-100" alt={t.name} />
-        </div>
-      </Link>
-      <div className="team-content">
-        <h4>{t.name}</h4>
-        <p className="mb-0">{t.profession}</p>
-      </div>
-    </div>
-  </div>
-))}
-
+              {trainers.slice(0, 4).map((t) => (
+                <div className="col-md-6 col-lg-3" key={t.id}>
+                  <div className="team-item">
+                    <Link to={`/trainer/${t.id}`}>
+                      <div className="team-img">
+                        <img src={t.img} className="img-fluid w-100" alt={t.name} />
+                      </div>
+                    </Link>
+                    <div className="team-content">
+                      <h4>{t.name}</h4>
+                      <p className="mb-0">{t.profession}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div

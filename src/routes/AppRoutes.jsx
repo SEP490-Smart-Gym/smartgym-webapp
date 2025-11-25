@@ -22,6 +22,7 @@ import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
 import ManageSchedule from "../pages/Manager/Schedule.jsx";
+import StaffSchedule from "../pages/Staff/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -32,6 +33,7 @@ import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
 import TrainerSchedule from "../pages/Member/Schedule.jsx";
 import Payment from "../pages/Member/Payment.jsx";
+import ChatBot from "../pages/Member/ChatBox.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -116,6 +118,7 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
+          <Route path="/chatbot/:id" element={<ChatBot />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>
@@ -125,7 +128,7 @@ export default function AppRoutes() {
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
-          {/* <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} /> */}
+          <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} />
         </Route>
 
         {/* ===== Staff protected ===== */}
@@ -134,6 +137,7 @@ export default function AppRoutes() {
           <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/dashboard" element={<Home />} />
           <Route path="/profile/staff" element={<ProfileStaff />} />
+          <Route path="/staff/schedule" element={<StaffSchedule />} />
         </Route>
 
         {/* ===== Admin protected ===== */}
