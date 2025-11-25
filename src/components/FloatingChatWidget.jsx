@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import ChatBot from "./ChatBot";
+import ChatBot from "../pages/Member/ChatBox";
 import { IoChatbubbleEllipses } from "react-icons/io5";
 import { IconButton, Box } from "@mui/material";
 
@@ -13,11 +13,11 @@ const FloatingChatWidget = () => {
         onClick={() => setOpen(!open)}
         sx={{
           position: "fixed",
-          bottom: 25,
-          right: 25,
-          width: 60,
+          bottom: 100,
+          right: 50,
+          zIndex: 9999,
           height: 60,
-          borderRadius: "50%",
+          borderRadius: "100%",
           backgroundColor: "#0c1844",
           color: "white",
           boxShadow: "0 8px 20px rgba(0,0,0,0.3)",
@@ -32,10 +32,10 @@ const FloatingChatWidget = () => {
       <Box
         sx={{
           position: "fixed",
-          bottom: 100,
-          right: 25,
-          width: { xs: "95%", sm: 380, md: 420 },
-          height: "80vh",
+          bottom: 80,
+          right: 100,
+          width: 360,         
+          height: 520,
           zIndex: 9998,
           transition: "all 0.3s ease",
           transform: open ? "translateY(0)" : "translateY(150%)",
