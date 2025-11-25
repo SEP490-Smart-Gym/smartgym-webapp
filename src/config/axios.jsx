@@ -1,6 +1,6 @@
 import axios from "axios";
 // const baseUrl = "http://localhost:8080/api";
-const baseURL = "https://smartgym-dwdxddbrf8f0e4dy.southeastasia-01.azurewebsites.net/api";
+const baseURL = "https://smart-gym-api-d7dtddfab8f6eyb2.malaysiawest-01.azurewebsites.net/api";
 const config = {
   baseURL,
   timeout: 3000000,
