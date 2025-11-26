@@ -1,4 +1,5 @@
 import { BsArrowUp } from "react-icons/bs";
+import FloatingChatWidget from "./FloatingChatWidget";
 export default function Footer() {
   return (
     <>
@@ -87,7 +88,7 @@ export default function Footer() {
               <div className="footer-item">
                 <h4 className="text-white mb-4">Recent Work</h4>
                 <div className="row g-2">
-                  {["work-9.jpg","work-10.jpg","work-11.jpg","work-12.jpg","work-1.jpg","work-2.jpg","work-3.jpg","work-4.jpg","work-5.jpg","work-6.jpg","work-7.jpg","work-8.jpg"].map((w,i)=>(
+                  {["work-9.jpg", "work-10.jpg", "work-11.jpg", "work-12.jpg", "work-1.jpg", "work-2.jpg", "work-3.jpg", "work-4.jpg", "work-5.jpg", "work-6.jpg", "work-7.jpg", "work-8.jpg"].map((w, i) => (
                     <div className="col-3" key={i}>
                       <div className="footer-item-img">
                         <a href="#"><img src={`/img/${w}`} className="img-fluid" alt="" /></a>
@@ -127,7 +128,7 @@ export default function Footer() {
           </div>
         </div>
       </div>
-
+      <FloatingChatWidget />
       {/* Back to Top */}
       <div className="back-to-top">
         <button

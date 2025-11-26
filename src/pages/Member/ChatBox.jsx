@@ -18,25 +18,18 @@ import { format } from "date-fns";
 import { GiNinjaStar } from "react-icons/gi";
 import { BsEmojiLaughingFill } from "react-icons/bs";
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  maxWidth: "50%",          // desktop: 50% chiều ngang trang
-  minWidth: "450px",
-  margin: "auto",
-  height: "120vh",
+const StyledCard = styled(Card)(({ theme, isPopup }) => ({
+  maxWidth: isPopup ? "100%" : "50%",
+  minWidth: isPopup ? "100%" : "450px",
+  height: isPopup ? "100%" : "120vh",
+  borderRadius: isPopup ? "20px" : "25px",
+  overflow: "hidden",
   display: "flex",
   flexDirection: "column",
   boxShadow: "0 8px 32px rgba(99, 102, 241, 0.2)",
   background: "linear-gradient(145deg, #ffffff 0%, #e8f5fe 100%)",
-  borderRadius: "25px",
-
-  // Tablet & mobile: full width + full height
-  [theme.breakpoints.down("md")]: {
-    maxWidth: "100%",
-    minWidth: "100%",
-    height: "100vh",
-    borderRadius: 0
-  }
 }));
+
 
 const MessageContainer = styled(Box)({
   flex: 1,
@@ -90,7 +83,7 @@ const InputContainer = styled(Box)({
   borderTop: "1px solid rgba(0, 0, 0, 0.1)"
 });
 
-const ChatBot = () => {
+const ChatBot = ({ isPopup = false, onClose }) => {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -101,6 +94,7 @@ const ChatBot = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
 
   const quickOptions = [
     "Ask a question 💭",
@@ -189,8 +183,8 @@ const ChatBot = () => {
   };
 
   return (
-    <Container className="mt-5 mb-5">
-      <StyledCard>
+    <Box sx={{ height: "100%" }}>
+      <StyledCard isPopup={isPopup}>
         <Box
           sx={{
             p: 2,
@@ -222,6 +216,20 @@ const ChatBot = () => {
             >
               <IoRefresh />
             </IconButton>
+            {isPopup && (
+              <IconButton
+                onClick={onClose}
+                sx={{
+                  color: "white",
+                  width: 32,
+                  height: 32,
+                  ml: 1,
+                  "&:hover": { color: "#ffb3b3" }
+                }}
+              >
+                X
+              </IconButton>
+            )}
           </Box>
         </Box>
 
@@ -343,7 +351,7 @@ const ChatBot = () => {
             >
               <IoSend />
             </IconButton>
-            <IconButton
+            {/* <IconButton
               sx={{
                 backgroundColor: "#002ccbff",
                 color: "white",
@@ -351,11 +359,11 @@ const ChatBot = () => {
               }}
             >
               <BsEmojiLaughingFill />
-            </IconButton>
+            </IconButton> */}
           </Box>
         </InputContainer>
       </StyledCard>
-    </Container>
+    </Box>
   );
 };
 

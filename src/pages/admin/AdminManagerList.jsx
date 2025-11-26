@@ -197,7 +197,7 @@ export default function AdminManagerList() {
       render: (_, r) => {
         const first = r.firstName || '';
         const last = r.lastName || '';
-        return (first || last) ? `${first} ${last}`.trim() : (r.name || '—');
+        return (first || last) ? `${last} ${first}`.trim() : (r.name || '—');
       },
     },
     {
