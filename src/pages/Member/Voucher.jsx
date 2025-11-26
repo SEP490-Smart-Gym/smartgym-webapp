@@ -19,7 +19,7 @@ export default function MemberVoucherList() {
   const fetchList = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/discountcode");
+      const res = await api.get("/DiscountCode/active");
       const data = Array.isArray(res.data) ? res.data : (res.data?.items ?? res.data) || [];
 
       // chỉ lấy voucher đang Active (nếu API có isActive)
@@ -102,7 +102,7 @@ export default function MemberVoucherList() {
       },
     },
     {
-      title: "Hành động",
+      title: "",
       key: "actions",
       width: 150,
       render: (_, record) => (
@@ -117,7 +117,7 @@ export default function MemberVoucherList() {
 
   return (
     <div className="container py-5">
-      <h2 className="mb-4 text-center">Voucher của hệ thống</h2>
+      <h2 className="mb-4 text-center">Voucher</h2>
 
       <div className="card shadow-sm">
         <div className="card-body">
