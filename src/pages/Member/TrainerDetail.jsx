@@ -131,7 +131,6 @@ const TrainerDetail = () => {
           contact: {
             phone: data.phoneNumber || "",
             email: data.email || "",
-            address: "", // API hiện chưa có address trong profile trainer
           },
           certificates: (data.profile?.certificates || []).map((c) => ({
             title: c.certificateName,
@@ -396,9 +395,6 @@ const TrainerDetail = () => {
                       </Typography>
                       <Typography variant="body2">
                         Phone: {trainer.contact.phone || "Updating..."}
-                      </Typography>
-                      <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
-                        Address: {trainer.contact.address || "Updating..."}
                       </Typography>
                     </Box>
                   </InfoCard>

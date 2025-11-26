@@ -79,7 +79,7 @@ export default function Navbar() {
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
                       <i className="fa fa-clock text-primary me-2"></i>
-                      Mon - Sun: 5.00 am-9.00 pm
+                      Thứ Hai - Chủ Nhật: 5.00 am-9.00 pm
                     </span>
                   </div>
                 </div>
@@ -94,10 +94,10 @@ export default function Navbar() {
                         className="login-btn  me-3 pe-3"
                         style={{ color: "white" }}
                       >
-                        <span>Login</span>
+                        <span>Đăng nhập</span>
                       </NavLink>
                       <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
-                        Register
+                        Đăng ký
                       </NavLink>
                     </>
                   ) : (
@@ -158,7 +158,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/admin/profile")}
                             >
-                              Profile
+                              Hồ sơ cá nhân
                             </button>
                           </li>
                         )}
@@ -170,7 +170,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/member/profile")}
                             >
-                              Profile
+                              Hồ sơ cá nhân
                             </button>
 
                             <hr className="dropdown-divider" />
@@ -179,7 +179,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate(`/member/${safeId}/schedule`)}
                             >
-                              My Schedule
+                              Lịch tập của tôi
                             </button>
 
                             <hr className="dropdown-divider" />
@@ -187,7 +187,15 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/member/mypackages")}
                             >
-                              My Packages
+                              Gói tập của tôi
+                            </button>
+
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/voucher")}
+                            >
+                              Mã giảm giá
                             </button>
                           </li>
                         )}
@@ -199,14 +207,14 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/profile/staff")}
                             >
-                              Profile
+                              Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate("staff/equipmentlist")}
                             >
-                              Manage Equipment
+                              Quản lý thiết bị
                             </button>
                             <hr className="dropdown-divider" />
                             <button
@@ -225,14 +233,14 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/profile/manager")}
                             >
-                              Profile
+                              Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate("/manager/schedule")}
                             >
-                              Manage Schedule
+                              Quản lý lịch làm việc
                             </button>
                           </li>
                         )}
@@ -244,14 +252,14 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/trainer/profile")}
                             >
-                              Profile
+                              Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate(`/trainer/${safeId}/schedule`)}
                             >
-                              My Schedule
+                              Lịch làm việc
                             </button>
                           </li>
                         )}
@@ -259,7 +267,7 @@ export default function Navbar() {
                         <hr className="dropdown-divider" />
                         <li>
                           <button className="dropdown-item" onClick={handleLogout}>
-                            Logout
+                            Đăng xuất
                           </button>
                         </li>
                       </ul>
@@ -307,13 +315,13 @@ export default function Navbar() {
               <div className="collapse navbar-collapse" id="navbarCollapse">
                 <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
                   <NavLink end to="/" className="nav-item nav-link">
-                    Home
+                    Trang chủ
                   </NavLink>
                   <HashLink smooth to="/#about-section" className="nav-item nav-link">
                     About
                   </HashLink>
                   <HashLink smooth to="/#package-section" className="nav-item nav-link">
-                    Packages
+                    Gói tập
                   </HashLink>
                   <HashLink smooth to="/#blogs-section" className="nav-item nav-link">
                     Blogs
@@ -340,23 +348,13 @@ export default function Navbar() {
                         Our Features
                       </HashLink>
                       <HashLink smooth to="/#trainers-section" className="dropdown-item">
-                        Our Trainers
+                        Huấn luyện viên
                       </HashLink>
                       <HashLink smooth to="/#testimonial-section" className="dropdown-item">
                         Testimonial
                       </HashLink>
                     </div>
                   </div>
-
-                  {/* ChatBox chỉ hiển thị khi role = Member */}
-                  {user?.roleName === "Member" && (
-                    <NavLink
-                      to={`/chatbot/${safeId}`}
-                      className="nav-item nav-link"
-                    >
-                      ChatBox
-                    </NavLink>
-                  )}
 
                   <NavLink to="/contact" className="nav-item nav-link">
                     Contact
