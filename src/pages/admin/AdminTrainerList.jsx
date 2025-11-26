@@ -155,7 +155,7 @@ export default function AdminTrainerList() {
 
       // try delete trainer-specific endpoint first, fallback to /Admin/user/{id}
       try {
-        await api.delete(`/Admin/trainer/${id}`);
+        await api.delete(`/Admin/user/${id}`);
       } catch (err) {
         await api.delete(`/Admin/user/${id}`);
       }
@@ -380,11 +380,11 @@ export default function AdminTrainerList() {
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4">
+                  {/* <div className="col-md-4">
                     <Form.Item name="salary">
                       <InputNumber style={{ width: "100%" }} min={0} formatter={(v) => (v ? `${v}` : v)} placeholder="Lương" />
                     </Form.Item>
-                  </div>
+                  </div> */}
 
                   <div className="col-md-12">
                     <Form.Item name="address">
