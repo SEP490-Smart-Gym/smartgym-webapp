@@ -19,7 +19,7 @@ export default function MemberVoucherList() {
   const fetchList = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/DiscountCode/active");
+      const res = await api.get("/DiscountCode/member/available");
       const data = Array.isArray(res.data) ? res.data : (res.data?.items ?? res.data) || [];
 
       // chỉ lấy voucher đang Active (nếu API có isActive)

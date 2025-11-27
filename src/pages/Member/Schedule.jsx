@@ -495,17 +495,25 @@ export default function Calendar() {
       function calendar($el, options) {
         $el
           .on("click", ".js-cal-prev", function () {
-    // Luôn lùi 1 tháng
-    options.date.setMonth(options.date.getMonth() - 1);
-    hideCurrent();
-    draw();
-  })
-  .on("click", ".js-cal-next", function () {
-    // Luôn tiến 1 tháng
-    options.date.setMonth(options.date.getMonth() + 1);
-    hideCurrent();
-    draw();
-  })
+            // Luôn lùi 1 tháng, cố định ngày = 1 để tránh nhảy lệch
+            const base = options.date instanceof Date ? options.date : new Date();
+            const year = base.getFullYear();
+            const month = base.getMonth();
+            options.date = new Date(year, month - 1, 1);
+
+            hideCurrent();
+            draw();
+          })
+          .on("click", ".js-cal-next", function () {
+            // Luôn tiến 1 tháng, cố định ngày = 1 để tránh nhảy lệch
+            const base = options.date instanceof Date ? options.date : new Date();
+            const year = base.getFullYear();
+            const month = base.getMonth();
+            options.date = new Date(year, month + 1, 1);
+
+            hideCurrent();
+            draw();
+          })
           .on("click", ".js-cal-months", function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1370,7 +1378,7 @@ export default function Calendar() {
       </tr>
     </thead>
     <tbody>
-      {{ for (j = 0; j < 6 && (j < 1 || mode === 'month'); j++) { }}
+      {{ for (j = 0; j < 6 && (mode === 'month' ? thedate <= last : j < 1); j++) { }}
       <tr>
         {{ for (i = 0; i < 7; i++) { }}
         {{ if (thedate > last) { dayclass = nextmonthcss; } 
