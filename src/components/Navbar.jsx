@@ -189,6 +189,13 @@ export default function Navbar() {
                             >
                               Gói tập của tôi
                             </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/my-payments")}
+                            >
+                              Lịch sử thanh toán
+                            </button>
 
                             <hr className="dropdown-divider" />
                             <button
