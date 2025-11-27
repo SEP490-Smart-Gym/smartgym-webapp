@@ -76,12 +76,6 @@ export default function ManagerSidebar() {
                         <span className="label">Thiết bị</span>
                         <i className="fa fa-angle-right caret" />
                     </NavLink>
-                    <NavLink to="/manager/staff" className="admin-side-item">
-                        <FaUsers className="me-2" />
-                        <span className="label">Nhân viên</span>
-                        <i className="fa fa-angle-right caret" />
-                    </NavLink>
-
                     <NavLink to="/manager/work-logs" className="admin-side-item">
                         <IoConstructOutline className="me-2" />
                         <span className="label">Lịch sử bảo trì</span>

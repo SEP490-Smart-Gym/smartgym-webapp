@@ -164,13 +164,6 @@ export default function StaffEquipmentList() {
         issueDescription: text,
         severity,
       });
-
-      // 2) Update trạng thái thiết bị
-      await api.put(`/Equipment/${selected.id}`, {
-        status: "Hư hỏng",
-        description: selected.description + `\n[DAMAGE] ${text}`,
-      });
-
       message.success("Đã gửi báo cáo hỏng");
       setShowDamageReport(false);
       fetchEquipments();
