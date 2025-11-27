@@ -92,6 +92,14 @@ const ProfileTrainer = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
@@ -184,11 +192,10 @@ const ProfileTrainer = () => {
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -256,7 +263,6 @@ const ProfileTrainer = () => {
           console.log(
             "Không có quyền / chưa đăng nhập -> /Profile/my-profile trả 401"
           );
-          // tuỳ logic có điều hướng hay không
           return;
         }
         console.error("Error fetching /Profile/my-profile:", err);
@@ -278,9 +284,8 @@ const ProfileTrainer = () => {
       const firstName =
         nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> ISO
-      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
 
       // map giới tính đúng enum backend: Male / Female / Other
       const genderMapApi = {
@@ -296,7 +301,7 @@ const ProfileTrainer = () => {
         phoneNumber: userInfo.phone || "",
         gender: genderMapApi[userInfo.gioiTinh] || null,
         address: userInfo.address || "",
-        dateOfBirth: dateOfBirthIso,
+        dateOfBirth: dateOfBirthApi,
       };
 
       console.log("UPDATE /UserAccount/update payload:", payload);
@@ -787,11 +792,6 @@ const ProfileTrainer = () => {
                           Update User Information
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
 
@@ -845,46 +845,54 @@ const ProfileTrainer = () => {
                         </Row>
 
                         <Row>
-  <Col lg="8">
-    <FormGroup>
-      <Label className="form-control-label">
-        🕒 Working Shift
-      </Label>
-      <Input
-        className="form-control-alternative"
-        type="select"
-        value={trainerInfo.workingShift || ""}
-        onChange={(e) =>
-          handleTrainerFieldChange("workingShift", e.target.value)
-        }
-      >
-        <option value="">-- Chọn ca làm việc --</option>
-        <option value="5h-13h">Ca sáng: 5h - 13h</option>
-        <option value="13h-21h">Ca chiều: 13h - 21h</option>
-      </Input>
-    </FormGroup>
-  </Col>
+                          <Col lg="8">
+                            <FormGroup>
+                              <Label className="form-control-label">
+                                🕒 Working Shift
+                              </Label>
+                              <Input
+                                className="form-control-alternative"
+                                type="select"
+                                value={trainerInfo.workingShift || ""}
+                                onChange={(e) =>
+                                  handleTrainerFieldChange(
+                                    "workingShift",
+                                    e.target.value
+                                  )
+                                }
+                              >
+                                <option value="">
+                                  -- Chọn ca làm việc --
+                                </option>
+                                <option value="5h-13h">
+                                  Ca sáng: 5h - 13h
+                                </option>
+                                <option value="13h-21h">
+                                  Ca chiều: 13h - 21h
+                                </option>
+                              </Input>
+                            </FormGroup>
+                          </Col>
 
-  <Col lg="4" className="d-flex align-items-center">
-    <FormGroup check>
-      <Label check className="form-control-label">
-        <Input
-          type="checkbox"
-          checked={trainerInfo.isAvailableForNewClients}
-          onChange={(e) =>
-            handleTrainerFieldChange(
-              "isAvailableForNewClients",
-              e.target.checked
-            )
-          }
-          style={{ marginRight: "8px" }}
-        />
-        Available for new clients
-      </Label>
-    </FormGroup>
-  </Col>
-</Row>
-
+                          <Col lg="4" className="d-flex align-items-center">
+                            <FormGroup check>
+                              <Label check className="form-control-label">
+                                <Input
+                                  type="checkbox"
+                                  checked={trainerInfo.isAvailableForNewClients}
+                                  onChange={(e) =>
+                                    handleTrainerFieldChange(
+                                      "isAvailableForNewClients",
+                                      e.target.checked
+                                    )
+                                  }
+                                  style={{ marginRight: "8px" }}
+                                />
+                                Available for new clients
+                              </Label>
+                            </FormGroup>
+                          </Col>
+                        </Row>
 
                         {/* Certificates */}
                         <Row className="mt-3">
@@ -990,11 +998,6 @@ const ProfileTrainer = () => {
                           Update Trainer Information
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
 
@@ -1133,11 +1136,6 @@ const ProfileTrainer = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
                 </Form>

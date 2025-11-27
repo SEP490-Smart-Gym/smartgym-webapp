@@ -1242,11 +1242,6 @@ const ProfileMember = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
                 </Form>

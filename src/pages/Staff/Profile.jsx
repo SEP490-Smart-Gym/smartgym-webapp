@@ -78,6 +78,14 @@ const ProfileStaff = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
@@ -99,58 +107,58 @@ const ProfileStaff = () => {
   };
 
   const handleFileChange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-  
-      // Preview tạm tại client
-      const localUrl = URL.createObjectURL(file);
-      setPreview(localUrl);
-  
-      try {
-        // Đọc file -> base64 (data URL)
-        const toBase64 = (file) =>
-          new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-  
-        const base64Image = await toBase64(file);
-  
-        // Gửi JSON lên API
-        const payload = {
-          profileImageUrl: base64Image,
-        };
-  
-        const res = await api.put("/UserAccount/avatar", payload);
-        const newUrl = res.data?.profileImageUrl || base64Image;
-  
-        // Cập nhật state user + localStorage
-        setUser((prev) => ({
-          ...(prev || {}),
-          photo: newUrl,
-        }));
-  
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          parsed.photo = newUrl;
-          localStorage.setItem("user", JSON.stringify(parsed));
-        }
-  
-        // 👉 Bắn event cho Navbar biết user đã đổi avatar
-        window.dispatchEvent(new Event("app-auth-changed"));
-  
-        setPreview(newUrl);
-        alert("Cập nhật ảnh đại diện thành công!");
-      } catch (err) {
-        console.error("Error uploading avatar:", err);
-        alert(
-          `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
-        );
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview tạm tại client
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+
+    try {
+      // Đọc file -> base64 (data URL)
+      const toBase64 = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+      const base64Image = await toBase64(file);
+
+      // Gửi JSON lên API
+      const payload = {
+        profileImageUrl: base64Image,
+      };
+
+      const res = await api.put("/UserAccount/avatar", payload);
+      const newUrl = res.data?.profileImageUrl || base64Image;
+
+      // Cập nhật state user + localStorage
+      setUser((prev) => ({
+        ...(prev || {}),
+        photo: newUrl,
+      }));
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.photo = newUrl;
+        localStorage.setItem("user", JSON.stringify(parsed));
       }
-    };
+
+      // 👉 Bắn event cho Navbar biết user đã đổi avatar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      setPreview(newUrl);
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert(
+        `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
+      );
+    }
+  };
 
   const age = calculateAge(userInfo.birthday);
 
@@ -164,15 +172,16 @@ const ProfileStaff = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || "" } ${data.firstName || ""}`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${
+          data.firstName || ""
+        }`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -209,73 +218,72 @@ const ProfileStaff = () => {
 
   // ⚙️ HANDLE UPDATE TAB USER INFORMATION
   const handleUpdateUserInfo = async (e) => {
-      e && e.preventDefault();
-      try {
-        const nameParts = (userInfo.fullName || "")
-          .trim()
-          .split(" ")
-          .filter(Boolean);
-        const lastName = nameParts.length > 0 ? nameParts[0] : "";
-        const firstName =
-          nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
-  
-        // dd/MM/yyyy -> ISO
-        const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-        const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
-  
-        // map giới tính đúng enum backend: Male / Female / Other
-        const genderMapApi = {
-          Nam: "Male",
-          Nữ: "Female",
-          Khác: "Other",
-        };
-  
-        const payload = {
-          firstName,
-          lastName,
-          email: userInfo.email || "",
-          phoneNumber: userInfo.phone || "",
-          gender: genderMapApi[userInfo.gioiTinh] || null,
-          address: userInfo.address || "",
-          dateOfBirth: dateOfBirthIso,
-        };
-  
-        console.log("UPDATE /UserAccount/update payload:", payload);
-  
-        await api.put("/UserAccount/update", payload);
-  
-        // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
-        const storedUser = localStorage.getItem("user");
-        let newUser = user || {};
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          parsed.firstName = firstName;
-          parsed.lastName = lastName;
-          parsed.email = userInfo.email || parsed.email;
-          parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-          parsed.address = userInfo.address || parsed.address;
-          newUser = parsed;
-          localStorage.setItem("user", JSON.stringify(parsed));
-        }
-        setUser(newUser);
-  
-        // 👉 Bắn event cho Navbar
-        window.dispatchEvent(new Event("app-auth-changed"));
-  
-        alert("Cập nhật thông tin cá nhân thành công!");
-      } catch (err) {
-        console.error("Error updating user info:", err.response?.data || err);
-  
-        const serverData = err.response?.data;
-        let msg =
-          serverData?.title ||
-          serverData?.message ||
-          JSON.stringify(serverData) ||
-          "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-  
-        alert(msg);
+    e && e.preventDefault();
+    try {
+      const nameParts = (userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+      const lastName = nameParts.length > 0 ? nameParts[0] : "";
+      const firstName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
+
+      // map giới tính đúng enum backend: Male / Female / Other
+      const genderMapApi = {
+        Nam: "Male",
+        Nữ: "Female",
+        Khác: "Other",
+      };
+
+      const payload = {
+        firstName,
+        lastName,
+        email: userInfo.email || "",
+        phoneNumber: userInfo.phone || "",
+        gender: genderMapApi[userInfo.gioiTinh] || null,
+        address: userInfo.address || "",
+        dateOfBirth: dateOfBirthApi,
+      };
+
+      console.log("UPDATE /UserAccount/update payload:", payload);
+
+      await api.put("/UserAccount/update", payload);
+
+      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+      const storedUser = localStorage.getItem("user");
+      let newUser = user || {};
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.firstName = firstName;
+        parsed.lastName = lastName;
+        parsed.email = userInfo.email || parsed.email;
+        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+        parsed.address = userInfo.address || parsed.address;
+        newUser = parsed;
+        localStorage.setItem("user", JSON.stringify(parsed));
       }
-    };
+      setUser(newUser);
+
+      // 👉 Bắn event cho Navbar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      alert("Cập nhật thông tin cá nhân thành công!");
+    } catch (err) {
+      console.error("Error updating user info:", err.response?.data || err);
+
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
+
+      alert(msg);
+    }
+  };
 
   // ⚙️ HANDLE CHANGE PASSWORD
   const handleChangePassword = async (e) => {
@@ -625,15 +633,10 @@ const ProfileStaff = () => {
                           Update User Information
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
 
-                  {/* ====== TAB 3: RESET PASSWORD ====== */}
+                  {/* ====== TAB 2: RESET PASSWORD ====== */}
                   {activeSection === "password" && (
                     <>
                       <div className="pl-lg-4">
@@ -768,11 +771,6 @@ const ProfileStaff = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
                 </Form>
