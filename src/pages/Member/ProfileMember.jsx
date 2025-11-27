@@ -44,11 +44,11 @@ const ProfileMember = () => {
     email: "",
     phone: "",
     address: "",
-    canNang: "",     // <- bỏ 68
-    chieuCao: "",    // <- bỏ 172
+    canNang: "",
+    chieuCao: "",
     gioiTinh: "",
-    mucTieu: "",     // <- bỏ "Giảm cân"
-    sucKhoe: "",     // <- bỏ "Tốt"
+    mucTieu: "",
+    sucKhoe: "",
     bmi: "",
   });
 
@@ -100,6 +100,14 @@ const ProfileMember = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần cho API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
@@ -122,87 +130,71 @@ const ProfileMember = () => {
       return {
         category: "🚨 Gầy độ III",
         workout:
-          "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. \
-        Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
+          "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
         meal:
-          "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. \
-        Hạn chế đồ uống có gas và cà phê quá mức.",
+          "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. Hạn chế đồ uống có gas và cà phê quá mức.",
       };
 
     if (bmi < 17)
       return {
         category: "⚠️ Gầy độ II",
         workout:
-          "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). \
-        Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
+          "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
         meal:
-          "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. \
-        Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
+          "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
       };
 
     if (bmi < 18.5)
       return {
         category: "⚠️ Gầy độ I",
         workout:
-          "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). \
-        Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
+          "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
         meal:
-          "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). \
-        Uống đủ 2–2.5L nước/ngày.",
+          "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). Uống đủ 2–2.5L nước/ngày.",
       };
 
     if (bmi < 25)
       return {
         category: "✅ Bình thường",
         workout:
-          "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). \
-        Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
+          "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
         meal:
-          "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. \
-        Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
+          "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
       };
 
     if (bmi < 30)
       return {
         category: "⚠️ Thừa cân",
         workout:
-          "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. \
-        Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
+          "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
         meal:
-          "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. \
-        Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
+          "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
       };
 
     if (bmi < 35)
       return {
         category: "⚠️ Béo phì độ I",
         workout:
-          "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. \
-        Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
+          "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
         meal:
-          "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. \
-        Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
+          "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
       };
 
     if (bmi < 40)
       return {
         category: "⚠️ Béo phì độ II",
         workout:
-          "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. \
-        Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
+          "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
         meal:
-          "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. \
-        Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
+          "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
       };
 
     return {
       category: "🚨 Béo phì độ III",
       workout:
-        "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. \
-      Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
+        "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
       meal:
-        "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. \
-      Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
+        "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
     };
   };
 
@@ -306,11 +298,10 @@ const ProfileMember = () => {
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -394,9 +385,8 @@ const ProfileMember = () => {
       const firstName =
         nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> ISO
-      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+      // dd/MM/yyyy -> yyyy-MM-dd (string thuần)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
 
       // map giới tính đúng enum backend: Male / Female / Other
       const genderMapApi = {
@@ -412,7 +402,7 @@ const ProfileMember = () => {
         phoneNumber: userInfo.phone || "",
         gender: genderMapApi[userInfo.gioiTinh] || null,
         address: userInfo.address || "",
-        dateOfBirth: dateOfBirthIso,
+        dateOfBirth: dateOfBirthApi,
       };
 
       console.log("UPDATE /UserAccount/update payload:", payload);
@@ -466,9 +456,7 @@ const ProfileMember = () => {
       const firstName =
         nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> ISO
-      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
 
       const genderMapApi = {
         Nam: "Male",
@@ -483,12 +471,12 @@ const ProfileMember = () => {
         phoneNumber: userInfo.phone || "",
         gender: genderMapApi[userInfo.gioiTinh] || null,
         address: userInfo.address || "",
-        dateOfBirth: dateOfBirthIso,
+        dateOfBirth: dateOfBirthApi,
       };
 
       await api.put("/UserAccount/update", userPayload);
 
-      // Cập nhật localStorage + state user (bao gồm gender nếu cần dùng sau)
+      // Cập nhật localStorage + state user
       const storedUser = localStorage.getItem("user");
       let newUser = user || {};
       if (storedUser) {
@@ -507,11 +495,15 @@ const ProfileMember = () => {
       // 2️⃣ Update health data qua /Profile/member
       const memberPayload = {
         weight:
-          userInfo.canNang !== null && userInfo.canNang !== undefined && userInfo.canNang !== ""
+          userInfo.canNang !== null &&
+          userInfo.canNang !== undefined &&
+          userInfo.canNang !== ""
             ? Number(userInfo.canNang)
             : null,
         height:
-          userInfo.chieuCao !== null && userInfo.chieuCao !== undefined && userInfo.chieuCao !== ""
+          userInfo.chieuCao !== null &&
+          userInfo.chieuCao !== undefined &&
+          userInfo.chieuCao !== ""
             ? Number(userInfo.chieuCao)
             : null,
         target: userInfo.mucTieu || null,
