@@ -250,7 +250,7 @@ export default function Calendar() {
           if (err?.response?.status === 401) {
             setPackageError("Bạn cần đăng nhập để sử dụng lịch đặt buổi tập.");
           } else {
-            setPackageError("Không lấy được gói tập đang hoạt động.");
+            setPackageError("Bạn chưa đăng ký gói tập nào. Vui lòng mua gói trước khi đặt lịch.");
           }
         }
       }

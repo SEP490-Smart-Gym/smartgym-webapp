@@ -43,6 +43,7 @@ import {
 } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 import api from "../../config/axios";
+import { useNavigate } from "react-router-dom";
 
 // ============ CONSTANTS ============
 // Publishable key dùng cho Stripe (như trong HTML test page)
@@ -106,6 +107,7 @@ const CartComponent = () => {
   const theme = useTheme();
   const { id } = useParams(); // /checkout/:id
   const packageId = id || 1; // nếu không có id thì tạm dùng 1
+  const navigate = useNavigate();
 
   const SINGLE_SERVICE = true; // vẫn giữ logic chỉ 1 dịch vụ
 
@@ -1093,15 +1095,7 @@ const CartComponent = () => {
               <Button
                 variant="contained"
                 startIcon={<FiShoppingBag />}
-                onClick={() => {
-                  setActiveStep(0);
-                  setSelectedSlot(null);
-                  setSelectedTrainer(null);
-                  setSuggestedTrainer(null);
-                  setUserTouchedTrainer(false);
-                  setPaymentIntent(null);
-                  setPaymentStatus(null);
-                }}
+                onClick={() => navigate("/")}  // 👉 Điều hướng về trang Home
               >
                 Quay về Trang Chủ
               </Button>

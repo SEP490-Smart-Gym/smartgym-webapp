@@ -79,7 +79,7 @@ export default function Navbar() {
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
                       <i className="fa fa-clock text-primary me-2"></i>
-                      Thứ Hai - Chủ Nhật: 5.00 am-9.00 pm
+                      Thứ Hai - Chủ Nhật: 5.00 am - 9.00 pm
                     </span>
                   </div>
                 </div>
