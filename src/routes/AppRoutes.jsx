@@ -49,6 +49,8 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
 import AdminManagerList from "../pages/admin/AdminManagerList.jsx";
 import EquipmentRepairPending from "../pages/Manager/EquipmentRepairPending.jsx";
+import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.jsx";
+import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 
 function Layout() {
   return (
@@ -139,6 +141,7 @@ export default function AppRoutes() {
           <Route path="/staff/dashboard" element={<Home />} />
           <Route path="/profile/staff" element={<ProfileStaff />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
+          <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
         </Route>
 
         {/* ===== Admin protected ===== */}
@@ -158,7 +161,8 @@ export default function AppRoutes() {
         {/* ===== Manager protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Manager"]} />}>
           <Route path="/manager/overview" element={<Home />} />
-          <Route path="/manager/equipment-pending" element={<EquipmentRepairPending />} />
+          <Route path="/manager/equipment-report-pending" element={<EquipmentRepairPending />} />
+          <Route path="/manager/equipment-report-all" element={<ManagerAllRepairReports />} />
           <Route path="/profile/manager" element={<ProfileManager />} />
           <Route path="/manager/schedule" element={<ManageSchedule />} />
         </Route>

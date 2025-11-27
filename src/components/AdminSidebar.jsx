@@ -101,12 +101,6 @@ export default function AdminSidebar() {
             <span className="label">Setting Time Slot</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-          <div className="admin-side-section">System</div>
-          <NavLink to="/admin/settings" className="admin-side-item">
-            <i className="fa fa-cog icon" />
-            <span className="label">Cài đặt</span>
-            <i className="fa fa-angle-right caret" />
-          </NavLink>
         </nav>
       </aside>
     </>
