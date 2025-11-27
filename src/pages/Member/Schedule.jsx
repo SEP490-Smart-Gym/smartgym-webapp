@@ -149,6 +149,9 @@ export default function Calendar() {
   const [memberPackageId, setMemberPackageId] = useState(null);
   const [packageError, setPackageError] = useState("");
 
+  // 👇 NEW: gói có cho chọn PT hay không
+  const [allowSelectTrainer, setAllowSelectTrainer] = useState(true);
+
   // Slot state
   const [disabledSlots, setDisabledSlots] = useState(new Set());
   const [selectedSlotId, setSelectedSlotId] = useState("");
@@ -208,12 +211,12 @@ export default function Calendar() {
         if (!cancelled) {
           const trainerData = Array.isArray(trainerRes.data) ? trainerRes.data : [];
           const mappedTrainers = trainerData
-          .filter((t) => t.isAvailableForNewClients !== false)
-          .map((t) => ({
-             id: t.trainerId,
-             // HỌ trước, TÊN sau
-             name: `${(t.lastName || "").trim()} ${(t.firstName || "").trim()}`.trim() || "Trainer",
-          }));
+            .filter((t) => t.isAvailableForNewClients !== false)
+            .map((t) => ({
+              id: t.trainerId,
+              // HỌ trước, TÊN sau
+              name: `${(t.lastName || "").trim()} ${(t.firstName || "").trim()}`.trim() || "Trainer",
+            }));
 
           setTrainers(mappedTrainers);
           if (mappedTrainers.length > 0) {
@@ -240,13 +243,20 @@ export default function Calendar() {
           const pkg = pkgRes.data;
           if (pkg && pkg.id) {
             setMemberPackageId(pkg.id);
+
+            // 👇 CHỖ NÀY: chỉnh lại tên field theo backend nếu khác
+            // ví dụ backend trả pkg.hasPersonalTrainer = true/false
+            const hasTrainer = !!pkg.hasPersonalTrainer; // 🔧 đổi tên nếu cần
+            setAllowSelectTrainer(hasTrainer);
           } else {
             setPackageError("Không tìm thấy gói tập đang hoạt động.");
+            setAllowSelectTrainer(false);
           }
         }
       } catch (err) {
         console.error("Error loading active package:", err);
         if (!cancelled) {
+          setAllowSelectTrainer(false);
           if (err?.response?.status === 401) {
             setPackageError("Bạn cần đăng nhập để sử dụng lịch đặt buổi tập.");
           } else {
@@ -560,7 +570,7 @@ export default function Calendar() {
         function monthAddEvent(index, event) {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
-          if (!dayCell.length || dayCell.hasClass("has-event")) return;
+          if (!dayCell.length || dayCell.hasEvent) return;
           const time = event.start.toTimeString();
           const status = (event.status || "").toLowerCase();
           const $chip = $(`
@@ -702,13 +712,13 @@ export default function Calendar() {
       <style>{`
         /* ===== NAV & TITLES ===== */
         .nav-arrow{
-        font-weight:800;
-        font-size:22px;
-        line-height:1;
-        padding:2px 10px;
-        border:none;
-        background:transparent;
-        cursor:pointer;
+          font-weight:800;
+          font-size:22px;
+          line-height:1;
+          padding:2px 10px;
+          border:none;
+          background:transparent;
+          cursor:pointer;
         }
         .nav-arrow:focus{ outline:none; }
 
@@ -717,15 +727,18 @@ export default function Calendar() {
 
         /* ===== BOOKING BUTTON ===== */
         .btn-booking{
-        background:#c80036;
-        border-color:#c80036;
-        font-weight:700;
+          background:#c80036;
+          border-color:#c80036;
+          font-weight:700;
+          color:#fff;           /* chữ trắng */
+          font-style:italic;    /* chữ nghiêng */
         }
         .btn-booking:hover,
         .btn-booking:focus{
-        filter:brightness(0.92);
-        background:#b10030;
-        border-color:#b10030;
+          filter:brightness(0.92);
+          background:#b10030;
+          border-color:#b10030;
+          color:#fff;
         }
 
         /* ===== CALENDAR TABLE ===== */
@@ -735,8 +748,8 @@ export default function Calendar() {
 
         /* ===== DAY CELL ===== */
         .calendar-day{
-        position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
-        overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
+          position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
+          overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
         }
         .calendar-day .date{ font-weight:600; margin-bottom:6px; }
         .current{ background:#fff; }
@@ -745,9 +758,9 @@ export default function Calendar() {
 
         /* ===== TODAY ===== */
         .calendar-day.today{
-        background:#fff7cc !important;
-        border:1px solid #ffd24d !important;
-        box-shadow:inset 0 0 0 2px #ffe58a;
+          background:#fff7cc !important;
+          border:1px solid #ffd24d !important;
+          box-shadow:inset 0 0 0 2px #ffe58a;
         }
         .calendar-day.today .date{ font-weight:800; color:#b45309; }
 
@@ -758,14 +771,14 @@ export default function Calendar() {
 
         /* ===== EVENT CHIP ===== */
         .event-chip{
-        margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
-        cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
+          margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
+          cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
         }
         .event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .event-chip-badge{
-        display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
-        text-transform:uppercase; letter-spacing:.3px;
+          display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
+          text-transform:uppercase; letter-spacing:.3px;
         }
 
         /* ===== STATUS COLORS ===== */
@@ -777,18 +790,18 @@ export default function Calendar() {
 
         .event-chip.status-not\\ yet,
         .event-chip.status-not-yet{
-        background:#f1f5f9;
-        border-color:#cbd5e1;
+          background:#f1f5f9;
+          border-color:#cbd5e1;
         }
         .event-chip.status-not\\ yet .event-chip-badge,
         .event-chip.status-not-yet .event-chip-badge{
-        background:#94a3b8; color:#0f172a;
+          background:#94a3b8; color:#0f172a;
         }
 
         /* ===== YEAR VIEW ===== */
         .calendar-table td.calendar-month{
-        width:25%; padding:12px; cursor:pointer; border:1px solid #e5e7eb; background:#fff;
-        transition:background-color .15s ease, border-color .15s ease;
+          width:25%; padding:12px; cursor:pointer; border:1px solid #e5e7eb; background:#fff;
+          transition:background-color .15s ease, border-color .15s ease;
         }
         .calendar-table td.calendar-month:hover{ background:#fafafa; }
         .calendar-table td.calendar-month .badge{ margin-left:.5rem; vertical-align:middle; }
@@ -799,10 +812,10 @@ export default function Calendar() {
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 576px){
-        .calendar-day{ min-height:90px; padding:6px; }
-        .event-chip{ font-size:11px; }
-        .event-chip-time{ font-size:10px; }
-        .nav-arrow{ font-size:20px; padding:2px 8px; }
+          .calendar-day{ min-height:90px; padding:6px; }
+          .event-chip{ font-size:11px; }
+          .event-chip-time{ font-size:10px; }
+          .nav-arrow{ font-size:20px; padding:2px 8px; }
         }
       `}</style>
 
@@ -854,15 +867,19 @@ export default function Calendar() {
                 return;
               }
 
-              const trainerId = fd.get("trainer");
-              if (!trainerId) {
-                alert("❌ Vui lòng chọn Trainer.");
-                return;
+              // --- Trainer (chỉ khi gói có PT) ---
+              let trainerId = null;
+              let trainerName = "Trainer";
+              if (allowSelectTrainer) {
+                trainerId = fd.get("trainer");
+                if (!trainerId) {
+                  alert("❌ Vui lòng chọn Trainer.");
+                  return;
+                }
+                trainerName =
+                  trainers.find((t) => String(t.id) === String(trainerId))?.name ||
+                  "Trainer";
               }
-
-              const trainerName =
-                trainers.find((t) => String(t.id) === String(trainerId))?.name ||
-                "Trainer";
 
               const slotId = selectedSlotId;
               if (!slotId || disabledSlots.has(String(slotId))) {
@@ -895,32 +912,42 @@ export default function Calendar() {
 
               const timeLabel = `${start}-${end}`;
 
-              const conflict = dataRef.current.find(
-                (ev) =>
-                  ev.date === isoDate &&
-                  ev.time === timeLabel &&
-                  ev.title.includes(trainerName)
-              );
-              if (conflict) {
-                alert("❌ Trainer hiện đang có lịch, vui lòng chọn Trainer khác.");
-                return;
+              // Chỉ check trùng lịch trainer nếu gói có PT
+              if (allowSelectTrainer) {
+                const conflict = dataRef.current.find(
+                  (ev) =>
+                    ev.date === isoDate &&
+                    ev.time === timeLabel &&
+                    ev.title.includes(trainerName)
+                );
+                if (conflict) {
+                  alert("❌ Trainer hiện đang có lịch, vui lòng chọn Trainer khác.");
+                  return;
+                }
               }
 
               try {
                 // Gọi API book session
-                await api.post("/TrainingSession/book", {
-                  trainerId: Number(trainerId),
+                const payload = {
                   sessionDate: isoDate,
                   timeSlotId: timeSlotId,
                   memberPackageId: memberPackageId,
                   notes: "",
-                });
+                };
+                if (allowSelectTrainer && trainerId) {
+                  payload.trainerId = Number(trainerId);
+                }
+
+                await api.post("/TrainingSession/book", payload);
 
                 // Nếu success → thêm event vào calendar local
+                const title = allowSelectTrainer
+                  ? `Training với ${trainerName}`
+                  : "Training session";
                 dataRef.current.push({
                   date: isoDate,
                   time: timeLabel,
-                  title: `Training với ${trainerName}`,
+                  title,
                   status: "not yet",
                 });
 
@@ -962,7 +989,7 @@ export default function Calendar() {
             }}
           >
             <div className="modal-header">
-              <h5 className="modal-title">Chọn Trainer</h5>
+              <h5 className="modal-title">Chọn lịch tập</h5>
               <button
                 type="button"
                 className="btn-close"
@@ -972,32 +999,41 @@ export default function Calendar() {
             </div>
 
             <div className="modal-body">
-              {/* Trainer select */}
-              <div className="mb-3">
-                <label className="form-label">Trainer</label>
-                {trainersLoading && (
-                  <div className="form-text text-muted">
-                    Đang tải danh sách Trainer...
-                  </div>
-                )}
-                {trainersError && (
-                  <div className="form-text text-danger">{trainersError}</div>
-                )}
-                <select
-                  name="trainer"
-                  className="form-select"
-                  required
-                  value={selectedTrainerId}
-                  onChange={(e) => setSelectedTrainerId(e.target.value)}
-                  disabled={trainersLoading || !trainers.length}
-                >
-                  {trainers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Trainer select – chỉ hiện khi gói có PT */}
+              {allowSelectTrainer ? (
+                <div className="mb-3">
+                  <label className="form-label">Trainer</label>
+                  {trainersLoading && (
+                    <div className="form-text text-muted">
+                      Đang tải danh sách Trainer...
+                    </div>
+                  )}
+                  {trainersError && (
+                    <div className="form-text text-danger">{trainersError}</div>
+                  )}
+                  <select
+                    name="trainer"
+                    className="form-select"
+                    required
+                    value={selectedTrainerId}
+                    onChange={(e) => setSelectedTrainerId(e.target.value)}
+                    disabled={trainersLoading || !trainers.length}
+                  >
+                    {trainers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="mb-3">
+                  <small className="form-text text-muted">
+                    Gói hiện tại không bao gồm huấn luyện viên cá nhân. Bạn chỉ cần
+                    chọn ngày và khung giờ để đặt lịch.
+                  </small>
+                </div>
+              )}
 
               {/* Date dd/mm/yyyy */}
               <div className="mb-3">
@@ -1100,7 +1136,7 @@ export default function Calendar() {
                   !selectedSlotId ||
                   disabledSlots.has(String(selectedSlotId)) ||
                   dayAlreadyBooked(selectedDate) ||
-                  !trainers.length ||
+                  (allowSelectTrainer && !trainers.length) ||
                   !allSlots.length ||
                   !memberPackageId
                 }
