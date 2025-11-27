@@ -3,16 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import api from "../../config/axios";
 
-// mock event ban đầu (có thể bỏ khi dùng API thật cho lịch)
-const mockData = [
-  { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
-  { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
-  { date: "2025-11-20", time: "08:00-09:00", title: "Training session", status: "not yet" },
-  { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
-  { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
-  { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
-];
-
+// ====== Helpers cũ cho time range / date ======
 function parseTimeRange(timeStr) {
   if (!timeStr) return [0, 0, 0, 0];
   const [start, end] = timeStr.split("-");
@@ -27,6 +18,33 @@ function startOfDay(d) {
   return x;
 }
 
+// ====== Mapping TIME từ API "HH:mm:ss" -> "HH:mm" ======
+function toHHmmFromApiTime(apiTime) {
+  if (!apiTime) return "";
+  // ví dụ: "09:00:00" -> ["09","00","00"]
+  const parts = apiTime.split(":");
+  const hh = (parts[0] || "00").padStart(2, "0");
+  const mm = (parts[1] || "00").padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+// ====== Mapping STATUS từ backend -> status frontend ======
+function mapSessionStatus(session) {
+  const raw = (session.status || "").toLowerCase().trim();
+  // tuỳ backend: Scheduled/Booked/Completed/Cancelled...
+  if (raw === "scheduled" || raw === "booked") return "not yet";
+  if (raw === "completed" || raw === "present" || raw === "done") return "present";
+  if (
+    raw === "cancelled" ||
+    raw === "canceled" ||
+    raw === "absent" ||
+    raw === "missed"
+  )
+    return "absent";
+  return ""; // để normalizeMockData tự xử lý tiếp
+}
+
+// ====== Chuẩn hoá data cho jQuery calendar (giữ nguyên format cũ) ======
 function normalizeMockData(arr) {
   const today = startOfDay(new Date());
   const seen = new Set();
@@ -47,12 +65,16 @@ function normalizeMockData(arr) {
       dateOnly.getTime() > today.getTime() ? "not yet" : it.status || "present";
 
     out.push({
-      title: it.title,
+      id: it.id, // 👈 GIỮ ID SESSION
+      // title: yêu cầu: = trainerName, nếu không có trainer thì để trống
+      title: it.title || "",
       start,
       end,
       allDay: false,
       status,
-      text: `<div><strong>${it.title}</strong><br/>${it.time || ""}<br/><em>Status: ${status}</em></div>`,
+      text: `<div><strong>${it.title || "Buổi tập"}</strong><br/>${
+        it.time || ""
+      }<br/><em>Status: ${status}</em></div>`,
     });
   }
 
@@ -129,7 +151,8 @@ export default function Calendar() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
-  const dataRef = useRef([...mockData]);
+  // ❗ dataRef: LƯU DẠNG CŨ {id?, date, time, title, status}
+  const dataRef = useRef([]);
   const bookingModalRef = useRef(null);
   const eventModalRef = useRef(null);
 
@@ -244,9 +267,7 @@ export default function Calendar() {
           if (pkg && pkg.id) {
             setMemberPackageId(pkg.id);
 
-            // 👇 CHỖ NÀY: chỉnh lại tên field theo backend nếu khác
-            // ví dụ backend trả pkg.hasPersonalTrainer = true/false
-            const hasTrainer = !!pkg.hasPersonalTrainer; // 🔧 đổi tên nếu cần
+            const hasTrainer = !!pkg.hasPersonalTrainer; // 🔧 đổi tên nếu backend khác
             setAllowSelectTrainer(hasTrainer);
           } else {
             setPackageError("Không tìm thấy gói tập đang hoạt động.");
@@ -294,48 +315,53 @@ export default function Calendar() {
     return disabled;
   }
 
-  const handleCancelEvent = (event) => {
+  // 👉 HỦY LỊCH: gọi API /api/TrainingSession/{id}/cancel
+  const handleCancelEvent = async (event) => {
     if (!event) return;
 
-    if (!window.confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
+    if (!event.id) {
+      alert("❌ Không tìm thấy ID buổi tập để hủy.");
       return;
     }
 
-    const eventDate = event.start || event.date;
-    const isoDate = dateObjToISO(eventDate);
-    const startStr = hhmm(event.start);
-    const endStr = event.end ? hhmm(event.end) : "";
-    const timeStr = endStr ? `${startStr}-${endStr}` : startStr;
-
-    // xóa event khỏi dataRef.current (mock local – sau này bạn gọi API cancel)
-    dataRef.current = dataRef.current.filter((ev) => {
-      if (ev.date !== isoDate) return true;
-      if (ev.time && timeStr && ev.time !== timeStr) return true;
-      if (ev.title !== event.title) return true;
-      return false;
-    });
-
-    if (window.jQuery && holderRef.current) {
-      window.jQuery(holderRef.current).calendar({
-        data: normalizeMockData(dataRef.current),
-      });
+    if (!window.confirm(`Bạn có chắc muốn hủy sự kiện "${event.title || ""}"?`)) {
+      return;
     }
 
-    setSelectedDate((prev) => new Date(prev));
-    setSelectedSlotId("");
-    setDisabledSlots(new Set());
-    setSelectedEvent(null);
-
     try {
-      const ModalClass = window.bootstrap && window.bootstrap.Modal;
-      if (ModalClass && eventModalRef.current) {
-        const inst =
-          ModalClass.getInstance(eventModalRef.current) ||
-          new ModalClass(eventModalRef.current);
-        inst.hide();
+      // GỌI API CANCEL
+      await api.put(`/TrainingSession/${event.id}/cancel`);
+
+      // ✅ Nếu thành công: xóa khỏi dataRef.current theo id
+      dataRef.current = dataRef.current.filter((ev) => ev.id !== event.id);
+
+      if (window.jQuery && holderRef.current) {
+        window.jQuery(holderRef.current).calendar({
+          data: normalizeMockData(dataRef.current),
+        });
       }
-    } catch (e) {
-      console.warn("Cannot close event modal:", e);
+
+      setSelectedDate((prev) => new Date(prev));
+      setSelectedSlotId("");
+      setDisabledSlots(new Set());
+      setSelectedEvent(null);
+
+      try {
+        const ModalClass = window.bootstrap && window.bootstrap.Modal;
+        if (ModalClass && eventModalRef.current) {
+          const inst =
+            ModalClass.getInstance(eventModalRef.current) ||
+            new ModalClass(eventModalRef.current);
+          inst.hide();
+        }
+      } catch (e) {
+        console.warn("Cannot close event modal:", e);
+      }
+
+      alert("✅ Đã hủy lịch buổi tập.");
+    } catch (err) {
+      console.error("Cancel session error:", err);
+      alert("❌ Có lỗi khi hủy buổi tập. Vui lòng thử lại sau.");
     }
   };
 
@@ -402,7 +428,12 @@ export default function Calendar() {
       $.extend(Date.prototype, {
         toDateCssClass: function () {
           return (
-            "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate()
+            "_" +
+            this.getFullYear() +
+            "_" +
+            (this.getMonth() + 1) +
+            "_" +
+            this.getDate()
           );
         },
         toDateInt: function () {
@@ -464,27 +495,17 @@ export default function Calendar() {
       function calendar($el, options) {
         $el
           .on("click", ".js-cal-prev", function () {
-            if (options.mode === "year")
-              options.date.setFullYear(options.date.getFullYear() - 1);
-            else if (options.mode === "month")
-              options.date.setMonth(options.date.getMonth() - 1);
-            else if (options.mode === "week")
-              options.date.setDate(options.date.getDate() - 7);
-            else options.date.setDate(options.date.getDate() - 1);
-            hideCurrent();
-            draw();
-          })
-          .on("click", ".js-cal-next", function () {
-            if (options.mode === "year")
-              options.date.setFullYear(options.date.getFullYear() + 1);
-            else if (options.mode === "month")
-              options.date.setMonth(options.date.getMonth() + 1);
-            else if (options.mode === "week")
-              options.date.setDate(options.date.getDate() + 7);
-            else options.date.setDate(options.date.getDate() + 1);
-            hideCurrent();
-            draw();
-          })
+    // Luôn lùi 1 tháng
+    options.date.setMonth(options.date.getMonth() - 1);
+    hideCurrent();
+    draw();
+  })
+  .on("click", ".js-cal-next", function () {
+    // Luôn tiến 1 tháng
+    options.date.setMonth(options.date.getMonth() + 1);
+    hideCurrent();
+    draw();
+  })
           .on("click", ".js-cal-months", function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -678,32 +699,73 @@ export default function Calendar() {
         document
       );
 
-      const normalized = normalizeMockData(dataRef.current);
-      window.jQuery(holderRef.current).calendar({
-        data: normalized,
-        onOpenEvent: (ev) => {
-          setSelectedEvent({
-            title: ev.title,
-            date: ev.start,
-            start: ev.start,
-            end: ev.end,
-            status: ev.status || "present",
-          });
-          try {
-            const ModalClass =
-              (window.bootstrap && window.bootstrap.Modal) ||
-              (BootstrapBundle && BootstrapBundle.Modal);
-            if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(
-                document.getElementById("eventDetailModal")
-              );
-              inst.show();
-            }
-          } catch (e) {
-            console.warn("Cannot open event modal:", e);
+      // Handler mở modal chi tiết event – DÙNG LẠI cho mọi lần vẽ lại calendar
+      const handleOpenEvent = (ev) => {
+        setSelectedEvent({
+          id: ev.id, // 👈 GIỮ ID SESSION
+          title: ev.title, // chính là trainerName hoặc ""
+          date: ev.start,
+          start: ev.start,
+          end: ev.end,
+          status: ev.status || "present",
+        });
+        try {
+          const ModalClass =
+            (window.bootstrap && window.bootstrap.Modal) ||
+            (BootstrapBundle && BootstrapBundle.Modal);
+          if (ModalClass) {
+            const inst = ModalClass.getOrCreateInstance(
+              document.getElementById("eventDetailModal")
+            );
+            inst.show();
           }
-        },
+        } catch (e) {
+          console.warn("Cannot open event modal:", e);
+        }
+      };
+
+      // Khởi tạo calendar rỗng
+      window.jQuery(holderRef.current).calendar({
+        data: normalizeMockData(dataRef.current),
+        onOpenEvent: handleOpenEvent,
       });
+
+      // 🔥 TẢI LỊCH TẬP TỪ API /TrainingSession
+      try {
+        const res = await api.get("/TrainingSession");
+        const sessions = Array.isArray(res.data) ? res.data : [];
+
+        // map TrainingSession -> dạng lưu trong dataRef.current
+        const mappedEvents = sessions.map((s) => {
+          const isoDate = (s.sessionDate || "").slice(0, 10); // "2025-11-27"
+          const startLabel = toHHmmFromApiTime(s.startTime);
+          const endLabel = toHHmmFromApiTime(s.endTime);
+          const timeLabel =
+            startLabel && endLabel ? `${startLabel}-${endLabel}` : startLabel || "";
+
+          // title = trainerName, nếu không có trainer thì để chuỗi rỗng
+          const title = s.trainerName || "";
+
+          return {
+            id: s.id,
+            date: isoDate,
+            time: timeLabel,
+            title,
+            status: mapSessionStatus(s),
+          };
+        });
+
+        dataRef.current = mappedEvents;
+
+        // vẽ lại calendar với data từ API
+        window.jQuery(holderRef.current).calendar({
+          data: normalizeMockData(dataRef.current),
+          onOpenEvent: handleOpenEvent,
+        });
+      } catch (err) {
+        console.error("Error loading TrainingSession:", err);
+        // lỗi thì chỉ để calendar rỗng, không crash
+      }
     })();
   }, []);
 
@@ -938,16 +1000,16 @@ export default function Calendar() {
                   payload.trainerId = Number(trainerId);
                 }
 
-                await api.post("/TrainingSession/book", payload);
+                const res = await api.post("/TrainingSession/book", payload);
+                const created = res.data;
 
                 // Nếu success → thêm event vào calendar local
-                const title = allowSelectTrainer
-                  ? `Training với ${trainerName}`
-                  : "Training session";
+                const title = allowSelectTrainer ? trainerName : "";
                 dataRef.current.push({
+                  id: created?.id, // 👈 nếu backend trả về id
                   date: isoDate,
                   time: timeLabel,
-                  title,
+                  title, // = trainerName hoặc ""
                   status: "not yet",
                 });
 
@@ -961,8 +1023,7 @@ export default function Calendar() {
 
                 // đóng modal + reset
                 try {
-                  const ModalClass =
-                    window.bootstrap && window.bootstrap.Modal;
+                  const ModalClass = window.bootstrap && window.bootstrap.Modal;
                   if (ModalClass) {
                     const inst =
                       ModalClass.getInstance(bookingModalRef.current) ||
@@ -970,17 +1031,13 @@ export default function Calendar() {
                     inst.hide();
                   }
                 } catch (_) {
-                  bookingModalRef.current
-                    ?.querySelector(".btn-close")
-                    ?.click();
+                  bookingModalRef.current?.querySelector(".btn-close")?.click();
                 }
 
                 e.currentTarget.reset();
                 setSelectedDate(new Date());
                 setVnDate(formatTodayVN());
-                setSelectedSlotId(
-                  allSlots.length ? String(allSlots[0].id) : ""
-                );
+                setSelectedSlotId(allSlots.length ? String(allSlots[0].id) : "");
                 setDisabledSlots(new Set());
               } catch (err) {
                 console.error("Book session error:", err);
@@ -1287,7 +1344,7 @@ export default function Calendar() {
       </tr>
     </thead>
 
-    {{ if (mode ==='year') { month = 0; }}
+    {{ if (mode === 'year') { month = 0; }}
     <tbody>
       {{ for (j = 0; j < 3; j++) { }}
       <tr>
