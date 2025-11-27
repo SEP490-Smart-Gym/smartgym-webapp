@@ -116,12 +116,7 @@ export default function StaffEquipmentList() {
     return `${base}[${tag} ${ts}] ${text}`;
   };
 
-  // server update helper: PUT /Equipment/{id} with required fields
-  // We'll try to update only fields known by API: map the sample schema:
-  // {
-  //  equipmentName, categoryId, model, serialNumber, purchaseDate, purchaseCost,
-  //  warranty, status, location, imageUrl, description
-  // }
+
   const sendUpdateToServer = async (id, updatedFields) => {
     try {
       // find raw object from selected or items to preserve missing fields
@@ -209,21 +204,57 @@ export default function StaffEquipmentList() {
   const saveDamageReport = async () => {
     const text = damageText.trim();
     if (!text) return message.warning("Vui lòng nhập nội dung báo cáo hỏng!");
-    const entry = { id: Date.now(), type: "damage_report", text, createdAt: new Date().toISOString() };
 
+    const entry = {
+      id: Date.now(),
+      type: "damage_report",
+      text,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Local update
     setItems((prev) =>
-      prev.map((it) => (it.id === selected.id ? { ...it, reports: [entry, ...(it.reports || [])], status: "Hư hỏng" } : it))
+      prev.map((it) =>
+        it.id === selected.id
+          ? { ...it, reports: [entry, ...(it.reports || [])], status: "Hư hỏng" }
+          : it
+      )
     );
-    setSelected((s) => (s ? { ...s, reports: [entry, ...(s.reports || [])], status: "Hư hỏng" } : s));
+    setSelected((s) =>
+      s ? { ...s, reports: [entry, ...(s.reports || [])], status: "Hư hỏng" } : s
+    );
 
-    // append to description
-    const newDescription = appendLogToDescription(selected?.description ?? "", "DAMAGE", text);
-    await sendUpdateToServer(selected.id, { status: "Hư hỏng", description: newDescription });
+    // Append to description
+    const newDescription = appendLogToDescription(
+      selected?.description ?? "",
+      "DAMAGE",
+      text
+    );
+
+    // 🔥 NEW: Call API /EquipmentRepairReport
+    try {
+      await api.post("/EquipmentRepairReport", {
+        equipmentId: selected.id,
+        issueDescription: text,
+        severity: "Medium",
+      });
+
+      // Optional: update equipment status on server
+      await sendUpdateToServer(selected.id, {
+        status: "Hư hỏng",
+        description: newDescription,
+      });
+
+      message.success("Đã gửi báo cáo hỏng");
+    } catch (err) {
+      console.error(err);
+      message.error("Không thể gửi báo cáo thiệt hại");
+    }
 
     setShowDamageReport(false);
     setDamageText("");
-    message.success("Đã gửi báo cáo hỏng");
   };
+
 
   // ====== Nút: Trở về hoạt động ======
   const handleBackToActive = () => {
@@ -497,7 +528,7 @@ export default function StaffEquipmentList() {
                         rows={3}
                         value={returnLogText}
                         onChange={(e) => setReturnLogText(e.target.value)}
-                        placeholder={ returnFromStatus === "Đang bảo trì" ? "Hoàn tất bảo trì, thiết bị hoạt động ổn định." : "Đã sửa chữa chi tiết, test ok..." }
+                        placeholder={returnFromStatus === "Đang bảo trì" ? "Hoàn tất bảo trì, thiết bị hoạt động ổn định." : "Đã sửa chữa chi tiết, test ok..."}
                       />
                       <div className="d-flex gap-2">
                         <button className="btn btn-success" onClick={saveReturnLog}>Lưu log & về hoạt động</button>
