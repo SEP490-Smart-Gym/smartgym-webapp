@@ -1,4 +1,3 @@
-// src/pages/PaymentHistory.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { AiOutlineClose } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";

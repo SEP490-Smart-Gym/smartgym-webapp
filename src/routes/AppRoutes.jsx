@@ -23,6 +23,7 @@ import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
 import ManageSchedule from "../pages/Manager/Schedule.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
+import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -128,7 +129,7 @@ export default function AppRoutes() {
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
-          <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} />
+          <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
         </Route>
 
         {/* ===== Staff protected ===== */}
