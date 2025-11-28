@@ -4,18 +4,14 @@ import dayjs from "dayjs";
 import { message, Spin } from "antd";
 import StaffSidebar from "../../components/StaffSidebar";
 
-const STATUS_OPTIONS = ["Tất cả", "Đang hoạt động", "Đang bảo trì", "Hư hỏng", "Tồn kho"];
+const STATUS_OPTIONS = ["Tất cả", "Đang Hoạt Động", "Đang Bảo Trì"];
 
 function statusBadgeClass(s) {
   switch (s) {
-    case "Đang hoạt động":
+    case "Đang Hoạt Động":
       return "bg-success";
-    case "Đang bảo trì":
+    case "Đang Bảo Trì":
       return "bg-warning text-dark";
-    case "Hư hỏng":
-      return "bg-danger";
-    case "Tồn kho":
-      return "bg-secondary";
     default:
       return "bg-light text-dark";
   }
@@ -128,20 +124,13 @@ export default function StaffEquipmentList() {
     const text = maintenanceLogText.trim();
     if (!text) return message.warning("Vui lòng nhập log!");
 
-    try {
-      await api.put(`/Equipment/${selected.id}`, {
-        status: "Đang bảo trì",
-        description: selected.description + `\n[MAINTENANCE] ${text}`,
-      });
+    // Staff chỉ ghi log local, không gọi API PUT
+    message.success("Đã ghi log bảo trì (local)");
 
-      message.success("Bảo trì thành công");
-      setShowMaintenanceLog(false);
-      fetchEquipments();
-      closeDetail();
-    } catch (err) {
-      message.error("Không thể cập nhật trạng thái");
-    }
+    setShowMaintenanceLog(false);
+    closeDetail();
   };
+
 
   /* =======================================================
         DAMAGE REPORT
@@ -187,11 +176,11 @@ export default function StaffEquipmentList() {
     const text = returnLogText.trim();
     if (!text) return message.warning("Nhập nội dung log!");
 
-    const tag = returnFromStatus === "Đang bảo trì" ? "MAINT_DONE" : "REPAIR_DONE";
+    const tag = returnFromStatus === "Đang Bảo Trì" ? "MAINT_DONE" : "REPAIR_DONE";
 
     try {
       await api.put(`/Equipment/${selected.id}`, {
-        status: "Đang hoạt động",
+        status: "Đang Hoạt Động",
         description: selected.description + `\n[${tag}] ${text}`,
       });
 
@@ -362,7 +351,7 @@ export default function StaffEquipmentList() {
                       <div className="d-flex flex-wrap gap-2">
 
                         {/* Khi đang hoạt động → hiện 2 nút */}
-                        {selected.status === "Đang hoạt động" && (
+                        {selected.status === "Đang Hoạt Động" && (
                           <>
                             <button
                               className="btn btn-warning text-dark"
@@ -381,15 +370,14 @@ export default function StaffEquipmentList() {
                         )}
 
                         {/* Khi bảo trì hoặc hư hỏng → chỉ hiện nút trở về hoạt động */}
-                        {(selected.status === "Đang bảo trì" ||
-                          selected.status === "Hư hỏng") && (
-                            <button
-                              className="btn btn-success ms-auto"
-                              onClick={handleBackToActive}
-                            >
-                              <i className="fa fa-check me-1" /> Trở về hoạt động
-                            </button>
-                          )}
+                        {selected.status === "Đang Bảo Trì" && (
+                          <button
+                            className="btn btn-success ms-auto"
+                            onClick={handleBackToActive}
+                          >
+                            <i className="fa fa-check me-1" /> Trở về hoạt động
+                          </button>
+                        )}
 
                       </div>
                     </div>
@@ -470,7 +458,7 @@ export default function StaffEquipmentList() {
                   {showReturnLog && (
                     <div className="mt-4">
                       <h6>
-                        {returnFromStatus === "Đang bảo trì"
+                        {returnFromStatus === "Đang Bảo Trì"
                           ? "Ghi log hoàn tất bảo trì"
                           : "Ghi log hoàn tất sửa chữa"}
                       </h6>

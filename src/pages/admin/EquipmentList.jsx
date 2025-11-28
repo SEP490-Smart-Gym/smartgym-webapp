@@ -19,17 +19,14 @@ import api from "../../config/axios";
 import dayjs from "dayjs";
 
 const STATUS_OPTIONS = [
-  "Đang hoạt động",
-  "Đang bảo trì",
-  "Hư hỏng",
-  "Tồn kho",
+  "Đang Hoạt Động",
+  "Đang Bảo Trì",
+
 ];
 
 const statusColor = {
-  "Đang hoạt động": "green",
-  "Đang bảo trì": "gold",
-  "Hư hỏng": "red",
-  "Tồn kho": "gray",
+  "Đang Hoạt Động": "green",
+  "Đang Bảo Trì": "gold",
 };
 
 export default function EquipmentList() {
@@ -69,7 +66,7 @@ export default function EquipmentList() {
     try {
       const res = await api.get("/Equipment");
       const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      setEquipments(raw); // 👈 Lưu nguyên res.data
+      setEquipments(raw); 
     } catch (err) {
       message.error("Lấy danh sách thất bại");
     } finally {
@@ -87,7 +84,7 @@ export default function EquipmentList() {
 
 
   /* =====================================
-     ADD EQUIPMENT - đúng payload
+     ADD EQUIPMENT 
   ===================================== */
   const handleAdd = async () => {
     try {

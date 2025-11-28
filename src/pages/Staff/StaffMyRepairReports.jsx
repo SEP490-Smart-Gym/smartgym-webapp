@@ -133,15 +133,15 @@ export default function StaffMyRepairReports() {
      ======================================================= */
   const statusColor = (s) => {
     switch (s) {
-      case "Pending":
+      case "Đang Chờ Xử Lý":
         return "blue";
-      case "Approved":
+      case "Đã Phê Duyệt":
         return "green";
-      case "Rejected":
+      case "Đã Từ Chối":
         return "red";
-      case "InRepair":
+      case "Đang Sửa Chữa":
         return "orange";
-      case "Completed":
+      case "Đã Hoàn Thành":
         return "cyan";
       default:
         return "default";
@@ -187,7 +187,7 @@ export default function StaffMyRepairReports() {
             <Button
               size="small"
               type="primary"
-              disabled={r.status !== "Approved"}
+              disabled={r.status !== "Đã Phê Duyệt"}
               onClick={() => confirmStartRepair(r)}
             >
               Bắt đầu sửa
@@ -197,7 +197,7 @@ export default function StaffMyRepairReports() {
             <Button
               size="small"
               danger
-              disabled={r.status !== "In Progress"}
+              disabled={r.status !== "Đang Sửa Chữa"}
               onClick={() => openCompleteModal(r)}
             >
               Hoàn tất sửa
