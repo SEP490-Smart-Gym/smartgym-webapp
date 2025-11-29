@@ -82,9 +82,11 @@ export default function ManagerAllRepairReports() {
     ============================ */
     const statusColor = (status) => {
         switch (status) {
-            case "Pending": return "blue";
-            case "Approved": return "green";
-            case "Rejected": return "red";
+            case "Đang Chờ Xử Lý": return "blue";
+            case "Đã Phê Duyệt": return "green";
+            case "Đã Từ Chối": return "red";
+            case "Đang Sửa Chữa": return "orange";
+            case "Đã Hoàn Thành": return "cyan";
             default: return "default";
         }
     };
@@ -117,8 +119,8 @@ export default function ManagerAllRepairReports() {
             render: (v) => (
                 <Tag color={
                     v === "High" ? "red" :
-                    v === "Medium" ? "gold" :
-                    "green"
+                        v === "Medium" ? "gold" :
+                            "green"
                 }>
                     {v}
                 </Tag>
@@ -204,7 +206,7 @@ export default function ManagerAllRepairReports() {
                         {detail.status !== "Pending" && (
                             <>
                                 <p><strong>Người duyệt:</strong> {detail.approverName || "—"}</p>
-                                <p><strong>Ngày duyệt:</strong> 
+                                <p><strong>Ngày duyệt:</strong>
                                     {detail.approvalDate ? dayjs(detail.approvalDate).format("DD/MM/YYYY HH:mm") : "—"}
                                 </p>
                                 <p><strong>Ghi chú duyệt:</strong> {detail.approvalNotes || "—"}</p>

@@ -95,6 +95,7 @@ export default function Login() {
       // ✅ Điều hướng theo role
       if (data.roleName === "Admin") navigate("/admin/packages");
       else if (data.roleName === "Staff") navigate("/staff/equipmentlist");
+      else if (data.roleName === "Manager") navigate("/manager/equipment-report-all");
       else navigate("/");
 
     } catch (err) {
