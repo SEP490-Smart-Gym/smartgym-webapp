@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import GymFeedbackSection from "../pages/Member/Feedback.jsx";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
@@ -571,58 +572,9 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Testimonial */}
-        <div
-          id="testimonial-section"
-          className="container-fluid testimonial py-5"
-          style={{ marginBottom: 90 }}
-        >
-          <div className="container py-5">
-            <div
-              className="text-center mx-auto pb-5"
-              data-aos="fade-up"
-              style={{ maxWidth: 800 }}
-            >
-              <h4 className="text-primary">Testimonial</h4>
-              <h1 className="display-4 text-white">What Our Customers Are Saying</h1>
-            </div>
+        {/* Feedback */}
+        <GymFeedbackSection />
 
-            <Swiper
-              modules={[Autoplay, Pagination, Navigation]}
-              autoplay={{ delay: 4000, disableOnInteraction: false }}
-              loop
-              pagination={{ clickable: true }}
-              spaceBetween={24}
-              slidesPerView={1}
-            >
-              {testimonials.map((t, i) => (
-                <SwiperSlide key={i}>
-                  <div className="testimonial-item mx-auto" style={{ maxWidth: 900 }}>
-                    <span className="fa fa-quote-left fa-3x quote-icon"></span>
-                    <div className="testimonial-img mb-4">
-                      <img src={t.img} className="img-fluid" alt="Testimonial" />
-                    </div>
-                    <p className="fs-4 text-white mb-4">
-                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Vero quasi deleniti ratione
-                      similique eaque blanditiis fugit voluptas ex officiis expedita...
-                    </p>
-                    <div className="d-block">
-                      <h4 className="text-white">Client Name</h4>
-                      <p className="m-0 pb-3">Profession</p>
-                      <div className="d-flex">
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-white"></i>
-                      </div>
-                    </div>
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-        </div>
       </div>
     </>
   );

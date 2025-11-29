@@ -357,12 +357,13 @@ export default function Navbar() {
                       <HashLink smooth to="/#trainers-section" className="dropdown-item">
                         Huấn luyện viên
                       </HashLink>
-                      <HashLink smooth to="/#testimonial-section" className="dropdown-item">
-                        Testimonial
-                      </HashLink>
                     </div>
                   </div>
 
+
+                  <HashLink smooth to="/#feedback-section" className="nav-item nav-link">
+                        Đánh giá
+                  </HashLink>
                   <NavLink to="/contact" className="nav-item nav-link">
                     Contact
                   </NavLink>
