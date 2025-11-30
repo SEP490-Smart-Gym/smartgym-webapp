@@ -31,11 +31,8 @@ import {
   MenuItem
 } from "@mui/material";
 import {
-  FiMinus,
-  FiPlus,
   FiTrash2,
   FiShoppingBag,
-  FiCreditCard,
   FiArrowLeft,
   FiArrowRight,
   FiLock,
@@ -393,6 +390,54 @@ const CartComponent = () => {
   const canProceedFromSlot = !!selectedSlot;
   const canProceedFromTrainer = !!selectedTrainer;
 
+  // Tính tạm tính
+  const calculateSubtotal = useMemo(
+    () =>
+      cartItems.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      ),
+    [cartItems]
+  );
+
+  // Lấy object của mã giảm giá đang chọn
+  const selectedDiscount = useMemo(
+    () =>
+      discountCodes.find((d) => d.code === promoCode) || null,
+    [promoCode, discountCodes]
+  );
+
+  // Tính số tiền giảm & tổng sau giảm
+  const discountAmount = useMemo(() => {
+    if (!selectedDiscount) return 0;
+    if (!calculateSubtotal || calculateSubtotal <= 0) return 0;
+
+    const min = selectedDiscount.minimumPurchaseAmount || 0;
+    if (calculateSubtotal < min) return 0;
+
+    let discount = 0;
+    const value = Number(selectedDiscount.discountValue) || 0;
+
+    if (selectedDiscount.discountType === "Percentage") {
+      discount = (calculateSubtotal * value) / 100;
+      const max = Number(selectedDiscount.maxDiscountAmount) || 0;
+      if (max > 0) {
+        discount = Math.min(discount, max);
+      }
+    } else {
+      // fallback cho dạng "Amount" / "Fixed"
+      discount = value;
+    }
+
+    // Không cho giảm quá số tiền tạm tính
+    return Math.min(discount, calculateSubtotal);
+  }, [selectedDiscount, calculateSubtotal]);
+
+  const total = useMemo(
+    () => Math.max(0, calculateSubtotal - discountAmount),
+    [calculateSubtotal, discountAmount]
+  );
+
   // ========== PAYMENT HANDLER ==========
   const handlePaymentSubmit = async () => {
     if (!stripeState.stripe || !stripeCard) {
@@ -442,13 +487,7 @@ const CartComponent = () => {
 
       const {
         clientSecret,
-        paymentIntentId,
-        amount,
-        discountAmount,
-        finalAmount,
-        currency,
-        pendingMemberPackageId,
-        pendingPaymentId
+        paymentIntentId
       } = createRes.data || {};
 
       if (!clientSecret || !paymentIntentId) {
@@ -496,7 +535,6 @@ const CartComponent = () => {
       message.info("Đang xác nhận thanh toán với hệ thống...");
 
       const confirmRes = await api.post("/Payment/confirm-payment", {
-        // dùng id backend trả ra, fallback sang Stripe id
         paymentIntentId: paymentIntentId || stripePI.id
       });
 
@@ -568,43 +606,19 @@ const CartComponent = () => {
   const handleNext = guardedNext;
   const handleBack = () => setActiveStep((prev) => prev - 1);
 
-  const handleQuantityChange = useCallback(
-    (id, newQuantity) => {
-      if (SINGLE_SERVICE) {
-        setCartItems((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, quantity: 1 } : item))
-        );
-        return;
-      }
-      setCartItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                quantity: Math.min(Math.max(1, newQuantity), item.stock)
-              }
-            : item
-        )
-      );
-    },
-    [SINGLE_SERVICE]
-  );
-
   const handleRemoveItem = useCallback((id) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const calculateSubtotal = useMemo(
-    () =>
-      cartItems.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0
-      ),
-    [cartItems]
-  );
+  const currentStepKey = getStepKey(activeStep);
 
-  // Tổng hiển thị ở FE (không tự trừ discount, để backend áp dụng)
-  const total = calculateSubtotal;
+  const nextDisabled =
+    loading ||
+    (currentStepKey === "cart" &&
+      (cartItems.length === 0 || packageLoading)) ||
+    (includesPT &&
+      currentStepKey === "slot" &&
+      (!selectedSlot || (selectedSlot && isSlotDisabled(selectedSlot))));
 
   const renderStepContent = (stepIndex) => {
     const stepKey = getStepKey(stepIndex);
@@ -689,6 +703,20 @@ const CartComponent = () => {
                     <Typography>{formatVND(calculateSubtotal)}</Typography>
                   </Stack>
 
+                  {selectedDiscount && (
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                    >
+                      <Typography>Giảm giá</Typography>
+                      <Typography color={discountAmount > 0 ? "error" : "text.secondary"}>
+                        {discountAmount > 0
+                          ? `- ${formatVND(discountAmount)}`
+                          : "0 VND"}
+                      </Typography>
+                    </Stack>
+                  )}
+
                   <Divider />
 
                   <Stack
@@ -696,7 +724,7 @@ const CartComponent = () => {
                     justifyContent="space-between"
                   >
                     <Typography variant="h6">
-                      Ước tính thanh toán
+                      Tổng thanh toán
                     </Typography>
                     <Typography variant="h6">
                       {formatVND(total)}
@@ -713,7 +741,13 @@ const CartComponent = () => {
                     helperText={
                       discountLoading
                         ? "Đang tải danh sách mã giảm giá..."
-                        : "Chọn mã giảm giá (nếu có). Mã sẽ được áp dụng khi thanh toán."
+                        : selectedDiscount &&
+                          calculateSubtotal <
+                            (selectedDiscount.minimumPurchaseAmount || 0)
+                        ? `Đơn hàng từ ${formatVND(
+                            selectedDiscount.minimumPurchaseAmount || 0
+                          )} mới được áp dụng mã này.`
+                        : "Chọn mã giảm giá (nếu có). Số tiền được giảm sẽ trừ trực tiếp vào tổng."
                     }
                   >
                     <MenuItem value="">Không sử dụng mã</MenuItem>
@@ -1021,19 +1055,27 @@ const CartComponent = () => {
                   </Typography>
                 </>
               )}
-              {promoCode && (
-                <Typography variant="body2" color="text.secondary">
-                  Mã giảm giá: <strong>{promoCode}</strong>
-                </Typography>
-              )}
               <Typography variant="body2" color="text.secondary">
-                Ước tính thanh toán:{" "}
+                Tạm tính: <strong>{formatVND(calculateSubtotal)}</strong>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Giảm giá:{" "}
+                <strong>
+                  {discountAmount > 0
+                    ? `- ${formatVND(discountAmount)}`
+                    : "0 VND"}
+                </strong>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tổng thanh toán:{" "}
                 <strong>{formatVND(total)}</strong>
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Lưu ý: Mã giảm giá (nếu có) sẽ được hệ thống áp dụng tại bước
-                thanh toán. Số tiền thực tế có thể thấp hơn số ước tính.
-              </Typography>
+              {promoCode && (
+                <Typography variant="caption" color="text.secondary">
+                  Mã áp dụng: {promoCode}. Số tiền giảm được tính theo thông
+                  tin mã và có thể được làm tròn nhẹ khi xử lý ở hệ thống.
+                </Typography>
+              )}
             </Stack>
 
             <PaymentForm
@@ -1120,17 +1162,6 @@ const CartComponent = () => {
     }
   };
 
-  const currentStepKey = getStepKey(activeStep);
-
-  const nextDisabled =
-    loading ||
-    (currentStepKey === "cart" &&
-      (cartItems.length === 0 || packageLoading)) ||
-    (includesPT &&
-      currentStepKey === "slot" &&
-      (!selectedSlot ||
-        (selectedSlot && isSlotDisabled(selectedSlot))));
-
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
@@ -1165,8 +1196,16 @@ const CartComponent = () => {
                 <FiArrowRight />
               )
             }
-            onClick={handleNext}
-            disabled={nextDisabled}
+            onClick={guardedNext}
+            disabled={
+              loading ||
+              (currentStepKey === "cart" &&
+                (cartItems.length === 0 || packageLoading)) ||
+              (includesPT &&
+                currentStepKey === "slot" &&
+                (!selectedSlot ||
+                  (selectedSlot && isSlotDisabled(selectedSlot))))
+            }
           >
             {loading ? (
               <CircularProgress size={24} />
