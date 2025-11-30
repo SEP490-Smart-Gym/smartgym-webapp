@@ -17,13 +17,6 @@ import { styled } from "@mui/system";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import api from "../../config/axios";
 
-// 💬 Mock data: Feedbacks (tạm thời vẫn dùng local)
-const feedbacks = [
-  { id: 1, trainerId: 12, name: "Alice Johnson", rating: 5, comment: "Trainer is amazing! He helped me reach my goals faster than I expected." },
-  { id: 2, trainerId: 12, name: "Mark Taylor", rating: 4, comment: "Very professional and motivating. Highly recommended!" },
-  { id: 3, trainerId: 12, name: "Sophia Nguyen", rating: 5, comment: "Every session feels personalized and effective. Great trainer!" },
-];
-
 // 🎨 Styled Components
 const ProfileContainer = styled(Card)({
   padding: "2rem",
@@ -62,12 +55,28 @@ const TrainerDetail = () => {
   const [trainer, setTrainer] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔐 thông tin user & gói để được quyền feedback
+  const [user, setUser] = useState(null);
+  const [memberPackageId, setMemberPackageId] = useState(null);
+  const [loadingPackage, setLoadingPackage] = useState(false);
+
+  // ✍️ state cho feedback form
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
   // scroll to top khi vào trang
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  // 🔥 Lấy data từ API /member/trainers/:id
+  // Lấy user từ localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    setUser(stored ? JSON.parse(stored) : null);
+  }, []);
+
+  // 🔥 Lấy data trainer từ API /guest/trainers/:id
   useEffect(() => {
     const fetchTrainer = async () => {
       try {
@@ -75,42 +84,17 @@ const TrainerDetail = () => {
         const res = await api.get(`/guest/trainers/${id}`);
         const data = res.data;
 
-        // data sample:
-        // {
-        //   "trainerId": 12,
-        //   "firstName": "quang",
-        //   "lastName": "nguyen",
-        //   "phoneNumber": "081231203",
-        //   "email": "trainer23@example.com",
-        //   "profile": {
-        //     "userId": 12,
-        //     "specialization": "string",
-        //     "trainerBio": "string",
-        //     "salary": 100000,
-        //     "isAvailableForNewClients": true,
-        //     "trainerRating": null,
-        //     "totalReviews": 0,
-        //     "certificates": [
-        //       {
-        //         "certificateName": "string",
-        //         "certificateDetail": "string"
-        //       }
-        //     ]
-        //   }
-        // }
+        const fullName =
+          `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Huấn luyện viên";
 
-        const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Trainer";
-
-        // gender: API trả "female" / "male" (nếu có)
         let genderText = "";
         if (data.gender) {
           const g = String(data.gender).toLowerCase();
-          if (g === "male") genderText = "Male";
-          else if (g === "female") genderText = "Female";
+          if (g === "male") genderText = "Nam";
+          else if (g === "female") genderText = "Nữ";
           else genderText = data.gender;
         }
 
-        // specialization: string -> array
         const specializationArray = data.profile?.specialization
           ? data.profile.specialization
               .split(",")
@@ -120,14 +104,16 @@ const TrainerDetail = () => {
 
         const mappedTrainer = {
           id: data.trainerId,
-          avatar: "/img/team-1.jpg", // 👉 TODO: sau này backend trả avatar thì map lại
+          avatar: "/img/team-1.jpg", // TODO: backend trả avatar thì map lại
           name: fullName,
-          age: null, // API hiện chưa có
-          gender: genderText || "Updating",
-          experience: "", // API hiện chưa có trường experience
+          age: null,
+          gender: genderText || "Đang cập nhật",
+          experience: "",
           specialization: specializationArray,
-          about: data.profile?.trainerBio || "Thông tin giới thiệu đang được cập nhật.",
-          skills: specializationArray.map((name) => ({ name })), // dùng specialization làm skills
+          about:
+            data.profile?.trainerBio ||
+            "Thông tin giới thiệu đang được cập nhật.",
+          skills: specializationArray.map((name) => ({ name })),
           contact: {
             phone: data.phoneNumber || "",
             email: data.email || "",
@@ -154,22 +140,105 @@ const TrainerDetail = () => {
     }
   }, [id]);
 
-  const trainerFeedbacks = feedbacks.filter((fb) => fb.trainerId === Number(id));
+  // 🔗 Lấy memberPackageId từ list các gói đã mua: GET /MemberPackage/my-packages
+  useEffect(() => {
+    const fetchMyPackages = async () => {
+      try {
+        setLoadingPackage(true);
+        const res = await api.get("/MemberPackage/my-packages");
+        const raw = res.data;
 
-  const fallbackRatingFromFeedbacks =
-    trainerFeedbacks.length > 0
-      ? trainerFeedbacks.reduce((acc, fb) => acc + fb.rating, 0) / trainerFeedbacks.length
-      : 0;
+        let list = [];
+        if (Array.isArray(raw)) list = raw;
+        else if (raw?.items && Array.isArray(raw.items)) list = raw.items;
+        else if (raw && typeof raw === "object") list = [raw];
+
+        const trainerIdNum = Number(id);
+
+        // lọc các gói có trainerId trùng trainer hiện tại
+        const forThisTrainer = list.filter(
+          (pkg) => Number(pkg.trainerId) === trainerIdNum
+        );
+
+        if (!forThisTrainer.length) {
+          setMemberPackageId(null);
+          return;
+        }
+
+        // ưu tiên gói mua mới nhất (purchaseDate gần nhất)
+        forThisTrainer.sort((a, b) => {
+          const da = new Date(a.purchaseDate || a.startDate || 0).getTime();
+          const db = new Date(b.purchaseDate || b.startDate || 0).getTime();
+          return db - da;
+        });
+
+        setMemberPackageId(forThisTrainer[0].id);
+      } catch (err) {
+        console.error("Error fetching my-packages:", err);
+        setMemberPackageId(null);
+      } finally {
+        setLoadingPackage(false);
+      }
+    };
+
+    if (id) {
+      fetchMyPackages();
+    }
+  }, [id]);
 
   const averageRating =
     trainer?.rating != null && !Number.isNaN(trainer.rating)
       ? Number(trainer.rating)
-      : fallbackRatingFromFeedbacks;
+      : 0;
+
+  // user có đủ điều kiện để gửi feedback?
+  const canSendFeedback =
+    !!user &&
+    user.roleName === "Member" &&
+    !!memberPackageId &&
+    !loadingPackage;
+
+  // 📨 Gửi feedback trainer: POST /member/feedback/trainer
+  const handleSubmitFeedback = async () => {
+    if (!canSendFeedback) return;
+
+    if (!feedbackComment.trim()) {
+      alert("Vui lòng nhập nội dung đánh giá.");
+      return;
+    }
+
+    try {
+      setSubmittingFeedback(true);
+      await api.post("/member/feedback/trainer", {
+        memberPackageId,
+        rating: Number(feedbackRating) || 0,
+        comments: feedbackComment.trim(),
+      });
+
+      alert("Cảm ơn bạn đã gửi đánh giá cho huấn luyện viên!");
+
+      setFeedbackRating(5);
+      setFeedbackComment("");
+      // TODO: nếu sau này có API GET feedback theo trainer, có thể reload list ở đây
+    } catch (err) {
+      console.error("Error submitting trainer feedback:", err);
+      const msg =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi đánh giá thất bại.";
+      alert(msg);
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
 
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 10, textAlign: "center" }}>
-        <Typography variant="h6">Loading trainer...</Typography>
+        <Typography variant="h6">
+          Đang tải thông tin huấn luyện viên...
+        </Typography>
       </Container>
     );
   }
@@ -178,7 +247,7 @@ const TrainerDetail = () => {
     return (
       <Container maxWidth="md" sx={{ py: 10, textAlign: "center" }}>
         <Typography variant="h5" color="error">
-          Trainer not found.
+          Không tìm thấy huấn luyện viên.
         </Typography>
         <Button
           variant="outlined"
@@ -186,7 +255,7 @@ const TrainerDetail = () => {
           onClick={() => navigate(-1)}
           sx={{ mt: 3 }}
         >
-          Back
+          Quay lại
         </Button>
       </Container>
     );
@@ -195,7 +264,7 @@ const TrainerDetail = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-        {/* Left Column */}
+        {/* Cột trái: Thông tin tổng quan */}
         <Box sx={{ flex: { xs: "1 1 100%", md: "1 1 30%" }, minWidth: 300 }}>
           <ProfileContainer>
             <Box sx={{ textAlign: "center" }}>
@@ -205,7 +274,9 @@ const TrainerDetail = () => {
               </Typography>
 
               <Typography variant="subtitle1" color="text.secondary">
-                {trainer.age ? `${trainer.age} years old` : "Age: updating"}
+                {trainer.age
+                  ? `${trainer.age} tuổi`
+                  : "Tuổi: đang cập nhật"}
               </Typography>
 
               <Box
@@ -220,20 +291,20 @@ const TrainerDetail = () => {
                 <Chip
                   label={
                     trainer.experience
-                      ? `${trainer.experience} Experience`
-                      : "Experience: updating"
+                      ? `${trainer.experience} kinh nghiệm`
+                      : "Kinh nghiệm: đang cập nhật"
                   }
                   color="primary"
                   variant="outlined"
                 />
                 <Chip
-                  label={trainer.gender || "Gender: updating"}
+                  label={trainer.gender || "Giới tính: đang cập nhật"}
                   color="primary"
                   variant="outlined"
                 />
                 {trainer.isAvailable && (
                   <Chip
-                    label="Available for new clients"
+                    label="Đang nhận hội viên mới"
                     color="success"
                     variant="filled"
                   />
@@ -243,11 +314,11 @@ const TrainerDetail = () => {
           </ProfileContainer>
         </Box>
 
-        {/* Right Column */}
+        {/* Cột phải: Chi tiết */}
         <Box sx={{ flex: { xs: "1 1 100%", md: "1 1 65%" }, width: "100%" }}>
           <Grid container spacing={2} sx={{ width: "100%", margin: 0 }}>
-            {/* ===== Hàng 1: About Trainer ===== */}
-            <Grid item xs={12}>
+            {/* ===== Hàng 1: Giới thiệu ===== */}
+            <Grid item xs={12} sx={{ width: "100%" }}>
               <InfoCard
                 sx={{
                   height: 180,
@@ -262,7 +333,7 @@ const TrainerDetail = () => {
                   color="primary"
                   sx={{ flexShrink: 0, fontWeight: "bold" }}
                 >
-                  About Trainer
+                  Giới thiệu huấn luyện viên
                 </Typography>
 
                 <Box
@@ -296,8 +367,8 @@ const TrainerDetail = () => {
               </InfoCard>
             </Grid>
 
-            {/* ===== Hàng 2: Skills & Contact ===== */}
-            <Grid item xs={12}>
+            {/* ===== Hàng 2: Kỹ năng & Liên hệ ===== */}
+            <Grid item xs={12} sx={{ width: "100%" }}>
               <Grid
                 container
                 spacing={2}
@@ -307,7 +378,7 @@ const TrainerDetail = () => {
                   width: "100%",
                 }}
               >
-                {/* Skills */}
+                {/* Kỹ năng */}
                 <Grid item xs={12} md={6} sx={{ flex: 1, display: "flex" }}>
                   <InfoCard
                     sx={{
@@ -324,7 +395,7 @@ const TrainerDetail = () => {
                       color="primary"
                       sx={{ fontWeight: "bold" }}
                     >
-                      Skills
+                      Kỹ năng
                     </Typography>
                     <Box
                       sx={{
@@ -351,14 +422,14 @@ const TrainerDetail = () => {
                         ))
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          Skills are updating...
+                          Kỹ năng đang được cập nhật...
                         </Typography>
                       )}
                     </Box>
                   </InfoCard>
                 </Grid>
 
-                {/* Contact */}
+                {/* Liên hệ */}
                 <Grid item xs={12} md={6} sx={{ flex: 1, display: "flex" }}>
                   <InfoCard
                     sx={{
@@ -375,7 +446,7 @@ const TrainerDetail = () => {
                       color="primary"
                       sx={{ fontWeight: "bold" }}
                     >
-                      Contact
+                      Thông tin liên hệ
                     </Typography>
                     <Box
                       sx={{
@@ -391,10 +462,10 @@ const TrainerDetail = () => {
                       }}
                     >
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
-                        Email: {trainer.contact.email || "Updating..."}
+                        Email: {trainer.contact.email || "Đang cập nhật..."}
                       </Typography>
                       <Typography variant="body2">
-                        Phone: {trainer.contact.phone || "Updating..."}
+                        Số điện thoại: {trainer.contact.phone || "Đang cập nhật..."}
                       </Typography>
                     </Box>
                   </InfoCard>
@@ -402,7 +473,7 @@ const TrainerDetail = () => {
               </Grid>
             </Grid>
 
-            {/* ===== Hàng 3: Certified ===== */}
+            {/* ===== Hàng 3: Chứng chỉ ===== */}
             <Grid item xs={12} sx={{ width: "100%" }}>
               <InfoCard
                 sx={{
@@ -419,7 +490,7 @@ const TrainerDetail = () => {
                   color="primary"
                   sx={{ fontWeight: "bold" }}
                 >
-                  Certified
+                  Chứng chỉ
                 </Typography>
 
                 <Box
@@ -446,14 +517,14 @@ const TrainerDetail = () => {
                     ))
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      Certificates are updating...
+                      Chứng chỉ đang được cập nhật...
                     </Typography>
                   )}
                 </Box>
               </InfoCard>
             </Grid>
 
-            {/* ===== Hàng 4: Feedback ===== */}
+            {/* ===== Hàng 4: Đánh giá & Nhận xét ===== */}
             <Grid item xs={12} sx={{ width: "100%" }}>
               <InfoCard
                 sx={{
@@ -464,7 +535,7 @@ const TrainerDetail = () => {
                   overflow: "hidden",
                 }}
               >
-                {/* Phần cố định: Tiêu đề + Rating */}
+                {/* Header feedback + rating trung bình */}
                 <Box sx={{ flexShrink: 0 }}>
                   <Typography
                     variant="h6"
@@ -472,25 +543,27 @@ const TrainerDetail = () => {
                     color="primary"
                     sx={{ fontWeight: "bold" }}
                   >
-                    Feedback
+                    Đánh giá & nhận xét
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <Rating
-                      value={averageRating || 0}
-                      precision={0.5}
-                      readOnly
-                    />
+                    <Rating value={averageRating || 0} precision={0.5} readOnly />
                     <Typography sx={{ ml: 1, fontWeight: "bold" }}>
                       {averageRating.toFixed(1)} / 5.0
                     </Typography>
-                    <Typography sx={{ ml: 2, color: "text.secondary", fontSize: 14 }}>
-                      ({trainer.totalReviews || trainerFeedbacks.length} reviews)
+                    <Typography
+                      sx={{
+                        ml: 2,
+                        color: "text.secondary",
+                        fontSize: 14,
+                      }}
+                    >
+                      ({trainer.totalReviews || 0} lượt đánh giá)
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 1 }} />
                 </Box>
 
-                {/* Phần có thể cuộn: Feedback list */}
+                {/* Danh sách feedback (placeholder) */}
                 <Box
                   sx={{
                     flex: 1,
@@ -507,80 +580,87 @@ const TrainerDetail = () => {
                     },
                   }}
                 >
-                  {trainerFeedbacks.length > 0 ? (
-                    trainerFeedbacks.map((fb) => (
-                      <Box key={fb.id} sx={{ mb: 2 }}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <Typography sx={{ fontWeight: "bold" }}>
-                            {fb.name}
-                          </Typography>
-                          <Rating
-                            value={fb.rating}
-                            readOnly
-                            size="small"
-                          />
-                        </Box>
-                        <Typography
-                          sx={{
-                            color: "text.secondary",
-                            whiteSpace: "normal",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {fb.comment}
-                        </Typography>
-                        <Divider sx={{ my: 1 }} />
-                      </Box>
-                    ))
-                  ) : (
-                    <Typography
-                      color="text.secondary"
-                      sx={{ fontStyle: "italic" }}
-                    >
-                      No feedbacks yet.
-                    </Typography>
-                  )}
+                  <Typography
+                    color="text.secondary"
+                    sx={{ fontStyle: "italic" }}
+                  >
+                    Tính năng hiển thị chi tiết các đánh giá sẽ được cập nhật sau.
+                  </Typography>
                 </Box>
 
-                {/* Phần nhập feedback */}
-                <Divider sx={{ mt: "auto", mb: 1 }} />
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Write your feedback..."
-                    style={{
-                      flex: 1,
-                      border: "1px solid #ccc",
-                      borderRadius: 6,
-                      padding: "8px 10px",
-                      outline: "none",
-                      backgroundColor: "#fff",
-                      color: "#000",
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    size="small"
-                    sx={{
-                      backgroundColor: "#0c1844",
-                      "&:hover": { backgroundColor: "#1f3bb6ff" },
-                    }}
-                  >
-                    Send
-                  </Button>
-                </Box>
+                {/* Form gửi feedback – CHỈ hiển thị khi đủ điều kiện */}
+                {canSendFeedback && (
+                  <>
+                    <Divider sx={{ mt: "auto", mb: 1 }} />
+                    <Box
+                      sx={{
+                        flexShrink: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                      }}
+                    >
+                      {/* Rating chọn sao */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          mb: 0.5,
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ mr: 1 }}>
+                          Đánh giá của bạn:
+                        </Typography>
+                        <Rating
+                          value={feedbackRating}
+                          onChange={(_, value) =>
+                            setFeedbackRating(value || 0)
+                          }
+                        />
+                      </Box>
+
+                      {/* Input comment + nút gửi */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Nhập nhận xét của bạn..."
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          style={{
+                            flex: 1,
+                            border: "1px solid #ccc",
+                            borderRadius: 6,
+                            padding: "8px 10px",
+                            outline: "none",
+                            backgroundColor: "#fff",
+                            color: "#000",
+                          }}
+                        />
+                        <Button
+                          variant="contained"
+                          size="small"
+                          sx={{
+                            backgroundColor: "#0c1844",
+                            whiteSpace: "nowrap",
+                            "&:hover": { backgroundColor: "#1f3bb6ff" },
+                          }}
+                          disabled={submittingFeedback}
+                          onClick={handleSubmitFeedback}
+                        >
+                          {submittingFeedback ? "Đang gửi..." : "Gửi"}
+                        </Button>
+                      </Box>
+                    </Box>
+                  </>
+                )}
               </InfoCard>
             </Grid>
           </Grid>

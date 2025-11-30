@@ -2,6 +2,17 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../config/axios";
 
+// Map code -> label tiếng Việt
+const FEEDBACK_TYPE_LABELS = {
+  GymRoom: "Phòng tập",
+  Equipment: "Thiết bị",
+  Facilities: "Cơ sở vật chất",
+  Service: "Dịch vụ",
+  Staff: "Nhân viên",
+  Cleanliness: "Vệ sinh",
+  Other: "Khác",
+};
+
 export default function GymFeedbackSection() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
@@ -9,11 +20,16 @@ export default function GymFeedbackSection() {
   const [error, setError] = useState("");
 
   const [user, setUser] = useState(null);
+
   const [form, setForm] = useState({
     rating: 5,
-    feedbackType: "",
+    feedbackType: "",          // code: GymRoom, Equipment, ...
+    customFeedbackType: "",    // text khi chọn Khác
     comments: "",
   });
+
+  // state mở/đóng custom dropdown
+  const [openTypeMenu, setOpenTypeMenu] = useState(false);
 
   // Lấy user từ localStorage (để biết có phải Member không)
   useEffect(() => {
@@ -60,11 +76,17 @@ export default function GymFeedbackSection() {
       return;
     }
 
+    // Xử lý loại phản hồi gửi lên API
+    const finalType =
+      form.feedbackType === "Other"
+        ? form.customFeedbackType.trim() || "Other"
+        : form.feedbackType || "General";
+
     try {
       setSubmitLoading(true);
       await api.post("/member/feedback/gym", {
         rating: Number(form.rating),
-        feedbackType: form.feedbackType.trim() || "General",
+        feedbackType: finalType,
         comments: form.comments.trim(),
       });
 
@@ -73,8 +95,10 @@ export default function GymFeedbackSection() {
       setForm({
         rating: 5,
         feedbackType: "",
+        customFeedbackType: "",
         comments: "",
       });
+      setOpenTypeMenu(false);
 
       // reload list để thấy feedback mới
       fetchFeedbacks();
@@ -106,6 +130,7 @@ export default function GymFeedbackSection() {
 
   // Render sao cho trung bình (có thể có .5)
   const renderAvgStars = (rating) => {
+    if (!rating) return null;
     const full = Math.floor(rating);
     const hasHalf = rating - full >= 0.5;
     const empty = 5 - full - (hasHalf ? 1 : 0);
@@ -157,32 +182,40 @@ export default function GymFeedbackSection() {
     1: "Rất tệ",
   };
 
+  // Lấy nhãn hiển thị cho feedbackType trong list
+  const getTypeLabel = (typeRaw) => {
+    if (!typeRaw) return "Khác";
+    // Nếu là 1 trong các code chuẩn
+    if (FEEDBACK_TYPE_LABELS[typeRaw]) {
+      // Nếu là "Other" nhưng có custom => vẫn trả "Khác" ở list, comments đã chi tiết bên dưới
+      return FEEDBACK_TYPE_LABELS[typeRaw];
+    }
+    // Nếu là custom text (khi gửi Other + input)
+    return typeRaw;
+  };
+
+  // Hiển thị text trên nút "select"
+  const getSelectedTypeText = () => {
+    if (form.feedbackType === "Other") {
+      if (form.customFeedbackType.trim()) {
+        return form.customFeedbackType;
+      }
+      return "Khác";
+    }
+    if (!form.feedbackType) return "-- Chọn loại --";
+    return FEEDBACK_TYPE_LABELS[form.feedbackType] || form.feedbackType;
+  };
+
   return (
     <section id="feedback-section" className="py-5 bg-light">
       <div className="container py-4">
-        {/* Title + average rating */}
+        {/* Title + average rating lớn phía trên */}
         <div className="text-center mb-4">
           <h4 className="text-primary">Phản hồi khách hàng</h4>
           <h1 className="display-6 mb-2">Trải nghiệm tại phòng gym</h1>
           <p className="text-muted mb-3">
             Lắng nghe chia sẻ từ hội viên và cùng chúng tôi cải thiện dịch vụ tốt hơn.
           </p>
-
-          <div className="d-inline-flex flex-column align-items-center px-4 py-3 bg-white rounded-3 shadow-sm">
-            <div className="d-flex align-items-baseline mb-1">
-              <span className="display-6 fw-bold me-2">
-                {total ? avgRating.toFixed(1) : "—"}
-              </span>
-              <div className="fs-4">
-                {total > 0 && renderAvgStars(avgRating)}
-              </div>
-            </div>
-            <div className="text-muted small">
-              {total > 0
-                ? `${total} lượt đánh giá`
-                : "Chưa có đánh giá nào"}
-            </div>
-          </div>
         </div>
 
         <div className="row g-4">
@@ -190,25 +223,27 @@ export default function GymFeedbackSection() {
           <div className="col-12 col-lg-7">
             <div className="card shadow-sm h-100">
               <div className="card-body">
-                {/* Header left: Recent + Rating Summary */}
+                {/* Header trái: tiêu đề + rating summary ngang hàng */}
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="mb-0">Phản hồi gần đây</h5>
+                  <h5 className="mb-0">Phản hồi gần đây</h5>
 
-                {/* Rating summary */}
-                <div className="d-flex align-items-center">
-                    <span className="text-warning me-1" style={{ fontSize: "1.2rem" }}>
-                    {"★".repeat(Math.round(avgRating))}
-                    {"☆".repeat(5 - Math.round(avgRating))}
+                  <div className="d-flex align-items-center">
+                    <span
+                      className="text-warning me-1"
+                      style={{ fontSize: "1.2rem" }}
+                    >
+                      {"★".repeat(Math.round(avgRating || 0))}
+                      {"☆".repeat(5 - Math.round(avgRating || 0))}
                     </span>
 
                     <span className="ms-2 fw-semibold">
-                    {avgRating.toFixed(1)}/5
+                      {total ? avgRating.toFixed(1) : "—"}/5
                     </span>
 
                     <span className="text-muted small ms-2">
-                    ({feedbacks.length} đánh giá)
+                      ({total} đánh giá)
                     </span>
-                </div>
+                  </div>
                 </div>
 
                 {loadingList && (
@@ -243,7 +278,7 @@ export default function GymFeedbackSection() {
                         </span>
                       </div>
                       <div className="text-muted small mb-1">
-                        {fb.feedbackType || "General"}
+                        {getTypeLabel(fb.feedbackType)}
                       </div>
                       <div className="small">
                         {fb.comments || "Không có nội dung"}
@@ -272,44 +307,93 @@ export default function GymFeedbackSection() {
                   <form onSubmit={handleSubmit}>
                     {/* Rating - chọn sao */}
                     <div className="mb-3">
-                    <label className="form-label">Đánh giá</label>
-                    <div className="d-flex align-items-center">
+                      <label className="form-label">Đánh giá</label>
+                      <div className="d-flex align-items-center">
                         {[1, 2, 3, 4, 5].map((star) => (
-                        <span
+                          <span
                             key={star}
                             onClick={() => handleChange("rating", star)}
                             style={{
-                            cursor: "pointer",
-                            fontSize: "1.8rem",
-                            color: star <= form.rating ? "#ffc107" : "#e4e5e9",
-                            marginRight: 4,
+                              cursor: "pointer",
+                              fontSize: "1.8rem",
+                              color:
+                                star <= form.rating ? "#ffc107" : "#e4e5e9",
+                              marginRight: 4,
                             }}
-                        >
+                          >
                             ★
-                        </span>
+                          </span>
                         ))}
                         <span className="ms-2 small text-muted">
-                        {ratingLabel[form.rating]}
+                          {ratingLabel[form.rating]}
                         </span>
-                    </div>
+                      </div>
                     </div>
 
-                    {/* Feedback type */}
+                    {/* Loại phản hồi - custom dropdown + input "Khác" bên trong */}
                     <div className="mb-3">
-                      <label className="form-label">Loại phản hồi (tuỳ chọn)</label>
-                      <select
-                        className="form-select"
-                        value={form.feedbackType}
-                        onChange={(e) =>
-                          handleChange("feedbackType", e.target.value)
-                        }
-                      >
-                        <option value="">-- Chọn loại --</option>
-                        <option value="Service">Dịch vụ & nhân viên</option>
-                        <option value="Facility">Cơ sở vật chất</option>
-                        <option value="Program">Chương trình tập</option>
-                        <option value="Other">Khác</option>
-                      </select>
+                      <label className="form-label">Loại phản hồi</label>
+
+                      <div className="position-relative">
+                        {/* "Select" button */}
+                        <button
+                          type="button"
+                          className="form-select text-start"
+                          onClick={() => setOpenTypeMenu((prev) => !prev)}
+                        >
+                          {getSelectedTypeText()}
+                        </button>
+
+                        {/* Dropdown menu */}
+                        {openTypeMenu && (
+                        <div
+                            className="border rounded bg-white shadow position-absolute w-100 mt-1"
+                            style={{ zIndex: 999 }}
+                        >
+                            {/* Các loại chuẩn */}
+                            {Object.entries(FEEDBACK_TYPE_LABELS).map(
+                            ([key, label]) =>
+                                key !== "Other" && (
+                                <div
+                                    key={key}
+                                    className="dropdown-item py-2 px-3"
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => {
+                                    handleChange("feedbackType", key);
+                                    handleChange("customFeedbackType", "");
+                                    setOpenTypeMenu(false);
+                                    }}
+                                >
+                                    {label}
+                                </div>
+                                )
+                            )}
+
+                            {/* Khác - cùng định dạng với item trên + input bên trong */}
+                            <div className="dropdown-item py-2 px-3">
+                            <div
+                                style={{ cursor: "pointer" }}
+                                onClick={() => handleChange("feedbackType", "Other")}
+                            >
+                                Khác
+                            </div>
+
+                            {form.feedbackType === "Other" && (
+                                <input
+                                type="text"
+                                className="form-control mt-2"
+                                placeholder="Nhập loại phản hồi..."
+                                value={form.customFeedbackType || ""}
+                                onChange={(e) =>
+                                    handleChange("customFeedbackType", e.target.value)
+                                }
+                                autoFocus
+                                />
+                            )}
+                            </div>
+                        </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Comments */}

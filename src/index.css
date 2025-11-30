@@ -1,3 +1,17 @@
+.trainer-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.trainer-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(1, 0, 31, 0.55); /* xanh navy đậm trong suốt */
+  z-index: 1;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
