@@ -27,7 +27,8 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  Tooltip
+  Tooltip,
+  MenuItem
 } from "@mui/material";
 import {
   FiMinus,
@@ -122,6 +123,11 @@ const CartComponent = () => {
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
 
+  // Discount codes
+  const [promoCode, setPromoCode] = useState(""); // code được chọn
+  const [discountCodes, setDiscountCodes] = useState([]);
+  const [discountLoading, setDiscountLoading] = useState(false);
+
   const steps = useMemo(
     () =>
       includesPT
@@ -141,10 +147,6 @@ const CartComponent = () => {
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
-
-  const [promoCode, setPromoCode] = useState("");
-  const [promoError, setPromoError] = useState("");
-  const [discount, setDiscount] = useState(0);
 
   const [selectedSlot, setSelectedSlot] = useState(null);
 
@@ -239,6 +241,27 @@ const CartComponent = () => {
     fetchPackage();
   }, [packageId]);
 
+  // Fetch discount codes
+  useEffect(() => {
+    const fetchDiscountCodes = async () => {
+      try {
+        setDiscountLoading(true);
+        const res = await api.get("/DiscountCode/member/available");
+        const data = Array.isArray(res.data)
+          ? res.data
+          : res.data?.items ?? [];
+        setDiscountCodes(data);
+      } catch (error) {
+        console.error("Error fetching discount codes:", error);
+        message.error("Không tải được danh sách mã giảm giá.");
+      } finally {
+        setDiscountLoading(false);
+      }
+    };
+
+    fetchDiscountCodes();
+  }, []);
+
   // Fetch trainers (nếu có PT)
   useEffect(() => {
     if (!includesPT) return;
@@ -255,7 +278,8 @@ const CartComponent = () => {
           .map((t) => ({
             id: t.trainerId,
             name:
-              `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Huấn luyện viên",
+              `${t.firstName || ""} ${t.lastName || ""}`.trim() ||
+              "Huấn luyện viên",
             avatar:
               "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=800&q=80",
             specialties: t.specialization
@@ -399,7 +423,7 @@ const CartComponent = () => {
         packageId: Number(pkg.id),
         startDate: startDateISO,
         isAutoRenewal: !!paymentInfo.isAutoRenewal,
-        discountCode: promoCode.trim() || null,
+        discountCode: promoCode || null,
         notes: paymentInfo.notes?.trim() || null
       };
 
@@ -516,7 +540,12 @@ const CartComponent = () => {
       return message.warning("Vui lòng chọn khung giờ trước.");
     }
 
-    if (includesPT && stepKey === "trainer" && !selectedTrainer && suggestedTrainer) {
+    if (
+      includesPT &&
+      stepKey === "trainer" &&
+      !selectedTrainer &&
+      suggestedTrainer
+    ) {
       setSelectedTrainer(suggestedTrainer);
       setUserTouchedTrainer(false);
     }
@@ -574,20 +603,8 @@ const CartComponent = () => {
     [cartItems]
   );
 
-  const total = Math.max(0, calculateSubtotal - discount);
-
-  const handlePromoCode = () => {
-    const validPromo = "SAVE20";
-    if (promoCode.toUpperCase() === validPromo) {
-      setDiscount(calculateSubtotal * 0.2);
-      setPromoError("");
-      message.success("Áp dụng mã giảm giá thành công!");
-    } else {
-      setDiscount(0);
-      setPromoError("Mã giảm giá không hợp lệ");
-      message.error("Mã giảm giá không hợp lệ.");
-    }
-  };
+  // Tổng hiển thị ở FE (không tự trừ discount, để backend áp dụng)
+  const total = calculateSubtotal;
 
   const renderStepContent = (stepIndex) => {
     const stepKey = getStepKey(stepIndex);
@@ -672,45 +689,43 @@ const CartComponent = () => {
                     <Typography>{formatVND(calculateSubtotal)}</Typography>
                   </Stack>
 
-                  {discount > 0 && (
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                    >
-                      <Typography>Giảm giá</Typography>
-                      <Typography color="error">
-                        - {formatVND(discount)}
-                      </Typography>
-                    </Stack>
-                  )}
                   <Divider />
+
                   <Stack
                     direction="row"
                     justifyContent="space-between"
                   >
                     <Typography variant="h6">
-                      Tổng thanh toán
+                      Ước tính thanh toán
                     </Typography>
                     <Typography variant="h6">
                       {formatVND(total)}
                     </Typography>
                   </Stack>
+
+                  {/* Chọn mã giảm giá từ API */}
                   <TextField
+                    select
                     label="Mã giảm giá"
                     value={promoCode}
-                    onChange={(e) =>
-                      setPromoCode(e.target.value)
-                    }
-                    error={Boolean(promoError)}
-                    helperText={promoError}
+                    onChange={(e) => setPromoCode(e.target.value)}
                     fullWidth
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handlePromoCode}
+                    helperText={
+                      discountLoading
+                        ? "Đang tải danh sách mã giảm giá..."
+                        : "Chọn mã giảm giá (nếu có). Mã sẽ được áp dụng khi thanh toán."
+                    }
                   >
-                    Áp dụng mã giảm giá
-                  </Button>
+                    <MenuItem value="">Không sử dụng mã</MenuItem>
+                    {discountCodes.map((code) => (
+                      <MenuItem key={code.id} value={code.code}>
+                        {code.code}{" "}
+                        {code.discountType === "Percentage"
+                          ? ` - Giảm ${code.discountValue || 0}%`
+                          : ` - Giảm ${formatVND(code.discountValue || 0)}`}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Stack>
               </StyledPaper>
             </Grid>
@@ -1006,9 +1021,18 @@ const CartComponent = () => {
                   </Typography>
                 </>
               )}
+              {promoCode && (
+                <Typography variant="body2" color="text.secondary">
+                  Mã giảm giá: <strong>{promoCode}</strong>
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
-                Tổng thanh toán:{" "}
+                Ước tính thanh toán:{" "}
                 <strong>{formatVND(total)}</strong>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Lưu ý: Mã giảm giá (nếu có) sẽ được hệ thống áp dụng tại bước
+                thanh toán. Số tiền thực tế có thể thấp hơn số ước tính.
               </Typography>
             </Stack>
 
