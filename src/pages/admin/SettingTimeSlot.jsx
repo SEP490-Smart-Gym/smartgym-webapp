@@ -1,7 +1,17 @@
 // AdminStaffList.jsx (quản lý Time Slot)
 import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Space, Button, Modal, Form, Input, message, Spin, Switch } from "antd";
+import {
+  Table,
+  Space,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Spin,
+  Switch,
+} from "antd";
 import api from "../../config/axios";
 
 // Chuẩn hóa giờ về dạng HH:mm:ss để backend TimeOnly parse được
@@ -86,28 +96,34 @@ export default function AdminStaffList() {
     }
   };
 
-  // ===== Xóa TimeSlot (DELETE) =====
-  const handleDelete = async (record) => {
+  // ===== Xóa TimeSlot (DELETE) với Modal.confirm =====
+  const handleDelete = (record) => {
     const id = record.id ?? record.timeSlotId;
     if (!id) {
       message.error("Không tìm được ID ca tập để xóa");
       return;
     }
 
-    if (!window.confirm("Bạn có chắc muốn xóa ca tập này?")) return;
-
-    try {
-      setLoading(true);
-      await api.delete(`/TimeSlot/${id}`);
-      // Sau khi xóa xong, reload lại từ backend cho chắc
-      await fetchTimeSlots();
-      message.success("Xóa ca tập thành công");
-    } catch (err) {
-      console.error("DELETE /TimeSlot error:", err.response?.data || err);
-      message.error("Xóa ca tập thất bại");
-    } finally {
-      setLoading(false);
-    }
+    Modal.confirm({
+      title: "Xác nhận xóa ca tập",
+      content: "Bạn có chắc chắn muốn xóa ca tập này? Hành động này không thể hoàn tác.",
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await api.delete(`/TimeSlot/${id}`);
+          await fetchTimeSlots(); // reload lại sau khi xóa
+          message.success("Xóa ca tập thành công");
+        } catch (err) {
+          console.error("DELETE /TimeSlot error:", err.response?.data || err);
+          message.error("Xóa ca tập thất bại");
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
   };
 
   // ===== Mở modal edit =====
@@ -197,10 +213,10 @@ export default function AdminStaffList() {
       render: (v) => (v ? String(v).substring(0, 5) : "—"),
     },
     {
-      title: "Hoạt động",
+      title: "Trạng thái",
       dataIndex: "isActive",
       key: "isActive",
-      width: 120,
+      width: 140,
       render: (v) => (
         <span style={{ whiteSpace: "nowrap" }}>
           <span
@@ -213,7 +229,7 @@ export default function AdminStaffList() {
               backgroundColor: v ? "#52c41a" : "#ff4d4f",
             }}
           />
-          {v ? "Active" : "Inactive"}
+          {v ? "Đang hoạt động" : "Ngưng sử dụng"}
         </span>
       ),
     },
@@ -242,7 +258,7 @@ export default function AdminStaffList() {
           <AdminSidebar />
         </div>
         <div className="col-lg-9">
-          <h2 className="mb-4 text-center">Quản lý ca tập (Time Slot)</h2>
+          <h2 className="mb-4 text-center">Quản lý ca tập</h2>
 
           {/* Card thêm TimeSlot */}
           <div className="card shadow-sm mb-4">
@@ -251,7 +267,6 @@ export default function AdminStaffList() {
 
               <Form form={addForm} layout="vertical" onFinish={handleAdd}>
                 <div className="row g-3">
-
                   <div className="col-md-4">
                     <Form.Item
                       name="slotName"
@@ -292,12 +307,10 @@ export default function AdminStaffList() {
                       </Button>
                     </Form.Item>
                   </div>
-
                 </div>
               </Form>
             </div>
           </div>
-
 
           {/* Table danh sách TimeSlot */}
           <div className="card shadow-sm">
@@ -360,8 +373,15 @@ export default function AdminStaffList() {
             <Input placeholder="VD: 7:00 hoặc 07:00" />
           </Form.Item>
 
-          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+          <Form.Item
+            name="isActive"
+            label="Trạng thái"
+            valuePropName="checked"
+          >
+            <Switch
+              checkedChildren="Đang hoạt động"
+              unCheckedChildren="Ngưng sử dụng"
+            />
           </Form.Item>
         </Form>
       </Modal>

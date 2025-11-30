@@ -16,6 +16,7 @@ import {
 import { styled } from "@mui/system";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import api from "../../config/axios";
+import { message } from "antd"; // ✅ dùng Ant Design message
 
 // 🎨 Styled Components
 const ProfileContainer = styled(Card)({
@@ -85,7 +86,8 @@ const TrainerDetail = () => {
         const data = res.data;
 
         const fullName =
-          `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Huấn luyện viên";
+          `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
+          "Huấn luyện viên";
 
         let genderText = "";
         if (data.gender) {
@@ -203,7 +205,7 @@ const TrainerDetail = () => {
     if (!canSendFeedback) return;
 
     if (!feedbackComment.trim()) {
-      alert("Vui lòng nhập nội dung đánh giá.");
+      message.warning("Vui lòng nhập nội dung đánh giá.");
       return;
     }
 
@@ -215,7 +217,7 @@ const TrainerDetail = () => {
         comments: feedbackComment.trim(),
       });
 
-      alert("Cảm ơn bạn đã gửi đánh giá cho huấn luyện viên!");
+      message.success("Cảm ơn bạn đã gửi đánh giá cho huấn luyện viên!");
 
       setFeedbackRating(5);
       setFeedbackComment("");
@@ -227,7 +229,7 @@ const TrainerDetail = () => {
         err?.response?.data?.message ||
         err?.message ||
         "Gửi đánh giá thất bại.";
-      alert(msg);
+      message.error(msg);
     } finally {
       setSubmittingFeedback(false);
     }
@@ -274,9 +276,7 @@ const TrainerDetail = () => {
               </Typography>
 
               <Typography variant="subtitle1" color="text.secondary">
-                {trainer.age
-                  ? `${trainer.age} tuổi`
-                  : "Tuổi: đang cập nhật"}
+                {trainer.age ? `${trainer.age} tuổi` : "Tuổi: đang cập nhật"}
               </Typography>
 
               <Box
@@ -415,7 +415,10 @@ const TrainerDetail = () => {
                           <Typography
                             key={idx}
                             variant="body2"
-                            sx={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                            sx={{
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                            }}
                           >
                             • {s.name}
                           </Typography>
@@ -454,18 +457,24 @@ const TrainerDetail = () => {
                         overflowY: "auto",
                         pr: 1,
                         "&::-webkit-scrollbar": { width: 6 },
-                        "&::-webkit-scrollbar-thumb": { background: "transparent" },
+                        "&::-webkit-scrollbar-thumb": {
+                          background: "transparent",
+                        },
                         "&:hover::-webkit-scrollbar-thumb": {
                           background: "rgba(0,0,0,0.15)",
                           borderRadius: 3,
                         },
                       }}
                     >
-                      <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ wordBreak: "break-word" }}
+                      >
                         Email: {trainer.contact.email || "Đang cập nhật..."}
                       </Typography>
                       <Typography variant="body2">
-                        Số điện thoại: {trainer.contact.phone || "Đang cập nhật..."}
+                        Số điện thoại:{" "}
+                        {trainer.contact.phone || "Đang cập nhật..."}
                       </Typography>
                     </Box>
                   </InfoCard>
@@ -499,7 +508,9 @@ const TrainerDetail = () => {
                     overflowY: "auto",
                     pr: 1,
                     "&::-webkit-scrollbar": { width: 6 },
-                    "&::-webkit-scrollbar-thumb": { background: "transparent" },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: "transparent",
+                    },
                     "&:hover::-webkit-scrollbar-thumb": {
                       background: "rgba(0,0,0,0.15)",
                       borderRadius: 3,
@@ -510,7 +521,10 @@ const TrainerDetail = () => {
                     trainer.certificates.map((c, i) => (
                       <Typography
                         key={i}
-                        sx={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                        sx={{
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
                       >
                         🏅 {c.title} – {c.detail}
                       </Typography>
@@ -545,8 +559,18 @@ const TrainerDetail = () => {
                   >
                     Đánh giá & nhận xét
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <Rating value={averageRating || 0} precision={0.5} readOnly />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      mb: 2,
+                    }}
+                  >
+                    <Rating
+                      value={averageRating || 0}
+                      precision={0.5}
+                      readOnly
+                    />
                     <Typography sx={{ ml: 1, fontWeight: "bold" }}>
                       {averageRating.toFixed(1)} / 5.0
                     </Typography>
@@ -584,7 +608,8 @@ const TrainerDetail = () => {
                     color="text.secondary"
                     sx={{ fontStyle: "italic" }}
                   >
-                    Tính năng hiển thị chi tiết các đánh giá sẽ được cập nhật sau.
+                    Tính năng hiển thị chi tiết các đánh giá sẽ được cập nhật
+                    sau.
                   </Typography>
                 </Box>
 
@@ -610,7 +635,10 @@ const TrainerDetail = () => {
                           mb: 0.5,
                         }}
                       >
-                        <Typography variant="body2" sx={{ mr: 1 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ mr: 1 }}
+                        >
                           Đánh giá của bạn:
                         </Typography>
                         <Rating
@@ -633,7 +661,9 @@ const TrainerDetail = () => {
                           type="text"
                           placeholder="Nhập nhận xét của bạn..."
                           value={feedbackComment}
-                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          onChange={(e) =>
+                            setFeedbackComment(e.target.value)
+                          }
                           style={{
                             flex: 1,
                             border: "1px solid #ccc",

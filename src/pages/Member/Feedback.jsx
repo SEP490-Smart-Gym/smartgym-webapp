@@ -1,8 +1,8 @@
 // src/components/GymFeedbackSection.jsx
 import { useEffect, useMemo, useState } from "react";
 import api from "../../config/axios";
+import { message } from "antd";
 
-// Map code -> label tiếng Việt
 const FEEDBACK_TYPE_LABELS = {
   GymRoom: "Phòng tập",
   Equipment: "Thiết bị",
@@ -67,12 +67,12 @@ export default function GymFeedbackSection() {
     e.preventDefault();
 
     if (!user || user.roleName !== "Member") {
-      alert("Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi.");
+      message.warning("Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi.");
       return;
     }
 
     if (!form.rating || !form.comments.trim()) {
-      alert("Vui lòng nhập nội dung và chọn số sao.");
+      message.warning("Vui lòng nhập nội dung và chọn số sao.");
       return;
     }
 
@@ -90,7 +90,7 @@ export default function GymFeedbackSection() {
         comments: form.comments.trim(),
       });
 
-      alert("Cảm ơn bạn đã gửi phản hồi!");
+      message.success("Cảm ơn bạn đã gửi phản hồi!");
 
       setForm({
         rating: 5,
@@ -109,7 +109,7 @@ export default function GymFeedbackSection() {
         err?.response?.data?.message ||
         err?.message ||
         "Gửi phản hồi thất bại.";
-      alert(msg);
+      message.error(msg);
     } finally {
       setSubmitLoading(false);
     }
@@ -346,52 +346,57 @@ export default function GymFeedbackSection() {
 
                         {/* Dropdown menu */}
                         {openTypeMenu && (
-                        <div
+                          <div
                             className="border rounded bg-white shadow position-absolute w-100 mt-1"
                             style={{ zIndex: 999 }}
-                        >
+                          >
                             {/* Các loại chuẩn */}
                             {Object.entries(FEEDBACK_TYPE_LABELS).map(
-                            ([key, label]) =>
+                              ([key, label]) =>
                                 key !== "Other" && (
-                                <div
+                                  <div
                                     key={key}
                                     className="dropdown-item py-2 px-3"
                                     style={{ cursor: "pointer" }}
                                     onClick={() => {
-                                    handleChange("feedbackType", key);
-                                    handleChange("customFeedbackType", "");
-                                    setOpenTypeMenu(false);
+                                      handleChange("feedbackType", key);
+                                      handleChange("customFeedbackType", "");
+                                      setOpenTypeMenu(false);
                                     }}
-                                >
+                                  >
                                     {label}
-                                </div>
+                                  </div>
                                 )
                             )}
 
                             {/* Khác - cùng định dạng với item trên + input bên trong */}
                             <div className="dropdown-item py-2 px-3">
-                            <div
+                              <div
                                 style={{ cursor: "pointer" }}
-                                onClick={() => handleChange("feedbackType", "Other")}
-                            >
-                                Khác
-                            </div>
-
-                            {form.feedbackType === "Other" && (
-                                <input
-                                type="text"
-                                className="form-control mt-2"
-                                placeholder="Nhập loại phản hồi..."
-                                value={form.customFeedbackType || ""}
-                                onChange={(e) =>
-                                    handleChange("customFeedbackType", e.target.value)
+                                onClick={() =>
+                                  handleChange("feedbackType", "Other")
                                 }
-                                autoFocus
+                              >
+                                Khác
+                              </div>
+
+                              {form.feedbackType === "Other" && (
+                                <input
+                                  type="text"
+                                  className="form-control mt-2"
+                                  placeholder="Nhập loại phản hồi..."
+                                  value={form.customFeedbackType || ""}
+                                  onChange={(e) =>
+                                    handleChange(
+                                      "customFeedbackType",
+                                      e.target.value
+                                    )
+                                  }
+                                  autoFocus
                                 />
-                            )}
+                              )}
                             </div>
-                        </div>
+                          </div>
                         )}
                       </div>
                     </div>

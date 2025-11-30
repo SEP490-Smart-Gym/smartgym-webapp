@@ -25,7 +25,6 @@ import {
   styled,
   Container,
   CircularProgress,
-  Snackbar,
   Alert,
   Chip,
   Tooltip
@@ -42,6 +41,7 @@ import {
   FiClock
 } from "react-icons/fi";
 import { useParams, useNavigate } from "react-router-dom";
+import { message } from "antd";
 import api from "../../config/axios";
 
 // ============ CONSTANTS ============
@@ -125,8 +125,8 @@ const CartComponent = () => {
   const steps = useMemo(
     () =>
       includesPT
-        ? ["Cart", "Slot", "Trainer", "Payment", "Confirmation"]
-        : ["Cart", "Payment", "Confirmation"],
+        ? ["Giỏ hàng", "Chọn giờ tập", "Chọn huấn luyện viên", "Thanh toán", "Xác nhận"]
+        : ["Giỏ hàng", "Thanh toán", "Xác nhận"],
     [includesPT]
   );
 
@@ -141,11 +141,6 @@ const CartComponent = () => {
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success"
-  });
 
   const [promoCode, setPromoCode] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -235,11 +230,7 @@ const CartComponent = () => {
         setIncludesPT(!!pkg.includesPersonalTrainer);
       } catch (error) {
         console.error("Error fetching package:", error);
-        setSnackbar({
-          open: true,
-          message: "Không tải được gói tập. Vui lòng thử lại.",
-          severity: "error"
-        });
+        message.error("Không tải được gói tập. Vui lòng thử lại.");
       } finally {
         setPackageLoading(false);
       }
@@ -264,7 +255,7 @@ const CartComponent = () => {
           .map((t) => ({
             id: t.trainerId,
             name:
-              `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Trainer",
+              `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Huấn luyện viên",
             avatar:
               "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=800&q=80",
             specialties: t.specialization
@@ -277,11 +268,7 @@ const CartComponent = () => {
       } catch (error) {
         console.error("Error fetching trainers:", error);
         setTrainerError("Không tải được danh sách huấn luyện viên.");
-        setSnackbar({
-          open: true,
-          message: "Không tải được danh sách trainer.",
-          severity: "error"
-        });
+        message.error("Không tải được danh sách huấn luyện viên.");
         setTrainers([]);
       } finally {
         setTrainerLoading(false);
@@ -319,11 +306,7 @@ const CartComponent = () => {
       } catch (error) {
         console.error("Error fetching time slots:", error);
         setSlotError("Không tải được danh sách khung giờ.");
-        setSnackbar({
-          open: true,
-          message: "Không tải được danh sách khung giờ.",
-          severity: "error"
-        });
+        message.error("Không tải được danh sách khung giờ.");
         setSlots([]);
       } finally {
         setSlotLoading(false);
@@ -389,56 +372,40 @@ const CartComponent = () => {
   // ========== PAYMENT HANDLER ==========
   const handlePaymentSubmit = async () => {
     if (!stripeState.stripe || !stripeCard) {
-      setSnackbar({
-        open: true,
-        message:
-          "Đang khởi tạo form thanh toán Stripe, vui lòng thử lại sau vài giây.",
-        severity: "warning"
-      });
+      message.warning(
+        "Đang khởi tạo biểu mẫu thanh toán Stripe, vui lòng thử lại sau vài giây."
+      );
       return;
     }
 
     if (includesPT && (!selectedTrainer || !selectedSlot)) {
-      setSnackbar({
-        open: true,
-        message: "Thiếu thông tin slot/trainer.",
-        severity: "error"
-      });
+      message.error("Thiếu thông tin khung giờ hoặc huấn luyện viên.");
       return;
     }
 
     if (cartItems.length === 0) {
-      setSnackbar({
-        open: true,
-        message: "Giỏ hàng đang trống.",
-        severity: "error"
-      });
+      message.error("Giỏ hàng đang trống.");
       return;
     }
 
     try {
       setLoading(true);
-      setSnackbar({
-        open: true,
-        message: "Đang tạo payment intent...",
-        severity: "info"
-      });
+      message.info("Đang khởi tạo giao dịch thanh toán...");
 
       const pkg = cartItems[0];
       const startDateISO = new Date().toISOString();
 
       const createBody = {
-  packageId: Number(pkg.id),
-  startDate: startDateISO,
-  isAutoRenewal: !!paymentInfo.isAutoRenewal,
-  discountCode: promoCode.trim() || null,
-  notes: paymentInfo.notes?.trim() || null
-};
+        packageId: Number(pkg.id),
+        startDate: startDateISO,
+        isAutoRenewal: !!paymentInfo.isAutoRenewal,
+        discountCode: promoCode.trim() || null,
+        notes: paymentInfo.notes?.trim() || null
+      };
 
-if (includesPT && selectedTrainer) {
-  createBody.trainerId = Number(selectedTrainer.id);
-}
-
+      if (includesPT && selectedTrainer) {
+        createBody.trainerId = Number(selectedTrainer.id);
+      }
 
       console.log("Create payment intent body:", createBody);
 
@@ -466,11 +433,7 @@ if (includesPT && selectedTrainer) {
 
       setPaymentIntent({ id: paymentIntentId, clientSecret });
 
-      setSnackbar({
-        open: true,
-        message: "Đang xác nhận thanh toán với Stripe...",
-        severity: "info"
-      });
+      message.info("Đang xác nhận thanh toán với Stripe...");
 
       const result = await stripeState.stripe.confirmCardPayment(
         clientSecret,
@@ -490,11 +453,7 @@ if (includesPT && selectedTrainer) {
         console.error("Stripe error:", result.error);
         setPaymentStatus("failed");
         setActiveStep(steps.length - 1);
-        setSnackbar({
-          open: true,
-          message: "Stripe error: " + result.error.message,
-          severity: "error"
-        });
+        message.error("Lỗi Stripe: " + result.error.message);
         return;
       }
 
@@ -504,22 +463,13 @@ if (includesPT && selectedTrainer) {
       if (stripePI.status !== "succeeded") {
         setPaymentStatus("failed");
         setActiveStep(steps.length - 1);
-        setSnackbar({
-          open: true,
-          message:
-            "Thanh toán chưa thành công (trạng thái: " +
-            stripePI.status +
-            ").",
-          severity: "error"
-        });
+        message.error(
+          `Thanh toán chưa thành công (trạng thái: ${stripePI.status}).`
+        );
         return;
       }
 
-      setSnackbar({
-        open: true,
-        message: "Đang xác nhận thanh toán với hệ thống...",
-        severity: "info"
-      });
+      message.info("Đang xác nhận thanh toán với hệ thống...");
 
       const confirmRes = await api.post("/Payment/confirm-payment", {
         // dùng id backend trả ra, fallback sang Stripe id
@@ -530,19 +480,12 @@ if (includesPT && selectedTrainer) {
 
       if (confirmRes.status === 200) {
         setPaymentStatus("success");
-        setSnackbar({
-          open: true,
-          message: "Thanh toán thành công! Gói tập đã được kích hoạt.",
-          severity: "success"
-        });
+        message.success("Thanh toán thành công! Gói tập đã được kích hoạt.");
       } else {
         setPaymentStatus("failed");
-        setSnackbar({
-          open: true,
-          message:
-            "Thanh toán Stripe thành công nhưng xác nhận với hệ thống thất bại.",
-          severity: "error"
-        });
+        message.error(
+          "Thanh toán Stripe thành công nhưng xác nhận với hệ thống thất bại."
+        );
       }
 
       setActiveStep(steps.length - 1);
@@ -560,11 +503,7 @@ if (includesPT && selectedTrainer) {
 
       setPaymentStatus("failed");
       setActiveStep(steps.length - 1);
-      setSnackbar({
-        open: true,
-        message: msg,
-        severity: "error"
-      });
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -573,32 +512,16 @@ if (includesPT && selectedTrainer) {
   const guardedNext = () => {
     const stepKey = getStepKey(activeStep);
 
-    if (
-      includesPT &&
-      stepKey === "slot" &&
-      !canProceedFromSlot
-    ) {
-      return setSnackbar({
-        open: true,
-        message: "Vui lòng chọn khung giờ trước.",
-        severity: "warning"
-      });
+    if (includesPT && stepKey === "slot" && !canProceedFromSlot) {
+      return message.warning("Vui lòng chọn khung giờ trước.");
     }
 
     if (includesPT && stepKey === "trainer" && !selectedTrainer && suggestedTrainer) {
       setSelectedTrainer(suggestedTrainer);
       setUserTouchedTrainer(false);
     }
-    if (
-      includesPT &&
-      stepKey === "trainer" &&
-      !canProceedFromTrainer
-    ) {
-      return setSnackbar({
-        open: true,
-        message: "Vui lòng chọn trainer.",
-        severity: "warning"
-      });
+    if (includesPT && stepKey === "trainer" && !canProceedFromTrainer) {
+      return message.warning("Vui lòng chọn huấn luyện viên.");
     }
 
     if (stepKey === "payment") {
@@ -609,11 +532,7 @@ if (includesPT && selectedTrainer) {
     setTimeout(() => {
       setActiveStep((prev) => prev + 1);
       setLoading(false);
-      setSnackbar({
-        open: true,
-        message: "Step completed successfully!",
-        severity: "success"
-      });
+      message.success("Đã hoàn thành bước này.");
     }, 800);
   };
 
@@ -662,19 +581,11 @@ if (includesPT && selectedTrainer) {
     if (promoCode.toUpperCase() === validPromo) {
       setDiscount(calculateSubtotal * 0.2);
       setPromoError("");
-      setSnackbar({
-        open: true,
-        message: "Promo code applied successfully!",
-        severity: "success"
-      });
+      message.success("Áp dụng mã giảm giá thành công!");
     } else {
       setDiscount(0);
-      setPromoError("Invalid promo code");
-      setSnackbar({
-        open: true,
-        message: "Invalid promo code",
-        severity: "error"
-      });
+      setPromoError("Mã giảm giá không hợp lệ");
+      message.error("Mã giảm giá không hợp lệ.");
     }
   };
 
@@ -695,7 +606,7 @@ if (includesPT && selectedTrainer) {
               {packageLoading && (
                 <StyledPaper>
                   <Typography align="center" color="text.secondary">
-                    Đang tải gói tập...
+                    Đang tải thông tin gói tập...
                   </Typography>
                 </StyledPaper>
               )}
@@ -751,14 +662,22 @@ if (includesPT && selectedTrainer) {
             <Grid item xs={12} md={4}>
               <StyledPaper>
                 <Stack spacing={2}>
-                  <Typography variant="h6">Order Summary</Typography>
+                  <Typography variant="h6">Tóm tắt đơn hàng</Typography>
+
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                  >
+                    <Typography>Tạm tính</Typography>
+                    <Typography>{formatVND(calculateSubtotal)}</Typography>
+                  </Stack>
 
                   {discount > 0 && (
                     <Stack
                       direction="row"
                       justifyContent="space-between"
                     >
-                      <Typography>Discount</Typography>
+                      <Typography>Giảm giá</Typography>
                       <Typography color="error">
                         - {formatVND(discount)}
                       </Typography>
@@ -770,14 +689,14 @@ if (includesPT && selectedTrainer) {
                     justifyContent="space-between"
                   >
                     <Typography variant="h6">
-                      Total
+                      Tổng thanh toán
                     </Typography>
                     <Typography variant="h6">
                       {formatVND(total)}
                     </Typography>
                   </Stack>
                   <TextField
-                    label="Promo Code"
+                    label="Mã giảm giá"
                     value={promoCode}
                     onChange={(e) =>
                       setPromoCode(e.target.value)
@@ -790,7 +709,7 @@ if (includesPT && selectedTrainer) {
                     variant="outlined"
                     onClick={handlePromoCode}
                   >
-                    Apply Promo
+                    Áp dụng mã giảm giá
                   </Button>
                 </Stack>
               </StyledPaper>
@@ -838,8 +757,8 @@ if (includesPT && selectedTrainer) {
                       <Tooltip
                         title={
                           disabled
-                            ? "Slot đầy: tất cả trainer bận"
-                            : `${freeCount} trainer rảnh`
+                            ? "Slot đã đầy: tất cả huấn luyện viên đều bận."
+                            : `${freeCount} huấn luyện viên rảnh ở slot này`
                         }
                       >
                         <span>
@@ -875,14 +794,14 @@ if (includesPT && selectedTrainer) {
                   {selectedSlot && (
                     <Chip
                       color="primary"
-                      label={`Đã chọn: ${selectedSlot}`}
+                      label={`Đã chọn khung giờ: ${selectedSlot}`}
                     />
                   )}
                   {suggestedTrainer && (
                     <Chip
                       color="success"
                       variant="outlined"
-                      label={`Gợi ý trainer: ${suggestedTrainer.name}`}
+                      label={`Gợi ý huấn luyện viên: ${suggestedTrainer.name}`}
                     />
                   )}
                 </Box>
@@ -904,12 +823,12 @@ if (includesPT && selectedTrainer) {
 
         return (
           <Stack spacing={2}>
-            <Typography variant="h6">Chọn Trainer</Typography>
+            <Typography variant="h6">Chọn huấn luyện viên</Typography>
             {!selectedSlot && (
               <Alert severity="info">
-                Chưa chọn slot — hệ thống đã{" "}
-                <strong>gợi ý</strong> một trainer phù hợp. Bạn vẫn
-                có thể chọn lại.
+                Bạn chưa chọn khung giờ — hệ thống đã{" "}
+                <strong>gợi ý</strong> một huấn luyện viên phù hợp. Bạn vẫn
+                có thể chọn lại nếu muốn.
               </Alert>
             )}
 
@@ -971,9 +890,9 @@ if (includesPT && selectedTrainer) {
                               label={
                                 selectedSlot
                                   ? available
-                                    ? "Available"
-                                    : "Busy"
-                                  : "Available"
+                                    ? "Rảnh"
+                                    : "Bận"
+                                  : "Rảnh"
                               }
                               color={
                                 selectedSlot
@@ -1023,7 +942,7 @@ if (includesPT && selectedTrainer) {
                                 size="small"
                                 color="secondary"
                                 variant="outlined"
-                                label="Đề xuất"
+                                label="Gợi ý hệ thống"
                               />
                             )}
                           </Stack>
@@ -1039,18 +958,18 @@ if (includesPT && selectedTrainer) {
               <Alert severity="success">
                 {selectedTrainer ? (
                   <>
-                    Đã chọn:{" "}
+                    Đã chọn huấn luyện viên:{" "}
                     <strong>{selectedTrainer.name}</strong>
                     {selectedSlot && (
                       <>
                         {" "}
-                        — Slot <strong>{selectedSlot}</strong>
+                        — Khung giờ <strong>{selectedSlot}</strong>
                       </>
                     )}
                   </>
                 ) : (
                   <>
-                    Gợi ý:{" "}
+                    Gợi ý huấn luyện viên:{" "}
                     <strong>{suggestedTrainer?.name}</strong>
                   </>
                 )}
@@ -1072,18 +991,18 @@ if (includesPT && selectedTrainer) {
         return (
           <StyledPaper>
             <Typography variant="h6" gutterBottom>
-              Payment Information
+              Thông tin thanh toán
             </Typography>
             <Stack spacing={1} sx={{ mb: 2 }}>
               {includesPT && (
                 <>
                   <Typography variant="body2" color="text.secondary">
-                    Slot:{" "}
+                    Khung giờ:{" "}
                     <strong>{selectedSlot || "Chưa chọn"}</strong>
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Trainer đã chọn:{" "}
-                    <strong>{selectedTrainer?.name || "—"}</strong>
+                    Huấn luyện viên:{" "}
+                    <strong>{selectedTrainer?.name || "Chưa chọn"}</strong>
                   </Typography>
                 </>
               )}
@@ -1113,7 +1032,7 @@ if (includesPT && selectedTrainer) {
               />
               <Typography variant="caption" color="text.secondary">
                 Thông tin thẻ được xử lý an toàn bởi Stripe. Chúng tôi
-                không lưu số thẻ của bạn.
+                không lưu trữ số thẻ của bạn.
               </Typography>
             </Box>
           </StyledPaper>
@@ -1136,10 +1055,10 @@ if (includesPT && selectedTrainer) {
                     color="text.secondary"
                     align="center"
                   >
-                    Cảm ơn bạn đã đặt lịch. Gói tập đã được kích hoạt.
+                    Cảm ơn bạn đã đặt gói tập tại phòng gym.
                     <br />
-                    Chúng tôi sẽ gửi email xác nhận và nhắc lịch
-                    trước buổi tập.
+                    Gói tập đã được kích hoạt. Chúng tôi sẽ gửi email
+                    xác nhận và nhắc lịch trước buổi tập.
                   </Typography>
                 </>
               ) : (
@@ -1155,10 +1074,9 @@ if (includesPT && selectedTrainer) {
                     color="text.secondary"
                     align="center"
                   >
-                    Rất tiếc, giao dịch không thành công hoặc bị huỷ.
+                    Rất tiếc, giao dịch không thành công hoặc đã bị huỷ.
                     <br />
-                    Vui lòng thử lại hoặc liên hệ nhân viên để được
-                    hỗ trợ.
+                    Vui lòng thử lại hoặc liên hệ nhân viên để được hỗ trợ.
                   </Typography>
                 </>
               )}
@@ -1167,7 +1085,7 @@ if (includesPT && selectedTrainer) {
                 startIcon={<FiShoppingBag />}
                 onClick={() => navigate("/")}
               >
-                Quay về Trang Chủ
+                Quay về trang chủ
               </Button>
             </Stack>
           </StyledPaper>
@@ -1192,7 +1110,7 @@ if (includesPT && selectedTrainer) {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
-        Checkout
+        Thanh toán gói tập
       </Typography>
 
       <CheckoutSteps activeStep={activeStep} steps={steps} />
@@ -1212,7 +1130,7 @@ if (includesPT && selectedTrainer) {
             onClick={handleBack}
             disabled={activeStep === 0 || loading}
           >
-            Back
+            Quay lại
           </Button>
           <Button
             variant="contained"
@@ -1229,30 +1147,13 @@ if (includesPT && selectedTrainer) {
             {loading ? (
               <CircularProgress size={24} />
             ) : currentStepKey === "payment" ? (
-              "Place Order"
+              "Thanh toán"
             ) : (
-              "Continue"
+              "Tiếp tục"
             )}
           </Button>
         </Box>
       )}
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3500}
-        onClose={() =>
-          setSnackbar({ ...snackbar, open: false })
-        }
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={() =>
-            setSnackbar({ ...snackbar, open: false })
-          }
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Container>
   );
 };
