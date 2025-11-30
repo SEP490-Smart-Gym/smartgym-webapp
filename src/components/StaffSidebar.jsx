@@ -69,7 +69,11 @@ export default function StaffSidebar() {
             <span className="label">Báo cáo của tôi</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-
+          <NavLink to="/staff/upcomingschedule" className="admin-side-item">
+            <MdHistory className="icon" />
+            <span className="label">Lịch bảo trì</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
           <NavLink to="/staff/repair-history" className="admin-side-item">
             <MdHistory className="icon" />
             <span className="label">Lịch sử sửa chữa</span>

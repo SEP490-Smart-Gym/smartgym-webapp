@@ -52,6 +52,7 @@ import EquipmentRepairPending from "../pages/Manager/EquipmentRepairPending.jsx"
 import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.jsx";
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
+import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
 
 function Layout() {
   return (
@@ -143,6 +144,8 @@ export default function AppRoutes() {
           <Route path="/profile/staff" element={<ProfileStaff />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
+          <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
+
         </Route>
 
         {/* ===== Admin protected ===== */}

@@ -20,11 +20,15 @@ function statusBadgeClass(s) {
 export default function StaffEquipmentList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tất cả");
   const [selected, setSelected] = useState(null);
 
-  // Maintenance
+  // Maintenance log
+  const [schedule, setSchedule] = useState([]);
+  const [todayTask, setTodayTask] = useState(null);
+  const [activeTask, setActiveTask] = useState({});
   const [showMaintenanceLog, setShowMaintenanceLog] = useState(false);
   const [maintenanceLogText, setMaintenanceLogText] = useState("");
 
@@ -39,7 +43,7 @@ export default function StaffEquipmentList() {
   const [returnFromStatus, setReturnFromStatus] = useState(null);
 
   /* =======================================================
-        FETCH LIST
+      FETCH EQUIPMENTS
   ======================================================= */
   const fetchEquipments = async () => {
     setLoading(true);
@@ -69,13 +73,27 @@ export default function StaffEquipmentList() {
       setLoading(false);
     }
   };
+  const fetchMaintenanceSchedule = async () => {
+    try {
+      const res = await api.get("/MaintenanceSchedule");
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data.items || res.data.data || [];
+
+      setSchedule(data);
+    } catch (err) {
+      message.error("Không thể tải lịch bảo trì");
+    }
+  };
+
 
   useEffect(() => {
     fetchEquipments();
+    fetchMaintenanceSchedule();
   }, []);
 
   /* =======================================================
-        FILTER
+      FILTER
   ======================================================= */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -92,67 +110,132 @@ export default function StaffEquipmentList() {
   }, [items, query, statusFilter]);
 
   /* =======================================================
-        DETAIL HANDLING
+      DETAIL HANDLING
   ======================================================= */
   const openDetail = (it) => {
-    setSelected(it);
-    setShowMaintenanceLog(false);
-    setShowDamageReport(false);
-    setShowReturnLog(false);
-    setMaintenanceLogText("");
-    setDamageText("");
-    setReturnLogText("");
-    setSeverity("Medium");
-    setReturnFromStatus(null);
-  };
+  setSelected(it);
 
-  const closeDetail = () => {
-    setSelected(null);
-  };
+  // Nếu task đã accept → vẫn show panel khi mở lại modal
+  if (activeTask[it.id]) {
+    setShowMaintenanceLog(true);
+  } else {
+    // reset khi chưa có nhiệm vụ
+    setShowMaintenanceLog(false);
+  }
+
+  setShowDamageReport(false);
+  setShowReturnLog(false);
+  setMaintenanceLogText("");
+  setDamageText("");
+  setReturnLogText("");
+  setSeverity("Medium");
+  setReturnFromStatus(null);
+};
+
+
+  const closeDetail = () => setSelected(null);
 
   /* =======================================================
-        START MAINTENANCE
+      START MAINTENANCE
   ======================================================= */
-  const handleStartMaintenance = () => {
-    setShowDamageReport(false);
-    setShowReturnLog(false);
+  const handleStartMaintenance = async () => {
+  const today = dayjs().format("YYYY-MM-DD");
+
+  const task = schedule.find(
+    (s) =>
+      s.equipmentId === selected.id &&
+      dayjs(s.scheduledDate).format("YYYY-MM-DD") === today &&
+      s.status === "Pending" &&
+      !s.isCompleted
+  );
+
+  if (!task) {
+    return message.error("Thiết bị này không có lịch bảo trì vào hôm nay");
+  }
+
+  try {
+    await api.post(`/MaintenanceSchedule/${task.id}/accept`);
+    message.success("Đã nhận nhiệm vụ bảo trì");
+
+    // 👉 Lưu nhiệm vụ ở cấp component
+    setActiveTask((prev) => ({
+      ...prev,
+      [selected.id]: {
+        ...task,
+        status: "Accepted",
+      },
+    }));
+
+    // mở panel log
     setShowMaintenanceLog(true);
-    setMaintenanceLogText("Bắt đầu bảo trì thiết bị...");
-  };
+    setMaintenanceLogText("");
 
-  const saveMaintenanceLog = async () => {
-    const text = maintenanceLogText.trim();
-    if (!text) return message.warning("Vui lòng nhập log!");
+  } catch (err) {
+    message.error("Không thể nhận nhiệm vụ bảo trì");
+  }
+};
 
-    // Staff chỉ ghi log local, không gọi API PUT
-    message.success("Đã ghi log bảo trì (local)");
+ /* =======================================================
+      SAVE MAINTENANCE LOG
+  ======================================================= */
+  
+  
+const saveMaintenanceLog = async () => {
+  const text = maintenanceLogText.trim();
+  if (!text) return message.warning("Nhập nội dung log!");
+
+  const task = activeTask[selected.id];
+  if (!task) return message.error("Không tìm thấy nhiệm vụ bảo trì.");
+
+  try {
+    await api.post(`/MaintenanceSchedule/${task.id}/complete`, {
+      notes: text,
+    });
+
+    message.success("Hoàn tất bảo trì");
+
+    // Xóa nhiệm vụ khỏi bộ nhớ
+    setActiveTask((prev) => {
+      const newState = { ...prev };
+      delete newState[selected.id];
+      return newState;
+    });
 
     setShowMaintenanceLog(false);
     closeDetail();
-  };
+    fetchMaintenanceSchedule();
+    fetchEquipments();
+
+  } catch (err) {
+    message.error("Không thể hoàn tất bảo trì");
+  }
+};
+
+
 
 
   /* =======================================================
-        DAMAGE REPORT
+      DAMAGE REPORT (HAS API)
   ======================================================= */
   const handleReportDamage = () => {
     setShowMaintenanceLog(false);
     setShowReturnLog(false);
+
     setShowDamageReport(true);
     setDamageText("");
   };
 
   const saveDamageReport = async () => {
-    const text = damageText.trim();
-    if (!text) return message.warning("Nhập mô tả sự cố!");
+    if (!damageText.trim())
+      return message.warning("Nhập mô tả sự cố!");
 
     try {
-      // 1) Gửi report
       await api.post("/EquipmentRepairReport", {
         equipmentId: selected.id,
-        issueDescription: text,
+        issueDescription: damageText,
         severity,
       });
+
       message.success("Đã gửi báo cáo hỏng");
       setShowDamageReport(false);
       fetchEquipments();
@@ -163,7 +246,7 @@ export default function StaffEquipmentList() {
   };
 
   /* =======================================================
-        RETURN TO ACTIVE
+      RETURN TO ACTIVE (LOCAL ONLY)
   ======================================================= */
   const handleBackToActive = () => {
     setReturnFromStatus(selected.status);
@@ -172,44 +255,36 @@ export default function StaffEquipmentList() {
     setShowReturnLog(true);
   };
 
-  const saveReturnLog = async () => {
-    const text = returnLogText.trim();
-    if (!text) return message.warning("Nhập nội dung log!");
+  const saveReturnLog = () => {
+    if (!returnLogText.trim())
+      return message.warning("Nhập nội dung log!");
 
-    const tag = returnFromStatus === "Đang Bảo Trì" ? "MAINT_DONE" : "REPAIR_DONE";
+    message.success("Đã ghi log hoàn tất (LOCAL ONLY – không có API)");
 
-    try {
-      await api.put(`/Equipment/${selected.id}`, {
-        status: "Đang Hoạt Động",
-        description: selected.description + `\n[${tag}] ${text}`,
-      });
-
-      message.success("Đã chuyển về hoạt động");
-      setShowReturnLog(false);
-      fetchEquipments();
-      closeDetail();
-    } catch (err) {
-      message.error("Không thể cập nhật trạng thái");
-    }
+    setShowReturnLog(false);
+    closeDetail();
   };
 
-  const formatDate = (d) => (d ? dayjs(d).format("DD/MM/YYYY") : "—");
+  const formatDate = (d) =>
+    d ? dayjs(d).format("DD/MM/YYYY") : "—";
 
   /* =======================================================
-        RENDER
+      RENDER
   ======================================================= */
   return (
     <div className="container py-5">
       <div className="row g-4">
 
+        {/* SIDEBAR */}
         <div className="col-lg-3">
           <StaffSidebar />
         </div>
 
+        {/* MAIN CONTENT */}
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Thiết bị phòng tập</h2>
 
-          {/* Filter */}
+          {/* FILTER */}
           <div className="row g-3 align-items-end mb-4">
             <div className="col-md-6">
               <label className="form-label">Tìm kiếm</label>
@@ -241,51 +316,53 @@ export default function StaffEquipmentList() {
             </div>
           </div>
 
-          {/* List */}
+          {/* LIST */}
           <div className="row g-4">
             {loading ? (
-              <div className="col-12 text-center py-5"><Spin /></div>
+              <div className="col-12 text-center py-5">
+                <Spin />
+              </div>
             ) : filtered.length ? (
               filtered.map((it) => (
                 <div key={it.id} className="col-sm-6 col-lg-4 col-xl-3">
                   <div className="card h-100 shadow-sm">
 
-                    {/* image + badge góc phải */}
-                    <div className="ratio ratio-4x3">
+                    {/* IMAGE */}
+                    <div className="ratio ratio-4x3 position-relative">
                       <img
                         src={it.photo || "/img/noimg.jpg"}
-                        alt={it.equipmentName}
                         className="card-img-top object-fit-cover"
-                        onError={(e) => (e.currentTarget.src = "/img/noimg.jpg")}
+                        alt={it.equipmentName}
+                        onError={(e) =>
+                          (e.currentTarget.src = "/img/noimg.jpg")
+                        }
                       />
                     </div>
 
-
+                    {/* BODY */}
                     <div className="card-body d-flex flex-column">
-                      {/* tên + badge dưới hình */}
-                      <div className="d-flex justify-content-between align-items-start mb-2">
+                      <div className="d-flex justify-content-between">
                         <h5 className="equip-title mb-0">{it.equipmentName}</h5>
                         <span className={`badge ${statusBadgeClass(it.status)}`}>
                           {it.status}
                         </span>
                       </div>
+
                       <p className="card-text text-muted small mb-3">
-                        Mẫu máy: <strong>{it.model || "—"}</strong>
+                        Mẫu máy: <strong>{it.model}</strong>
                         <br />
                         Mua: {formatDate(it.purchaseDate)} • Giá:{" "}
-                        {it.purchaseCost ? `${Number(it.purchaseCost).toLocaleString()} đ` : "—"}
+                        {it.purchaseCost
+                          ? Number(it.purchaseCost).toLocaleString() + " đ"
+                          : "—"}
                       </p>
 
-                      <div className="mt-auto">
-                        <div className="d-grid gap-2">
-                          <button
-                            className="btn btn-outline-primary"
-                            onClick={() => openDetail(it)}
-                          >
-                            Chi tiết
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        className="btn btn-outline-primary mt-auto"
+                        onClick={() => openDetail(it)}
+                      >
+                        Chi tiết
+                      </button>
                     </div>
 
                   </div>
@@ -293,99 +370,85 @@ export default function StaffEquipmentList() {
               ))
             ) : (
               <div className="col-12">
-                <div className="alert alert-light border d-flex align-items-center">
-                  <i className="fa fa-info-circle me-2" />
+                <div className="alert alert-light border">
+                  <i className="fa fa-info-circle me-2"></i>
                   Không tìm thấy thiết bị phù hợp.
                 </div>
               </div>
             )}
           </div>
+
         </div>
       </div>
 
-
-      {/* ======================= DETAIL MODAL ======================= */}
+      {/* =============== DETAIL MODAL =============== */}
       {selected && (
         <>
-          <div
-            className="modal fade show"
-            style={{ display: "block", background: "rgba(0,0,0,.4)" }}
-          >
+          <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,.4)" }}>
             <div className="modal-dialog modal-lg modal-dialog-centered">
               <div className="modal-content">
 
                 <div className="modal-header">
                   <h5 className="modal-title">Chi tiết thiết bị</h5>
-                  <button className="btn-close" onClick={closeDetail} />
+                  <button className="btn-close" onClick={closeDetail}></button>
                 </div>
 
                 <div className="modal-body">
                   <div className="row g-3">
 
+                    {/* IMAGE */}
                     <div className="col-md-6">
-                      <div className="ratio ratio-4x3 rounded border">
+                      <div className="ratio ratio-4x3 border rounded">
                         <img
                           src={selected.photo || "/img/noimg.jpg"}
-                          alt={selected.equipmentName}
                           className="w-100 h-100"
-                          onError={(e) => (e.currentTarget.src = "/img/noimg.jpg")}
+                          onError={(e) =>
+                            (e.currentTarget.src = "/img/noimg.jpg")
+                          }
                         />
                       </div>
                     </div>
 
+                    {/* INFO */}
                     <div className="col-md-6">
-                      <h4 className="mb-1">{selected.equipmentName}</h4>
+                      <h4>{selected.equipmentName}</h4>
                       <span className={`badge ${statusBadgeClass(selected.status)}`}>
                         {selected.status}
                       </span>
 
-                      <ul className="list-unstyled small mb-3 mt-2">
-                        <li><strong>Mã máy:</strong> {selected.code || "—"}</li>
-                        <li><strong>Mẫu máy:</strong> {selected.model || "—"}</li>
+                      <ul className="list-unstyled small mt-2">
+                        <li><strong>Mã máy:</strong> {selected.code}</li>
+                        <li><strong>Mẫu máy:</strong> {selected.model}</li>
                         <li><strong>Ngày mua:</strong> {formatDate(selected.purchaseDate)}</li>
-                        <li><strong>Vị trí:</strong> {selected.location || "—"}</li>
+                        <li><strong>Vị trí:</strong> {selected.location}</li>
                       </ul>
 
-                      {/* ============ BUTTONS ============ */}
-
+                      {/* ACTION BUTTONS */}
                       <div className="d-flex flex-wrap gap-2">
 
-                        {/* Khi đang hoạt động → hiện 2 nút */}
                         {selected.status === "Đang Hoạt Động" && (
                           <>
-                            <button
-                              className="btn btn-warning text-dark"
-                              onClick={handleStartMaintenance}
-                            >
+                            <button className="btn btn-warning text-dark" onClick={handleStartMaintenance}>
                               <i className="fa fa-tools me-1" /> Bảo trì
                             </button>
 
-                            <button
-                              className="btn btn-danger"
-                              onClick={handleReportDamage}
-                            >
+                            <button className="btn btn-danger" onClick={handleReportDamage}>
                               <i className="fa fa-exclamation-triangle me-1" /> Báo cáo thiệt hại
                             </button>
                           </>
                         )}
 
-                        {/* Khi bảo trì hoặc hư hỏng → chỉ hiện nút trở về hoạt động */}
                         {selected.status === "Đang Bảo Trì" && (
-                          <button
-                            className="btn btn-success ms-auto"
-                            onClick={handleBackToActive}
-                          >
+                          <button className="btn btn-success" onClick={handleBackToActive}>
                             <i className="fa fa-check me-1" /> Trở về hoạt động
                           </button>
                         )}
-
                       </div>
+
                     </div>
                   </div>
 
-                  {/* ================= LOG PANELS ================= */}
-
-                  {/* Panel bảo trì */}
+                  {/* PANELS */}
                   {showMaintenanceLog && (
                     <div className="mt-4">
                       <h6>Ghi log bảo trì</h6>
@@ -395,24 +458,15 @@ export default function StaffEquipmentList() {
                         value={maintenanceLogText}
                         onChange={(e) => setMaintenanceLogText(e.target.value)}
                       />
-                      <div className="d-flex gap-2">
-                        <button className="btn btn-primary" onClick={saveMaintenanceLog}>
-                          Ghi log
-                        </button>
-                        <button
-                          className="btn btn-outline-secondary"
-                          onClick={() => {
-                            setShowMaintenanceLog(false);
-                            setMaintenanceLogText("");
-                          }}
-                        >
-                          Huỷ
-                        </button>
-                      </div>
+                      <button className="btn btn-primary me-2" onClick={saveMaintenanceLog}>
+                        Ghi log
+                      </button>
+                      <button className="btn btn-outline-secondary" onClick={() => setShowMaintenanceLog(false)}>
+                        Huỷ
+                      </button>
                     </div>
                   )}
 
-                  {/* Panel báo cáo thiệt hại */}
                   {showDamageReport && (
                     <div className="mt-4">
                       <h6>Báo cáo thiệt hại</h6>
@@ -436,32 +490,18 @@ export default function StaffEquipmentList() {
                         onChange={(e) => setDamageText(e.target.value)}
                       />
 
-                      <div className="d-flex gap-2">
-                        <button className="btn btn-danger" onClick={saveDamageReport}>
-                          Gửi báo cáo
-                        </button>
-                        <button
-                          className="btn btn-outline-secondary"
-                          onClick={() => {
-                            setShowDamageReport(false);
-                            setDamageText("");
-                            setSeverity("Medium");
-                          }}
-                        >
-                          Huỷ
-                        </button>
-                      </div>
+                      <button className="btn btn-danger me-2" onClick={saveDamageReport}>
+                        Gửi báo cáo
+                      </button>
+                      <button className="btn btn-outline-secondary" onClick={() => setShowDamageReport(false)}>
+                        Huỷ
+                      </button>
                     </div>
                   )}
 
-                  {/* Panel trở về hoạt động */}
                   {showReturnLog && (
                     <div className="mt-4">
-                      <h6>
-                        {returnFromStatus === "Đang Bảo Trì"
-                          ? "Ghi log hoàn tất bảo trì"
-                          : "Ghi log hoàn tất sửa chữa"}
-                      </h6>
+                      <h6>{returnFromStatus === "Đang Bảo Trì" ? "Ghi log hoàn tất bảo trì" : "Ghi log hoàn tất sửa chữa"}</h6>
 
                       <textarea
                         className="form-control mb-2"
@@ -470,24 +510,14 @@ export default function StaffEquipmentList() {
                         onChange={(e) => setReturnLogText(e.target.value)}
                       />
 
-                      <div className="d-flex gap-2">
-                        <button className="btn btn-success" onClick={saveReturnLog}>
-                          Lưu log & về hoạt động
-                        </button>
-                        <button
-                          className="btn btn-outline-secondary"
-                          onClick={() => {
-                            setShowReturnLog(false);
-                            setReturnLogText("");
-                            setReturnFromStatus(null);
-                          }}
-                        >
-                          Huỷ
-                        </button>
-                      </div>
+                      <button className="btn btn-success me-2" onClick={saveReturnLog}>
+                        Lưu log & về hoạt động
+                      </button>
+                      <button className="btn btn-outline-secondary" onClick={() => setShowReturnLog(false)}>
+                        Huỷ
+                      </button>
                     </div>
                   )}
-
                 </div>
 
                 <div className="modal-footer">
@@ -500,11 +530,10 @@ export default function StaffEquipmentList() {
             </div>
           </div>
 
-          <div className="modal-backdrop fade show" onClick={closeDetail} />
+          <div className="modal-backdrop fade show" onClick={closeDetail}></div>
         </>
       )}
 
     </div>
   );
-
 }
