@@ -48,6 +48,45 @@ const ActionButton = styled(Button)({
   textTransform: "none",
 });
 
+// ===== Helper: tính tuổi từ ngày sinh =====
+function calculateAge(dobIso) {
+  if (!dobIso) return null;
+  const d = new Date(dobIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+}
+
+// ===== Helper: tính số năm từ ngày bắt đầu =====
+function calculateYearsFrom(startIso) {
+  if (!startIso) return null;
+  const d = new Date(startIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  let years = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
+    years--;
+  }
+  return years >= 0 ? years : null;
+}
+
+// ===== Helper: format dd/MM/yyyy =====
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 const TrainerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -65,6 +104,10 @@ const TrainerDetail = () => {
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  // 🔁 list feedbacks
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
 
   // scroll to top khi vào trang
   useEffect(() => {
@@ -90,11 +133,11 @@ const TrainerDetail = () => {
           "Huấn luyện viên";
 
         let genderText = "";
-        if (data.gender) {
-          const g = String(data.gender).toLowerCase();
+        if (data.gender || data.profile?.gender) {
+          const g = String(data.gender || data.profile?.gender).toLowerCase();
           if (g === "male") genderText = "Nam";
           else if (g === "female") genderText = "Nữ";
-          else genderText = data.gender;
+          else genderText = data.gender || data.profile?.gender;
         }
 
         const specializationArray = data.profile?.specialization
@@ -104,21 +147,36 @@ const TrainerDetail = () => {
               .filter(Boolean)
           : [];
 
+        // 👉 Tuổi từ dateOfBirth
+        const age = calculateAge(data.profile?.dateOfBirth);
+
+        // 👉 Năm kinh nghiệm: ưu tiên yearsOfExperience, fallback từ startWorkingDate
+        let experienceYears = null;
+        if (
+          typeof data.profile?.yearsOfExperience === "number" &&
+          !Number.isNaN(data.profile.yearsOfExperience) &&
+          data.profile.yearsOfExperience > 0
+        ) {
+          experienceYears = data.profile.yearsOfExperience;
+        } else if (data.profile?.startWorkingDate) {
+          experienceYears = calculateYearsFrom(data.profile.startWorkingDate);
+        }
+
         const mappedTrainer = {
           id: data.trainerId,
           avatar: "/img/team-1.jpg", // TODO: backend trả avatar thì map lại
           name: fullName,
-          age: null,
+          age: age, // số năm tuổi (number | null)
           gender: genderText || "Đang cập nhật",
-          experience: "",
+          experienceYears, // number | null
           specialization: specializationArray,
           about:
             data.profile?.trainerBio ||
             "Thông tin giới thiệu đang được cập nhật.",
           skills: specializationArray.map((name) => ({ name })),
           contact: {
-            phone: data.phoneNumber || "",
-            email: data.email || "",
+            phone: data.phoneNumber || data.profile?.phoneNumber || "",
+            email: data.email || data.profile?.email || "",
           },
           certificates: (data.profile?.certificates || []).map((c) => ({
             title: c.certificateName,
@@ -188,10 +246,70 @@ const TrainerDetail = () => {
     }
   }, [id]);
 
-  const averageRating =
-    trainer?.rating != null && !Number.isNaN(trainer.rating)
-      ? Number(trainer.rating)
-      : 0;
+  // 🧾 Lấy danh sách feedback: GET /guest/trainers/{id}/feedbacks
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        setLoadingFeedbacks(true);
+        const res = await api.get(`/guest/trainers/${id}/feedbacks`);
+        const raw = res.data;
+
+        const list = Array.isArray(raw)
+          ? raw
+          : raw?.items && Array.isArray(raw.items)
+          ? raw.items
+          : raw
+          ? [raw]
+          : [];
+
+        const mapped = list.map((f) => ({
+          id: f.feedbackId,
+          rating: f.rating,
+          comments: f.comments,
+          status: f.status,
+          feedbackDate: f.feedbackDate,
+          responseText: f.responseText,
+          respondedBy: f.respondedBy,
+          respondedDate: f.respondedDate,
+          responderName: f.responderName,
+          memberName: f.memberName,
+          trainerName: f.trainerName,
+        }));
+
+        setFeedbacks(mapped);
+      } catch (err) {
+        console.error("Error fetching trainer feedbacks:", err);
+        // có thể show message nhẹ nếu muốn
+        // message.error("Không tải được danh sách đánh giá.");
+      } finally {
+        setLoadingFeedbacks(false);
+      }
+    };
+
+    if (id) {
+      fetchFeedbacks();
+    }
+  }, [id]);
+
+  // ⭐ Rating trung bình: ưu tiên từ profile, nếu không có thì tính từ feedbacks
+  const averageRating = (() => {
+    if (trainer?.rating != null && !Number.isNaN(trainer.rating)) {
+      return Number(trainer.rating);
+    }
+    if (feedbacks.length) {
+      const sum = feedbacks.reduce(
+        (acc, f) => acc + (Number(f.rating) || 0),
+        0
+      );
+      return sum / feedbacks.length;
+    }
+    return 0;
+  })();
+
+  const totalReviews =
+    trainer?.totalReviews != null && trainer.totalReviews > 0
+      ? trainer.totalReviews
+      : feedbacks.length;
 
   // user có đủ điều kiện để gửi feedback?
   const canSendFeedback =
@@ -219,9 +337,38 @@ const TrainerDetail = () => {
 
       message.success("Cảm ơn bạn đã gửi đánh giá cho huấn luyện viên!");
 
+      // clear form
       setFeedbackRating(5);
       setFeedbackComment("");
-      // TODO: nếu sau này có API GET feedback theo trainer, có thể reload list ở đây
+
+      // reload feedbacks sau khi gửi để thấy đánh giá mới
+      try {
+        const res = await api.get(`/guest/trainers/${id}/feedbacks`);
+        const raw = res.data;
+        const list = Array.isArray(raw)
+          ? raw
+          : raw?.items && Array.isArray(raw.items)
+          ? raw.items
+          : raw
+          ? [raw]
+          : [];
+        const mapped = list.map((f) => ({
+          id: f.feedbackId,
+          rating: f.rating,
+          comments: f.comments,
+          status: f.status,
+          feedbackDate: f.feedbackDate,
+          responseText: f.responseText,
+          respondedBy: f.respondedBy,
+          respondedDate: f.respondedDate,
+          responderName: f.responderName,
+          memberName: f.memberName,
+          trainerName: f.trainerName,
+        }));
+        setFeedbacks(mapped);
+      } catch (reloadErr) {
+        console.error("Reload feedbacks error:", reloadErr);
+      }
     } catch (err) {
       console.error("Error submitting trainer feedback:", err);
       const msg =
@@ -276,7 +423,9 @@ const TrainerDetail = () => {
               </Typography>
 
               <Typography variant="subtitle1" color="text.secondary">
-                {trainer.age ? `${trainer.age} tuổi` : "Tuổi: đang cập nhật"}
+                {trainer.age != null
+                  ? `${trainer.age} tuổi`
+                  : "Tuổi: đang cập nhật"}
               </Typography>
 
               <Box
@@ -290,8 +439,8 @@ const TrainerDetail = () => {
               >
                 <Chip
                   label={
-                    trainer.experience
-                      ? `${trainer.experience} kinh nghiệm`
+                    trainer.experienceYears != null
+                      ? `${trainer.experienceYears} năm kinh nghiệm`
                       : "Kinh nghiệm: đang cập nhật"
                   }
                   color="primary"
@@ -581,13 +730,13 @@ const TrainerDetail = () => {
                         fontSize: 14,
                       }}
                     >
-                      ({trainer.totalReviews || 0} lượt đánh giá)
+                      ({totalReviews} lượt đánh giá)
                     </Typography>
                   </Box>
                   <Divider sx={{ mb: 1 }} />
                 </Box>
 
-                {/* Danh sách feedback (placeholder) */}
+                {/* Danh sách feedback */}
                 <Box
                   sx={{
                     flex: 1,
@@ -604,13 +753,109 @@ const TrainerDetail = () => {
                     },
                   }}
                 >
-                  <Typography
-                    color="text.secondary"
-                    sx={{ fontStyle: "italic" }}
-                  >
-                    Tính năng hiển thị chi tiết các đánh giá sẽ được cập nhật
-                    sau.
-                  </Typography>
+                  {loadingFeedbacks ? (
+                    <Typography color="text.secondary">
+                      Đang tải danh sách đánh giá...
+                    </Typography>
+                  ) : feedbacks.length === 0 ? (
+                    <Typography
+                      color="text.secondary"
+                      sx={{ fontStyle: "italic" }}
+                    >
+                      Hiện chưa có đánh giá nào cho huấn luyện viên này.
+                    </Typography>
+                  ) : (
+                    feedbacks.map((fb) => (
+                      <Box
+                        key={fb.id}
+                        sx={{
+                          mb: 2,
+                          pb: 2,
+                          borderBottom: "1px dashed #e0e0e0",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            mb: 0.5,
+                            gap: 1,
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 600 }}
+                          >
+                            {fb.memberName || "Hội viên"}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Rating
+                              value={Number(fb.rating) || 0}
+                              size="small"
+                              readOnly
+                            />
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {formatDate(fb.feedbackDate)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                        >
+                          {fb.comments}
+                        </Typography>
+
+                        {fb.responseText && (
+                          <Box
+                            sx={{
+                              mt: 1,
+                              ml: 1,
+                              pl: 1,
+                              borderLeft: "3px solid #e0e7ff",
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Phản hồi từ huấn luyện viên
+                              {fb.responderName ? ` (${fb.responderName})` : ""}:{" "}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                whiteSpace: "normal",
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {fb.responseText}
+                            </Typography>
+                            {fb.respondedDate && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {formatDate(fb.respondedDate)}
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                    ))
+                  )}
                 </Box>
 
                 {/* Form gửi feedback – CHỈ hiển thị khi đủ điều kiện */}
@@ -635,10 +880,7 @@ const TrainerDetail = () => {
                           mb: 0.5,
                         }}
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{ mr: 1 }}
-                        >
+                        <Typography variant="body2" sx={{ mr: 1 }}>
                           Đánh giá của bạn:
                         </Typography>
                         <Rating
