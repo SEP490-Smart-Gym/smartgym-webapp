@@ -1110,7 +1110,7 @@ export default function Calendar() {
               {/* Trainer select – chỉ hiện khi gói có PT */}
               {allowSelectTrainer ? (
                 <div className="mb-3">
-                  <label className="form-label">Trainer</label>
+                  <label className="form-label">HLV</label>
                   {trainersLoading && (
                     <div className="form-text text-muted">
                       Đang tải danh sách Trainer...
