@@ -179,7 +179,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate(`/member/${safeId}/schedule`)}
                             >
-                              Lịch tập của tôi
+                              Lịch tập
                             </button>
 
                             <hr className="dropdown-divider" />
@@ -248,6 +248,13 @@ export default function Navbar() {
                               onClick={() => navigate("/manager/schedule")}
                             >
                               Quản lý lịch làm việc
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/manager/equipment-report-all")}
+                            >
+                              Quản lý thiết bị
                             </button>
                           </li>
                         )}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../config/axios"; 
+import api from "../config/axios";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -104,20 +104,7 @@ export default function Register() {
               <form onSubmit={handleSubmit} noValidate>
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label">First name</label>
-                    <input
-                      name="firstName"
-                      className={`form-control ${errors.firstName ? "is-invalid" : ""}`}
-                      placeholder="VD: Quang"
-                      value={form.firstName}
-                      onChange={handleChange}
-                    />
-                    {errors.firstName && (
-                      <div className="invalid-feedback">{errors.firstName}</div>
-                    )}
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label">Last name</label>
+                    <label className="form-label">Họ</label>
                     <input
                       name="lastName"
                       className={`form-control ${errors.lastName ? "is-invalid" : ""}`}
@@ -129,7 +116,19 @@ export default function Register() {
                       <div className="invalid-feedback">{errors.lastName}</div>
                     )}
                   </div>
-
+                  <div className="col-md-6">
+                    <label className="form-label">Tên</label>
+                    <input
+                      name="firstName"
+                      className={`form-control ${errors.firstName ? "is-invalid" : ""}`}
+                      placeholder="VD: Quang"
+                      value={form.firstName}
+                      onChange={handleChange}
+                    />
+                    {errors.firstName && (
+                      <div className="invalid-feedback">{errors.firstName}</div>
+                    )}
+                  </div>
                   <div className="col-md-6">
                     <label className="form-label">Email</label>
                     <input

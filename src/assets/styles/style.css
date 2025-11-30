@@ -1693,3 +1693,26 @@
   border: 1px solid #eee;
   background: #fff;
 }
+/*=============== STAFF PAGE================ */
+/* Badge nhỏ + cố định trên góc phải */
+.equip-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Tên thiết bị ellipsis */
+.equip-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

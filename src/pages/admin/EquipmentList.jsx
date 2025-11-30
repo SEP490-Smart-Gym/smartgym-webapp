@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import {
@@ -17,63 +18,89 @@ import {
 import api from "../../config/axios";
 import dayjs from "dayjs";
 
-const STATUS_OPTIONS = ["Đang hoạt động", "Đang bảo trì", "Hư hỏng", "Tồn kho"];
+const STATUS_OPTIONS = [
+  "Đang Hoạt Động",
+  "Đang Bảo Trì",
+
+];
 
 const statusColor = {
-  "Đang hoạt động": "green",
-  "Đang bảo trì": "gold",
-  "Hư hỏng": "red",
-  "Tồn kho": "gray",
+  "Đang Hoạt Động": "green",
+  "Đang Bảo Trì": "gold",
 };
 
 export default function EquipmentList() {
   const [equipments, setEquipments] = useState([]);
+  const [categories, setCategories] = useState([]);
+
   const [loading, setLoading] = useState(false);
 
-  // form add (on-page)
   const [addForm] = Form.useForm();
-
-  // edit modal
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
   const [editForm] = Form.useForm();
 
-  // fetch list
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
+  /* =====================================
+     FETCH LIST (SỬA THEO PAYLOAD)
+  ===================================== */
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get("/EquipmentCategory");
+      const raw = Array.isArray(res.data) ? res.data : res.data?.items || res.data?.data || [];
+
+      const list = raw.map((c) => ({
+        id: c.id || c.categoryId,
+        name: c.categoryName || c.name,
+      }));
+
+      setCategories(list);
+    } catch (err) {
+      console.error("fetch categories error", err);
+      message.error("Không thể tải danh mục thiết bị");
+    }
+  };
+
   const fetchEquipments = async () => {
     setLoading(true);
     try {
       const res = await api.get("/Equipment");
-      // robust: res.data có thể là array hoặc object chứa data/items
-      const list =
-        Array.isArray(res.data) ? res.data : res.data?.data || res.data?.items || [];
-      setEquipments(list);
+      const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setEquipments(raw); 
     } catch (err) {
-      console.error(err);
-      message.error("Lấy dữ liệu thiết bị thất bại");
+      message.error("Lấy danh sách thất bại");
     } finally {
       setLoading(false);
     }
   };
 
+
+
+
   useEffect(() => {
+    fetchCategories();
     fetchEquipments();
   }, []);
 
-  // ====== Thêm mới (giữ form trên trang, không modal) ======
+
+  /* =====================================
+     ADD EQUIPMENT 
+  ===================================== */
   const handleAdd = async () => {
     try {
       const values = await addForm.validateFields();
+
       const body = {
         equipmentName: values.equipmentName,
-        categoryId: values.categoryId ?? 0,
+        categoryId: Number(values.categoryId),
         model: values.model || "",
-        serialNumber: values.serialNumber || "",
+        serialNumber: values.serialNumber,
         purchaseDate: values.purchaseDate
           ? values.purchaseDate.toISOString()
           : new Date().toISOString(),
-        purchaseCost: values.purchaseCost ?? 0,
+        purchaseCost: Number(values.purchaseCost ?? 0),
         warranty: values.warranty || "",
-        status: values.status || STATUS_OPTIONS[0],
+        status: values.status,
         location: values.location || "",
         imageUrl: values.imageUrl || "",
         description: values.description || "",
@@ -81,47 +108,52 @@ export default function EquipmentList() {
 
       await api.post("/Equipment", body);
       message.success("Thêm thiết bị thành công");
+
       addForm.resetFields();
       fetchEquipments();
     } catch (err) {
+      if (err?.errorFields) return;
       console.error(err);
-      if (err?.errorFields) {
-        // validation error from antd
-        return;
-      }
       message.error("Thêm thiết bị thất bại");
     }
   };
 
-  // ====== Xóa ======
+  /* =====================================
+     DELETE
+  ===================================== */
   const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xoá thiết bị này?")) return;
+    if (!window.confirm("Bạn có chắc muốn xóa thiết bị này?")) return;
+
     try {
       await api.delete(`/Equipment/${id}`);
-      message.success("Xoá thành công");
-      setEquipments((prev) => prev.filter((p) => (p.id || p.equipmentId) !== id));
+      message.success("Xóa thành công");
+      fetchEquipments();
     } catch (err) {
       console.error(err);
-      message.error("Xoá thất bại");
+      message.error("Xóa thất bại");
     }
   };
 
-  // ====== Mở modal sửa ======
+  /* =====================================
+     OPEN EDIT MODAL
+  ===================================== */
   const openEditModal = (record) => {
     setEditingItem(record);
+
     editForm.setFieldsValue({
-      equipmentName: record.equipmentName || record.name || "",
-      categoryId: record.categoryId ?? null,
-      model: record.model || "",
-      serialNumber: record.serialNumber || record.code || "",
+      equipmentName: record.equipmentName,
+      categoryId: record.categoryId,
+      model: record.model,
+      serialNumber: record.serialNumber,
       purchaseDate: record.purchaseDate ? dayjs(record.purchaseDate) : null,
-      purchaseCost: record.purchaseCost ?? 0,
-      warranty: record.warranty || "",
-      status: record.status || STATUS_OPTIONS[0],
-      location: record.location || "",
-      imageUrl: record.imageUrl || record.photo || "",
-      description: record.description || "",
+      purchaseCost: record.purchaseCost,
+      warranty: record.warranty,
+      status: record.status,
+      location: record.location,
+      imageUrl: record.imageUrl,
+      description: record.description,
     });
+
     setIsEditOpen(true);
   };
 
@@ -131,40 +163,45 @@ export default function EquipmentList() {
     editForm.resetFields();
   };
 
+  /* =====================================
+     SAVE EDIT
+  ===================================== */
   const saveEditModal = async () => {
     try {
       const values = await editForm.validateFields();
-      if (!editingItem) return;
 
       const body = {
         equipmentName: values.equipmentName,
-        categoryId: values.categoryId ?? 0,
+        categoryId: Number(values.categoryId),
         model: values.model || "",
-        serialNumber: values.serialNumber || "",
+        serialNumber: values.serialNumber,
         purchaseDate: values.purchaseDate
           ? values.purchaseDate.toISOString()
           : new Date().toISOString(),
-        purchaseCost: values.purchaseCost ?? 0,
+        purchaseCost: Number(values.purchaseCost ?? 0),
         warranty: values.warranty || "",
-        status: values.status || STATUS_OPTIONS[0],
-        location: values.location || "",
-        imageUrl: values.imageUrl || "",
-        description: values.description || "",
+        status: values.status,
+        location: values.location,
+        imageUrl: values.imageUrl,
+        description: values.description,
       };
 
-      // PUT to /Equipment/{id}
       await api.put(`/Equipment/${editingItem.id}`, body);
+
       message.success("Cập nhật thiết bị thành công");
+
       closeEditModal();
       fetchEquipments();
     } catch (err) {
-      console.error(err);
       if (err?.errorFields) return;
+      console.error(err);
       message.error("Cập nhật thất bại");
     }
   };
 
-  // ====== TABLE COLUMNS ======
+  /* =====================================
+     TABLE COLUMNS
+  ===================================== */
   const columns = [
     {
       title: "Ảnh",
@@ -174,8 +211,8 @@ export default function EquipmentList() {
       fixed: "left",
       render: (src, record) => (
         <img
-          src={src || record.photo || "/img/useravt.jpg"}
-          alt={record.equipmentName || record.name}
+          src={record.imageUrl || "/img/noimg.jpg"}
+          alt={record.equipmentName}
           style={{
             width: 56,
             height: 56,
@@ -183,63 +220,63 @@ export default function EquipmentList() {
             objectFit: "cover",
             border: "1px solid #ddd",
           }}
-          onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+          onError={(e) => {
+            if (e.target.dataset.fallback !== "done") {
+              e.target.src = "/img/noimg.jpg";
+              e.target.dataset.fallback = "done";
+            }
+          }}
         />
       ),
     },
     {
       title: "Tên máy",
-      dataIndex: "equipmentName",
-      key: "equipmentName",
-      width: 150,
       fixed: "left",
-      render: (v, r) => v || r.name || "—",
+      dataIndex: "equipmentName",
+      width: 150,
     },
+    // {
+    //   title: "Danh mục",
+    //   dataIndex: "categoryName",
+    //   width: 160,
+    // },
     {
-      title: "Mã/Serial",
+      title: "Serial",
       dataIndex: "serialNumber",
-      key: "serialNumber",
-      width: 160,
-      render: (v, r) => v || r.serialNumber || r.code || "—",
+      width: 150,
     },
     {
       title: "Model",
       dataIndex: "model",
-      key: "model",
-      width: 160,
+      width: 150,
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
-      key: "status",
-      width: 150,
+      width: 140,
       render: (v) => <Tag color={statusColor[v] || "default"}>{v}</Tag>,
     },
     {
-      title: "Mua ngày",
+      title: "Ngày mua",
       dataIndex: "purchaseDate",
-      key: "purchaseDate",
       width: 140,
       render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "—"),
     },
     {
       title: "Giá mua",
       dataIndex: "purchaseCost",
-      key: "purchaseCost",
       width: 120,
-      render: (v) => (v ? `${Number(v).toLocaleString()} đ` : "—"),
+      render: (v) => `${Number(v).toLocaleString()} đ`,
     },
     {
       title: "Vị trí",
       dataIndex: "location",
-      key: "location",
       width: 150,
     },
     {
       title: "Thao tác",
-      key: "actions",
+      width: 160,
       fixed: "right",
-      width: 200,
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => openEditModal(record)}>
@@ -253,109 +290,125 @@ export default function EquipmentList() {
     },
   ];
 
+  /* =====================================
+     RENDER
+  ===================================== */
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-        {/* Sidebar */}
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
 
-        {/* Main */}
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý Thiết bị</h2>
 
-          {/* Add form (on-page) */}
+          {/* ADD FORM */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm thiết bị</h5>
 
-              <Form form={addForm} layout="vertical" initialValues={{ status: STATUS_OPTIONS[3] }}>
+              <Form form={addForm} layout="vertical">
                 <div className="row g-3">
-                  <div className="col-md-4">
-                    <Form.Item
-                      name="equipmentName"
-                      rules={[{ required: true, message: "Nhập tên máy" }]}
-                    >
-                      <Input placeholder="Tên máy (VD: Treadmill X9)" />
-                    </Form.Item>
-                  </div>
 
                   <div className="col-md-4">
-                    <Form.Item
-                      name="serialNumber"
-                      rules={[{ required: true, message: "Nhập serial/mã máy" }]}
-                    >
-                      <Input placeholder="Mã/Serial (VD: TM-X9)" />
+                    <Form.Item name="equipmentName" rules={[{ required: true }]}>
+                      <Input placeholder="Tên máy" />
+                    </Form.Item>
+                  </div>
+                  <div className="col-md-4">
+                    <Form.Item name="categoryId" rules={[{ required: true, message: "Chọn danh mục" }]}>
+                      <Select placeholder="Chọn danh mục">
+                        {categories.map((c) => (
+                          <Select.Option key={c.id} value={c.id}>
+                            {c.name}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  </div>
+                  <div className="col-md-4">
+                    <Form.Item name="serialNumber" rules={[{ required: true }]}>
+                      <Input placeholder="Serial Number" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-4">
                     <Form.Item name="model">
-                      <Input placeholder="Model (VD: Pro-500)" />
+                      <Input placeholder="Model" />
                     </Form.Item>
                   </div>
+
                   <div className="col-md-4">
                     <Form.Item name="purchaseDate">
-                      <DatePicker style={{ width: "100%" }} placeholder="Ngày mua máy" />
+                      <DatePicker style={{ width: "100%" }} placeholder="Ngày mua" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-4">
                     <Form.Item name="purchaseCost">
-                      <InputNumber style={{ width: "100%" }} min={0} placeholder="Giá mua (VNĐ)" />
+                      <InputNumber min={0} style={{ width: "100%" }} placeholder="Giá mua" />
                     </Form.Item>
                   </div>
+
                   <div className="col-md-4">
-                    <Form.Item name="status">
+                    <Form.Item name="status" >
                       <Select>
                         {STATUS_OPTIONS.map((s) => (
-                          <Select.Option key={s} value={s}>
+                          <Select.Option key={s} value={s} placeholder="Trạng thái">
                             {s}
                           </Select.Option>
                         ))}
                       </Select>
                     </Form.Item>
                   </div>
-                  <div className="col-md-8">
+
+                  <div className="col-md-4">
                     <Form.Item name="location">
-                      <Input placeholder="Vị trí (VD: Phòng cardio)" />
+                      <Input placeholder="Vị trí" />
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4 ">
-                    <Form.Item name="imageUrl" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="col-md-4">
+                    <Form.Item name="imageUrl">
                       <Input placeholder="Ảnh (URL)" />
                     </Form.Item>
                   </div>
 
-                  <div className="col-12">
-                    <Form.Item name="description">
-                      <Input.TextArea rows={2} placeholder="Mô tả (tuỳ chọn)" />
-                    </Form.Item>
-                  </div>
-                  <div className="col-md-8">
-                    <Form.Item name="location">
-                      <Button type="btn btn-add" onClick={handleAdd}>
-                        Thêm thiết bị
-                      </Button>
+                  <div className="col-md-4">
+                    <Form.Item name="warranty">
+                      <Input placeholder="Bảo hành" />
                     </Form.Item>
                   </div>
 
+                  <div className="col-md-8">
+                    <Form.Item name="description">
+                      <Input.TextArea rows={1} placeholder="Mô tả" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-12">
+                    <Button type="btn btn-add" onClick={handleAdd}>
+                      Thêm thiết bị
+                    </Button>
+                  </div>
                 </div>
               </Form>
             </div>
           </div>
 
-          {/* Table */}
+          {/* TABLE */}
           <div className="card shadow-sm">
             <div className="card-body">
               <h5 className="mb-3">Danh sách thiết bị</h5>
+
               {loading ? (
-                <div className="text-center py-5"><Spin /></div>
+                <div className="text-center py-5">
+                  <Spin />
+                </div>
               ) : (
                 <Table
-                  rowKey={(r) => r.id || r.equipmentId}
+                  rowKey={(r) => r.id}
                   columns={columns}
                   dataSource={equipments}
                   pagination={{ pageSize: 10 }}
@@ -367,7 +420,7 @@ export default function EquipmentList() {
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* EDIT MODAL */}
       <Modal
         open={isEditOpen}
         title="Cập nhật thiết bị"
@@ -375,54 +428,48 @@ export default function EquipmentList() {
         onOk={saveEditModal}
         okText="Lưu thay đổi"
         cancelText="Hủy"
-        destroyOnClose
       >
-        <Form layout="vertical" form={editForm}>
+        <Form form={editForm} layout="vertical">
+
           <Form.Item name="equipmentName" label="Tên máy" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Form.Item name="serialNumber" label="Mã/Serial" rules={[{ required: true }]}>
-              <Input />
-            </Form.Item>
+          <Form.Item name="categoryId" label="Category ID" rules={[{ required: true }]}>
+            <InputNumber min={1} style={{ width: "100%" }} />
+          </Form.Item>
 
-            <Form.Item name="model" label="Model">
-              <Input />
-            </Form.Item>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Form.Item name="brand" label="Thương hiệu">
-              <Input />
-            </Form.Item>
-
-            <Form.Item name="status" label="Trạng thái">
-              <Select>
-                {STATUS_OPTIONS.map((s) => (
-                  <Select.Option key={s} value={s}>
-                    {s}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Form.Item name="purchaseDate" label="Ngày mua">
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-
-            <Form.Item name="purchaseCost" label="Giá mua">
-              <InputNumber style={{ width: "100%" }} min={0} />
-            </Form.Item>
-          </div>
-
-          <Form.Item name="location" label="Vị trí">
+          <Form.Item name="serialNumber" label="Serial Number" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
 
+          <Form.Item name="model" label="Model">
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="purchaseDate" label="Ngày mua">
+            <DatePicker style={{ width: "100%" }} />
+          </Form.Item>
+
+          <Form.Item name="purchaseCost" label="Giá mua">
+            <InputNumber min={0} style={{ width: "100%" }} />
+          </Form.Item>
+
           <Form.Item name="warranty" label="Bảo hành">
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="status" label="Trạng thái">
+            <Select>
+              {STATUS_OPTIONS.map((s) => (
+                <Select.Option key={s} value={s}>
+                  {s}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="location" label="Vị trí">
             <Input />
           </Form.Item>
 
@@ -434,15 +481,18 @@ export default function EquipmentList() {
             <Input.TextArea rows={3} />
           </Form.Item>
 
-          <div className="d-flex align-items-center gap-3">
-            <img
-              src={editingItem?.imageUrl || editingItem?.photo || "/img/useravt.jpg"}
-              alt="preview"
-              style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", border: "1px solid #eee" }}
-              onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
-            />
-            <span className="text-muted small">Xem trước ảnh</span>
-          </div>
+          <img
+            src={editingItem?.imageUrl || "/img/nomig.jpg"}
+            alt="preview"
+            style={{
+              width: 70,
+              height: 70,
+              borderRadius: 8,
+              objectFit: "cover",
+              border: "1px solid #ddd",
+            }}
+            onError={(e) => (e.currentTarget.src = "/img/noimg.jpg")}
+          />
         </Form>
       </Modal>
     </div>
