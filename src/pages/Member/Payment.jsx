@@ -41,12 +41,10 @@ import {
   FiLock,
   FiClock
 } from "react-icons/fi";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import api from "../../config/axios";
-import { useNavigate } from "react-router-dom";
 
 // ============ CONSTANTS ============
-// Publishable key dùng cho Stripe (như trong HTML test page)
 const STRIPE_PUBLISHABLE_KEY =
   "pk_test_51SS4bPRq7GZWeiD8KPMbvTaHs21UB7LUYmSVcqyNtQ6RghCpQvmgUFMkTGzvsKbxKodpE7jEVmZVDXICO2gK3Yz100upoioxdl";
 
@@ -83,7 +81,6 @@ const CheckoutSteps = ({ activeStep, steps }) => (
   </Stepper>
 );
 
-// ----- PaymentForm: giữ notes (postalCode nếu cần thêm sau) -----
 const PaymentForm = ({ paymentInfo, onChange }) => (
   <Stack spacing={3}>
     <TextField
@@ -97,7 +94,6 @@ const PaymentForm = ({ paymentInfo, onChange }) => (
   </Stack>
 );
 
-// ====== Helper format tiền VND: xx.xxx.xxx VND ======
 const formatVND = (value) => {
   const number = Number(value) || 0;
   return `${Math.round(number).toLocaleString("vi-VN")} VND`;
@@ -105,30 +101,27 @@ const formatVND = (value) => {
 
 const CartComponent = () => {
   const theme = useTheme();
-  const { id } = useParams(); // /checkout/:id
-  const packageId = id || 1; // nếu không có id thì tạm dùng 1
+  const { id } = useParams();
   const navigate = useNavigate();
+  const packageId = id || 1;
 
-  const SINGLE_SERVICE = true; // vẫn giữ logic chỉ 1 dịch vụ
+  const SINGLE_SERVICE = true;
 
-  // ====== Cart / Package state (lấy từ API Package/active/:id) ======
+  // Package
   const [cartItems, setCartItems] = useState([]);
   const [packageLoading, setPackageLoading] = useState(false);
-  const [includesPT, setIncludesPT] = useState(false); // gói có PT hay không
+  const [includesPT, setIncludesPT] = useState(false);
 
-  // ====== Trainer state (lấy từ API guest/trainers) ======
-  const [trainers, setTrainers] = useState([]); // không dùng mock nữa
+  // Trainers
+  const [trainers, setTrainers] = useState([]);
   const [trainerLoading, setTrainerLoading] = useState(false);
   const [trainerError, setTrainerError] = useState("");
 
-  // ====== TimeSlot state (lấy từ API /TimeSlot) ======
-  const [slots, setSlots] = useState([]); // mảng string kiểu "05:00-06:00"
+  // TimeSlots
+  const [slots, setSlots] = useState([]);
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
 
-  // Bước sẽ phụ thuộc includesPT:
-  //  - Có PT: Cart → Slot → Trainer → Payment → Confirmation
-  //  - Không có PT: Cart → Payment → Confirmation
   const steps = useMemo(
     () =>
       includesPT
@@ -137,7 +130,6 @@ const CartComponent = () => {
     [includesPT]
   );
 
-  // map index -> key logic
   const getStepKey = useCallback(
     (index) => {
       const withPT = ["cart", "slot", "trainer", "payment", "confirmation"];
@@ -159,15 +151,12 @@ const CartComponent = () => {
   const [promoError, setPromoError] = useState("");
   const [discount, setDiscount] = useState(0);
 
-  // Booking states
   const [selectedSlot, setSelectedSlot] = useState(null);
 
-  // Trainer selection states
   const [selectedTrainer, setSelectedTrainer] = useState(null);
-  const [userTouchedTrainer, setUserTouchedTrainer] = useState(false); // user đã tự chọn trainer?
-  const [suggestedTrainer, setSuggestedTrainer] = useState(null); // trainer gợi ý luôn hiển thị
+  const [userTouchedTrainer, setUserTouchedTrainer] = useState(false);
+  const [suggestedTrainer, setSuggestedTrainer] = useState(null);
 
-  // ====== Payment states ======
   const [paymentInfo, setPaymentInfo] = useState({
     postalCode: "",
     notes: "",
@@ -175,13 +164,13 @@ const CartComponent = () => {
   });
 
   const [paymentIntent, setPaymentIntent] = useState(null); // { id, clientSecret }
-  const [paymentStatus, setPaymentStatus] = useState(null); // "success" | "failed" | null
+  const [paymentStatus, setPaymentStatus] = useState(null);
 
   const handlePaymentFieldChange = (field, value) => {
     setPaymentInfo((prev) => ({ ...prev, [field]: value }));
   };
 
-  // ====== Stripe Elements (từ HTML test) ======
+  // Stripe state
   const [stripeState, setStripeState] = useState({
     stripe: null,
     elements: null
@@ -189,7 +178,7 @@ const CartComponent = () => {
   const [stripeCard, setStripeCard] = useState(null);
   const cardElementRef = useRef(null);
 
-  // load script https://js.stripe.com/v3/ & init Stripe Elements khi vào step Payment
+  // Load Stripe khi vào step Payment
   useEffect(() => {
     const stepKey = getStepKey(activeStep);
     if (stepKey !== "payment") return;
@@ -216,7 +205,6 @@ const CartComponent = () => {
       document.body.appendChild(script);
     }
 
-    // cleanup nếu cần (unmount card khi rời step)
     return () => {
       if (stripeCard) {
         stripeCard.unmount();
@@ -225,7 +213,7 @@ const CartComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, getStepKey]);
 
-  // ====== Fetch package from API ======
+  // Fetch package
   useEffect(() => {
     const fetchPackage = async () => {
       try {
@@ -260,9 +248,9 @@ const CartComponent = () => {
     fetchPackage();
   }, [packageId]);
 
-  // ====== Fetch trainers from API (chỉ khi gói có PT) ======
+  // Fetch trainers (nếu có PT)
   useEffect(() => {
-    if (!includesPT) return; // gói không có PT thì không cần gọi
+    if (!includesPT) return;
 
     const fetchTrainers = async () => {
       try {
@@ -275,13 +263,14 @@ const CartComponent = () => {
           .filter((t) => t.isAvailableForNewClients !== false)
           .map((t) => ({
             id: t.trainerId,
-            name: `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Trainer",
+            name:
+              `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Trainer",
             avatar:
               "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=800&q=80",
             specialties: t.specialization
               ? t.specialization.split(",").map((s) => s.trim())
               : [],
-            unavailable: [] // hiện tại API chưa trả slot bận theo giờ, tạm cho tất cả rảnh
+            unavailable: []
           }));
 
         setTrainers(mapped);
@@ -302,7 +291,7 @@ const CartComponent = () => {
     fetchTrainers();
   }, [includesPT]);
 
-  // ====== Fetch TimeSlots from API /TimeSlot (chỉ khi gói có PT) ======
+  // Fetch timeslots (nếu có PT)
   useEffect(() => {
     if (!includesPT) return;
 
@@ -344,11 +333,10 @@ const CartComponent = () => {
     fetchTimeSlots();
   }, [includesPT]);
 
-  // Một slot bị disable nếu TẤT CẢ trainer đều bận ở slot đó
   const isSlotDisabled = (slot) =>
     trainers.length > 0 && trainers.every((t) => t.unavailable.includes(slot));
 
-  // ====== Auto-suggest Trainer (dùng trainers từ API) ======
+  // Suggest trainer
   const getSuggestedTrainerForSlot = useCallback(
     (slot) => {
       if (!slot || trainers.length === 0) return null;
@@ -366,7 +354,6 @@ const CartComponent = () => {
     return sorted[0] || null;
   }, [trainers]);
 
-  // Auto-suggest & auto-select nếu user chưa chọn tay (chỉ ý nghĩa khi includesPT = true)
   useEffect(() => {
     if (!includesPT) return;
 
@@ -396,11 +383,10 @@ const CartComponent = () => {
     userTouchedTrainer
   ]);
 
-  // ======== Navigation guards =========
   const canProceedFromSlot = !!selectedSlot;
   const canProceedFromTrainer = !!selectedTrainer;
 
-  // ======== PAYMENT HANDLER (Stripe + confirm-payment) =========
+  // ========== PAYMENT HANDLER ==========
   const handlePaymentSubmit = async () => {
     if (!stripeState.stripe || !stripeCard) {
       setSnackbar({
@@ -412,7 +398,6 @@ const CartComponent = () => {
       return;
     }
 
-    // Nếu gói có PT thì bắt buộc phải có slot + trainer
     if (includesPT && (!selectedTrainer || !selectedSlot)) {
       setSnackbar({
         open: true,
@@ -440,22 +425,29 @@ const CartComponent = () => {
       });
 
       const pkg = cartItems[0];
-
       const startDateISO = new Date().toISOString();
 
       const createBody = {
-        packageId: pkg.id,
-        trainerId: includesPT && selectedTrainer ? selectedTrainer.id : null,
-        startDate: startDateISO,
-        isAutoRenewal: paymentInfo.isAutoRenewal,
-        discountCode: promoCode || "",
-        notes: paymentInfo.notes || ""
-      };
+  packageId: Number(pkg.id),
+  startDate: startDateISO,
+  isAutoRenewal: !!paymentInfo.isAutoRenewal,
+  discountCode: promoCode.trim() || null,
+  notes: paymentInfo.notes?.trim() || null
+};
+
+if (includesPT && selectedTrainer) {
+  createBody.trainerId = Number(selectedTrainer.id);
+}
+
+
+      console.log("Create payment intent body:", createBody);
 
       const createRes = await api.post(
         "/Payment/create-payment-intent",
         createBody
       );
+
+      console.log("create-payment-intent response:", createRes.data);
 
       const {
         clientSecret,
@@ -466,7 +458,7 @@ const CartComponent = () => {
         currency,
         pendingMemberPackageId,
         pendingPaymentId
-      } = createRes.data;
+      } = createRes.data || {};
 
       if (!clientSecret || !paymentIntentId) {
         throw new Error("Thiếu clientSecret hoặc paymentIntentId từ API.");
@@ -530,8 +522,11 @@ const CartComponent = () => {
       });
 
       const confirmRes = await api.post("/Payment/confirm-payment", {
-        paymentIntentId: stripePI.id
+        // dùng id backend trả ra, fallback sang Stripe id
+        paymentIntentId: paymentIntentId || stripePI.id
       });
+
+      console.log("confirm-payment response:", confirmRes.data);
 
       if (confirmRes.status === 200) {
         setPaymentStatus("success");
@@ -550,14 +545,24 @@ const CartComponent = () => {
         });
       }
 
-      setActiveStep(steps.length - 1); // sang Confirmation
+      setActiveStep(steps.length - 1);
     } catch (error) {
       console.error("Payment error:", error);
+      console.log("Payment error response:", error?.response?.data);
+
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.title ||
+        (typeof error?.response?.data === "string"
+          ? error.response.data
+          : "") ||
+        "Có lỗi khi xử lý thanh toán. Vui lòng thử lại.";
+
       setPaymentStatus("failed");
       setActiveStep(steps.length - 1);
       setSnackbar({
         open: true,
-        message: "Có lỗi khi xử lý thanh toán. Vui lòng thử lại.",
+        message: msg,
         severity: "error"
       });
     } finally {
@@ -568,7 +573,11 @@ const CartComponent = () => {
   const guardedNext = () => {
     const stepKey = getStepKey(activeStep);
 
-    if (includesPT && stepKey === "slot" && !canProceedFromSlot) {
+    if (
+      includesPT &&
+      stepKey === "slot" &&
+      !canProceedFromSlot
+    ) {
       return setSnackbar({
         open: true,
         message: "Vui lòng chọn khung giờ trước.",
@@ -580,7 +589,11 @@ const CartComponent = () => {
       setSelectedTrainer(suggestedTrainer);
       setUserTouchedTrainer(false);
     }
-    if (includesPT && stepKey === "trainer" && !canProceedFromTrainer) {
+    if (
+      includesPT &&
+      stepKey === "trainer" &&
+      !canProceedFromTrainer
+    ) {
       return setSnackbar({
         open: true,
         message: "Vui lòng chọn trainer.",
@@ -633,9 +646,14 @@ const CartComponent = () => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  const calculateSubtotal = useMemo(() => {
-    return cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  }, [cartItems]);
+  const calculateSubtotal = useMemo(
+    () =>
+      cartItems.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      ),
+    [cartItems]
+  );
 
   const total = Math.max(0, calculateSubtotal - discount);
 
@@ -664,7 +682,6 @@ const CartComponent = () => {
     const stepKey = getStepKey(stepIndex);
 
     switch (stepKey) {
-      // ===== 0. Cart =====
       case "cart":
         return (
           <Grid
@@ -706,7 +723,9 @@ const CartComponent = () => {
                       </Grid>
                       <Grid item xs={9}>
                         <Stack spacing={1}>
-                          <Typography variant="h6">{item.name}</Typography>
+                          <Typography variant="h6">
+                            {item.name}
+                          </Typography>
                           <Typography variant="body1" color="text.secondary">
                             {formatVND(item.price)}
                           </Typography>
@@ -714,7 +733,9 @@ const CartComponent = () => {
                           <Stack direction="row" spacing={1}>
                             <IconButton
                               color="error"
-                              onClick={() => handleRemoveItem(item.id)}
+                              onClick={() =>
+                                handleRemoveItem(item.id)
+                              }
                             >
                               <FiTrash2 />
                             </IconButton>
@@ -733,7 +754,10 @@ const CartComponent = () => {
                   <Typography variant="h6">Order Summary</Typography>
 
                   {discount > 0 && (
-                    <Stack direction="row" justifyContent="space-between">
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                    >
                       <Typography>Discount</Typography>
                       <Typography color="error">
                         - {formatVND(discount)}
@@ -741,19 +765,31 @@ const CartComponent = () => {
                     </Stack>
                   )}
                   <Divider />
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="h6">Total</Typography>
-                    <Typography variant="h6">{formatVND(total)}</Typography>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                  >
+                    <Typography variant="h6">
+                      Total
+                    </Typography>
+                    <Typography variant="h6">
+                      {formatVND(total)}
+                    </Typography>
                   </Stack>
                   <TextField
                     label="Promo Code"
                     value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
+                    onChange={(e) =>
+                      setPromoCode(e.target.value)
+                    }
                     error={Boolean(promoError)}
                     helperText={promoError}
                     fullWidth
                   />
-                  <Button variant="outlined" onClick={handlePromoCode}>
+                  <Button
+                    variant="outlined"
+                    onClick={handlePromoCode}
+                  >
                     Apply Promo
                   </Button>
                 </Stack>
@@ -762,7 +798,6 @@ const CartComponent = () => {
           </Grid>
         );
 
-      // ===== 1. Slot (chỉ khi includesPT = true) =====
       case "slot":
         return (
           <Stack spacing={3}>
@@ -809,8 +844,12 @@ const CartComponent = () => {
                       >
                         <span>
                           <SlotButton
-                            variant={selected ? "contained" : "outlined"}
-                            onClick={() => !disabled && setSelectedSlot(slot)}
+                            variant={
+                              selected ? "contained" : "outlined"
+                            }
+                            onClick={() =>
+                              !disabled && setSelectedSlot(slot)
+                            }
                             disabled={disabled}
                             fullWidth
                           >
@@ -834,7 +873,10 @@ const CartComponent = () => {
                   }}
                 >
                   {selectedSlot && (
-                    <Chip color="primary" label={`Đã chọn: ${selectedSlot}`} />
+                    <Chip
+                      color="primary"
+                      label={`Đã chọn: ${selectedSlot}`}
+                    />
                   )}
                   {suggestedTrainer && (
                     <Chip
@@ -849,7 +891,6 @@ const CartComponent = () => {
           </Stack>
         );
 
-      // ===== Trainer (chỉ khi includesPT = true) =====
       case "trainer": {
         const sortedTrainers = [...trainers].sort((a, b) => {
           const aAvail = selectedSlot
@@ -866,8 +907,9 @@ const CartComponent = () => {
             <Typography variant="h6">Chọn Trainer</Typography>
             {!selectedSlot && (
               <Alert severity="info">
-                Chưa chọn slot — hệ thống đã <strong>gợi ý</strong> một trainer
-                phù hợp. Bạn vẫn có thể chọn lại.
+                Chưa chọn slot — hệ thống đã{" "}
+                <strong>gợi ý</strong> một trainer phù hợp. Bạn vẫn
+                có thể chọn lại.
               </Alert>
             )}
 
@@ -876,7 +918,9 @@ const CartComponent = () => {
                 Đang tải danh sách huấn luyện viên...
               </Alert>
             )}
-            {trainerError && <Alert severity="warning">{trainerError}</Alert>}
+            {trainerError && (
+              <Alert severity="warning">{trainerError}</Alert>
+            )}
 
             <Grid container spacing={2}>
               {sortedTrainers.map((t) => {
@@ -884,7 +928,8 @@ const CartComponent = () => {
                   ? !t.unavailable.includes(selectedSlot)
                   : true;
                 const selected = selectedTrainer?.id === t.id;
-                const isSuggestedCard = suggestedTrainer?.id === t.id;
+                const isSuggestedCard =
+                  suggestedTrainer?.id === t.id;
 
                 return (
                   <Grid item xs={12} md={4} key={t.id}>
@@ -915,7 +960,10 @@ const CartComponent = () => {
                             spacing={1}
                             alignItems="center"
                           >
-                            <Typography variant="h6" sx={{ flex: 1 }}>
+                            <Typography
+                              variant="h6"
+                              sx={{ flex: 1 }}
+                            >
                               {t.name}
                             </Typography>
                             <Chip
@@ -943,7 +991,11 @@ const CartComponent = () => {
                               }
                             />
                           </Stack>
-                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            flexWrap="wrap"
+                          >
                             {t.specialties.map((s) => (
                               <Chip
                                 key={s}
@@ -987,7 +1039,8 @@ const CartComponent = () => {
               <Alert severity="success">
                 {selectedTrainer ? (
                   <>
-                    Đã chọn: <strong>{selectedTrainer.name}</strong>
+                    Đã chọn:{" "}
+                    <strong>{selectedTrainer.name}</strong>
                     {selectedSlot && (
                       <>
                         {" "}
@@ -997,7 +1050,8 @@ const CartComponent = () => {
                   </>
                 ) : (
                   <>
-                    Gợi ý: <strong>{suggestedTrainer?.name}</strong>
+                    Gợi ý:{" "}
+                    <strong>{suggestedTrainer?.name}</strong>
                   </>
                 )}
                 {suggestedTrainer &&
@@ -1014,7 +1068,6 @@ const CartComponent = () => {
         );
       }
 
-      // ===== Payment =====
       case "payment":
         return (
           <StyledPaper>
@@ -1025,7 +1078,8 @@ const CartComponent = () => {
               {includesPT && (
                 <>
                   <Typography variant="body2" color="text.secondary">
-                    Slot: <strong>{selectedSlot || "Chưa chọn"}</strong>
+                    Slot:{" "}
+                    <strong>{selectedSlot || "Chưa chọn"}</strong>
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Trainer đã chọn:{" "}
@@ -1034,7 +1088,8 @@ const CartComponent = () => {
                 </>
               )}
               <Typography variant="body2" color="text.secondary">
-                Tổng thanh toán: <strong>{formatVND(total)}</strong>
+                Tổng thanh toán:{" "}
+                <strong>{formatVND(total)}</strong>
               </Typography>
             </Stack>
 
@@ -1057,45 +1112,60 @@ const CartComponent = () => {
                 }}
               />
               <Typography variant="caption" color="text.secondary">
-                Thông tin thẻ được xử lý an toàn bởi Stripe. Chúng tôi không lưu
-                số thẻ của bạn.
+                Thông tin thẻ được xử lý an toàn bởi Stripe. Chúng tôi
+                không lưu số thẻ của bạn.
               </Typography>
             </Box>
           </StyledPaper>
         );
 
-      // ===== Confirmation =====
       case "confirmation":
         return (
           <StyledPaper>
             <Stack spacing={3} alignItems="center">
               {paymentStatus === "success" ? (
                 <>
-                  <CircularProgress size={60} sx={{ color: "success.main" }} />
-                  <Typography variant="h5">Thanh toán thành công!</Typography>
-                  <Typography color="text.secondary" align="center">
+                  <CircularProgress
+                    size={60}
+                    sx={{ color: "success.main" }}
+                  />
+                  <Typography variant="h5">
+                    Thanh toán thành công!
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    align="center"
+                  >
                     Cảm ơn bạn đã đặt lịch. Gói tập đã được kích hoạt.
                     <br />
-                    Chúng tôi sẽ gửi email xác nhận và nhắc lịch trước buổi tập.
+                    Chúng tôi sẽ gửi email xác nhận và nhắc lịch
+                    trước buổi tập.
                   </Typography>
                 </>
               ) : (
                 <>
-                  <CircularProgress size={60} sx={{ color: "error.main" }} />
+                  <CircularProgress
+                    size={60}
+                    sx={{ color: "error.main" }}
+                  />
                   <Typography variant="h5" color="error">
                     Thanh toán thất bại
                   </Typography>
-                  <Typography color="text.secondary" align="center">
+                  <Typography
+                    color="text.secondary"
+                    align="center"
+                  >
                     Rất tiếc, giao dịch không thành công hoặc bị huỷ.
                     <br />
-                    Vui lòng thử lại hoặc liên hệ nhân viên để được hỗ trợ.
+                    Vui lòng thử lại hoặc liên hệ nhân viên để được
+                    hỗ trợ.
                   </Typography>
                 </>
               )}
               <Button
                 variant="contained"
                 startIcon={<FiShoppingBag />}
-                onClick={() => navigate("/")}  // 👉 Điều hướng về trang Home
+                onClick={() => navigate("/")}
               >
                 Quay về Trang Chủ
               </Button>
@@ -1128,9 +1198,14 @@ const CartComponent = () => {
       <CheckoutSteps activeStep={activeStep} steps={steps} />
       {renderStepContent(activeStep)}
 
-      {/* Ẩn nút điều hướng trên màn hình Confirmation */}
       {currentStepKey !== "confirmation" && (
-        <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
+        <Box
+          sx={{
+            mt: 4,
+            display: "flex",
+            justifyContent: "space-between"
+          }}
+        >
           <Button
             variant="outlined"
             startIcon={<FiArrowLeft />}
@@ -1141,7 +1216,13 @@ const CartComponent = () => {
           </Button>
           <Button
             variant="contained"
-            endIcon={currentStepKey === "payment" ? <FiLock /> : <FiArrowRight />}
+            endIcon={
+              currentStepKey === "payment" ? (
+                <FiLock />
+              ) : (
+                <FiArrowRight />
+              )
+            }
             onClick={handleNext}
             disabled={nextDisabled}
           >
@@ -1159,11 +1240,15 @@ const CartComponent = () => {
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3500}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() =>
+          setSnackbar({ ...snackbar, open: false })
+        }
       >
         <Alert
           severity={snackbar.severity}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          onClose={() =>
+            setSnackbar({ ...snackbar, open: false })
+          }
         >
           {snackbar.message}
         </Alert>
