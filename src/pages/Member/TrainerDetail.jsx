@@ -246,7 +246,6 @@ const TrainerDetail = () => {
     }
   }, [id]);
 
-  // 🧾 Lấy danh sách feedback: GET /guest/trainers/{id}/feedbacks
   useEffect(() => {
     const fetchFeedbacks = async () => {
       try {

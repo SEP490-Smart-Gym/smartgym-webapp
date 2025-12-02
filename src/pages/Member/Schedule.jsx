@@ -347,6 +347,23 @@ export default function Calendar() {
       return;
     }
 
+    // ✅ CHỈ ĐƯỢC HỦY TRƯỚC 24 GIỜ
+    const startRaw = event.start || event.date;
+    const startTime =
+      startRaw instanceof Date ? startRaw : new Date(startRaw);
+    if (isNaN(startTime.getTime())) {
+      message.error("Không xác định được thời gian buổi tập.");
+      return;
+    }
+
+    const now = new Date();
+    const diffHours = (startTime - now) / (1000 * 60 * 60);
+
+    if (diffHours < 24) {
+      message.warning("Bạn chỉ có thể hủy lịch trước ít nhất 24 giờ.");
+      return;
+    }
+
     if (
       !window.confirm(
         `Bạn có chắc muốn hủy sự kiện "${event.title || ""}"?`
@@ -804,6 +821,22 @@ export default function Calendar() {
       }
     })();
   }, []);
+
+  // ✅ TÍNH CÓ ĐƯỢC HỦY HAY KHÔNG (DÙNG CHO GIAO DIỆN)
+  const canCancelSelectedEvent = (() => {
+    if (!selectedEvent) return false;
+    if ((selectedEvent.status || "").toLowerCase() !== "not yet") return false;
+
+    const startRaw = selectedEvent.start || selectedEvent.date;
+    const startTime =
+      startRaw instanceof Date ? startRaw : new Date(startRaw);
+    if (isNaN(startTime.getTime())) return false;
+
+    const now = new Date();
+    const diffHours = (startTime - now) / (1000 * 60 * 60);
+
+    return diffHours >= 24;
+  })();
 
   return (
     <div className="container mt-5 mb-5">
@@ -1307,6 +1340,11 @@ export default function Calendar() {
                       {selectedEvent.status}
                     </span>
                   </div>
+                  {!canCancelSelectedEvent && (
+                    <div className="text-muted small">
+                      Lưu ý: Chỉ có thể hủy lịch trước giờ tập ít nhất 24 giờ.
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-muted">
@@ -1315,18 +1353,15 @@ export default function Calendar() {
               )}
             </div>
             <div className="modal-footer">
-              {selectedEvent &&
-                selectedEvent.status?.toLowerCase() === "not yet" &&
-                new Date(selectedEvent.start || selectedEvent.date) >
-                  new Date() && (
-                  <button
-                    type="button"
-                    className="btn btn-danger me-auto"
-                    onClick={() => handleCancelEvent(selectedEvent)}
-                  >
-                    Hủy lịch
-                  </button>
-                )}
+              {canCancelSelectedEvent && (
+                <button
+                  type="button"
+                  className="btn btn-danger me-auto"
+                  onClick={() => handleCancelEvent(selectedEvent)}
+                >
+                  Hủy lịch
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-light"
