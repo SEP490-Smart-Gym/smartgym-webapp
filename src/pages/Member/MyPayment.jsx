@@ -1,3 +1,4 @@
+// src/pages/Payment/PaymentHistory.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { AiOutlineClose } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
@@ -5,11 +6,10 @@ import api from "../../config/axios";
 
 const styles = `
 .card-shadow { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); }
-.payment-title { font-weight: 700; }
 
-.status-pending { color: #0d6efd; font-weight: 600; }   /* xanh dương */
-.status-failed { color: #dc3545; font-weight: 600; }    /* đỏ */
-.status-completed { color: #198754; font-weight: 600; } /* xanh lá */
+.status-pending { color: #0d6efd; font-weight: 600; }
+.status-failed { color: #dc3545; font-weight: 600; }
+.status-completed { color: #198754; font-weight: 600; }
 
 .modal-backdrop-custom {
   position: fixed; inset: 0; background: rgba(0,0,0,.35);
@@ -29,9 +29,7 @@ const styles = `
 function formatDDMMYYYYHHMM(iso) {
   if (!iso) return "";
 
-  // Nếu chuỗi chưa có 'Z' (UTC) thì thêm vào để Date hiểu đúng là UTC
   const isoUtc = iso.endsWith("Z") ? iso : `${iso}Z`;
-
   const d = new Date(isoUtc);
   if (Number.isNaN(d.getTime())) return iso;
 
@@ -45,11 +43,9 @@ function formatDDMMYYYYHHMM(iso) {
     hour12: false,
   };
 
-  // "27/11/2025, 23:58" -> "27/11/2025 23:58"
   const vnTime = new Intl.DateTimeFormat("vi-VN", options).format(d);
   return vnTime.replace(",", "");
 }
-
 
 function currencyVND(n) {
   if (typeof n !== "number" || Number.isNaN(n)) return "—";
@@ -80,6 +76,25 @@ function getPaymentStatusDisplay(payment) {
   return { text: raw || "Không rõ", className: "text-muted fw-semibold" };
 }
 
+/**
+ * Lấy Stripe Payment Intent Id từ object payment:
+ *  - Ưu tiên: stripePaymentIntentId
+ *  - Fallback: nếu transactionReference bắt đầu bằng "pi_" thì dùng nó
+ */
+function getStripePaymentIntentId(payment) {
+  if (!payment) return null;
+
+  const direct = payment.stripePaymentIntentId || payment.paymentIntentId;
+  if (direct) return direct;
+
+  const tr = payment.transactionReference || "";
+  if (typeof tr === "string" && tr.startsWith("pi_")) {
+    return tr;
+  }
+
+  return null;
+}
+
 export default function PaymentHistory() {
   const navigate = useNavigate();
 
@@ -92,12 +107,13 @@ export default function PaymentHistory() {
 
   // modal state
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(null); // payment item
+  const [selected, setSelected] = useState(null); // payment item (list + detail)
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // cache tên gói: { [memberPackageId]: packageName }
   const [packageNames, setPackageNames] = useState({});
 
-  // ===== GỌI API my-payments =====
+  // ===== GỌI API /Payment/my-payments (list) =====
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -148,8 +164,7 @@ export default function PaymentHistory() {
       try {
         const res = await api.get(`/MemberPackage/${pkgId}`);
         const pkg = res.data;
-        const name =
-          pkg?.packageName || pkg?.name || `Gói #${pkgId}`;
+        const name = pkg?.packageName || pkg?.name || `Gói #${pkgId}`;
         setPackageNames((prev) => ({
           ...prev,
           [pkgId]: name,
@@ -197,24 +212,50 @@ export default function PaymentHistory() {
     });
   }, [sortedPayments, filterStatus]);
 
-  const handleOpen = (paymentItem) => {
-    setSelected(paymentItem);
+  // ===== Mở modal + load detail từ /Payment/{id} =====
+  const handleOpen = async (paymentItem) => {
+    setSelected(paymentItem); // set trước để có gì đó hiển thị
     setOpen(true);
+    setDetailLoading(true);
+
+    try {
+      const res = await api.get(`/Payment/${paymentItem.id}`);
+      const detail = res.data; // dạng như mẫu bạn gửi
+
+      // merge detail lên trên (ưu tiên field từ detail)
+      setSelected((prev) => ({
+        ...(prev || {}),
+        ...detail,
+      }));
+    } catch (err) {
+      console.error("Error fetching payment detail:", err);
+      // Nếu lỗi vẫn giữ selected từ list, chỉ log thôi
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleClose = () => {
     setOpen(false);
     setSelected(null);
+    setDetailLoading(false);
   };
 
-  // tiếp tục thanh toán cho payment Pending (chỉ khi có memberPackageId)
+  // ===== Tiếp tục thanh toán cho payment Pending =====
   const handleContinuePayment = () => {
     if (!selected) return;
-    if (!selected.memberPackageId) {
-      alert("Không tìm được gói tập liên quan để tiếp tục thanh toán.");
+
+    const piId = getStripePaymentIntentId(selected);
+    if (!piId) {
+      alert(
+        "Giao dịch này không có Stripe Payment Intent Id, không thể tiếp tục thanh toán."
+      );
       return;
     }
-    navigate(`/checkout/${selected.memberPackageId}`);
+
+    navigate(`/payment/${encodeURIComponent(piId)}`, {
+      state: { payment: selected },
+    });
   };
 
   const renderFilterTabs = () => (
@@ -304,35 +345,41 @@ export default function PaymentHistory() {
                 <div className="card-body">
                   <div className="row g-3 align-items-center">
                     <div className="col-12 col-md-8">
-                        <div className="text-muted small mb-1">Thanh toán #{p.id}</div>
+                      <div className="text-muted small mb-1">
+                        Thanh toán #{p.id}
+                      </div>
 
-                        <div className={statusObj.className} style={{ fontSize: "0.95rem" }}>
+                      <div
+                        className={statusObj.className}
+                        style={{ fontSize: "0.95rem" }}
+                      >
                         {statusObj.text}
-                        </div>
+                      </div>
 
-                        <div className="text-muted small mt-2">Ngày giờ thanh toán</div>
-                        <div className="fw-semibold">
+                      <div className="text-muted small mt-2">
+                        Ngày giờ thanh toán
+                      </div>
+                      <div className="fw-semibold">
                         {formatDDMMYYYYHHMM(p.paymentDate)}
-                        </div>
+                      </div>
                     </div>
 
                     <div className="col-12 col-md-4 d-flex justify-content-md-end align-items-center gap-3">
-                        <div className="text-end me-2">
+                      <div className="text-end me-2">
                         <div className="text-muted small">Thực thu</div>
                         <div className="fw-semibold">
-                            {currencyVND(p.finalAmount ?? 0)}
+                          {currencyVND(p.finalAmount ?? 0)}
                         </div>
-                        </div>
+                      </div>
 
-                        <button
+                      <button
                         className="btn btn-primary btn-sm"
                         onClick={() => handleOpen(p)}
-                        >
+                      >
                         Detail
-                        </button>
+                      </button>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -347,7 +394,10 @@ export default function PaymentHistory() {
         sortedPayments.length > 0 && (
           <div className="row justify-content-center">
             <div className="col-12 col-xl-10">
-              <div className="alert alert-light border text-center" role="alert">
+              <div
+                className="alert alert-light border text-center"
+                role="alert"
+              >
                 Không có giao dịch nào trong mục này.
               </div>
             </div>
@@ -373,9 +423,14 @@ export default function PaymentHistory() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header d-flex justify-content-between align-items-center">
-              <h5 className="m-0">Chi tiết thanh toán #{selected.id}</h5>
+              <h5 className="m-0">
+                Chi tiết thanh toán #{selected.id}
+              </h5>
               <button
                 className="btn btn-sm btn-outline-secondary"
                 onClick={handleClose}
@@ -385,6 +440,12 @@ export default function PaymentHistory() {
             </div>
 
             <div className="modal-body">
+              {detailLoading && (
+                <div className="alert alert-info py-2 mb-3">
+                  Đang tải chi tiết thanh toán...
+                </div>
+              )}
+
               {/* Status + mã giao dịch + ngày giờ + ghi chú */}
               <div className="mb-3">
                 {(() => {
@@ -425,16 +486,19 @@ export default function PaymentHistory() {
                 )}
               </div>
 
-              {/* Thông tin chi tiết (bỏ Thành viên + Stripe ID) */}
+              {/* Thông tin chi tiết */}
               <div className="row g-3">
-                {/* Gói tập: lấy tên từ /MemberPackage/{id} */}
                 <div className="col-12 col-md-6">
                   <div className="text-muted small">Gói tập</div>
-                  <div className="fw-semibold">{getSelectedPackageName()}</div>
+                  <div className="fw-semibold">
+                    {getSelectedPackageName()}
+                  </div>
                 </div>
 
                 <div className="col-12 col-md-6">
-                  <div className="text-muted small">Phương thức thanh toán</div>
+                  <div className="text-muted small">
+                    Phương thức thanh toán
+                  </div>
                   <div className="fw-semibold">
                     {selected.paymentMethodName || (
                       <span className="text-muted">Không rõ</span>
@@ -473,16 +537,23 @@ export default function PaymentHistory() {
                 Đóng
               </button>
 
-              {/* Chỉ cho phép tiếp tục thanh toán khi Pending + có memberPackageId */}
-              {(selected.paymentStatus || "").toLowerCase() === "pending" &&
-                selected.memberPackageId && (
+              {/* Chỉ cho phép tiếp tục thanh toán khi Pending + có Stripe PI Id */}
+              {(() => {
+                const rawStatus = (selected.paymentStatus || "").toLowerCase();
+                const piId = getStripePaymentIntentId(selected);
+                const canContinue = rawStatus === "pending" && !!piId;
+
+                if (!canContinue) return null;
+
+                return (
                   <button
                     className="btn btn-primary"
                     onClick={handleContinuePayment}
                   >
                     Tiếp tục thanh toán
                   </button>
-                )}
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -491,7 +562,7 @@ export default function PaymentHistory() {
   );
 }
 
-/** ===== ErrorBoundary giống MyPackage ===== */
+/** ===== ErrorBoundary ===== */
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);

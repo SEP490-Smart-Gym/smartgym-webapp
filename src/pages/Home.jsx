@@ -650,7 +650,9 @@ export default function Home() {
         </div>
 
         {/* Feedback */}
-        <GymFeedbackSection />
+        <div id = "#feedback-section">
+          <GymFeedbackSection />
+        </div>
       </div>
     </>
   );

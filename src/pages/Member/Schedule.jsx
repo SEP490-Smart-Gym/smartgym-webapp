@@ -31,8 +31,7 @@ function toHHmmFromApiTime(apiTime) {
 function mapSessionStatus(session) {
   const raw = (session.status || "").toLowerCase().trim();
   if (raw === "scheduled" || raw === "booked") return "not yet";
-  if (raw === "completed" || raw === "present" || raw === "done")
-    return "present";
+  if (raw === "completed" || raw === "present" || raw === "done") return "present";
   if (
     raw === "cancelled" ||
     raw === "canceled" ||
@@ -357,6 +356,7 @@ export default function Calendar() {
     }
 
     try {
+      // 🔥 PUT /api/TrainingSession/{id}/cancel
       await api.put(`/TrainingSession/${event.id}/cancel`);
 
       // xóa khỏi dataRef.current theo id
@@ -627,17 +627,15 @@ export default function Calendar() {
           if (!dayCell.length || dayCell.hasEvent) return;
           const time = event.start.toTimeString();
           const status = (event.status || "").toLowerCase();
-          const $chip = $(
-            `
+          const $chip = $(`
             <div class="event-chip status-${status.replace(/\s+/g, "-")}" data-index="${index}" title="${event.title}">
               <div class="event-chip-title">${event.title}</div>
               <div class="event-chip-time">${time}${
-              event.end ? " - " + event.end.toTimeString() : ""
-            }</div>
+                event.end ? " - " + event.end.toTimeString() : ""
+              }</div>
               <div class="event-chip-badge">${status}</div>
             </div>
-          `
-          );
+          `);
           dayCell.addClass("has-event").append($chip);
         }
 
@@ -765,10 +763,14 @@ export default function Calendar() {
         onOpenEvent: handleOpenEvent,
       });
 
-      // 🔥 TẢI LỊCH TẬP TỪ API /TrainingSession
+      // 🔥 TẢI LỊCH TẬP TỪ API /TrainingSession – CHỈ LẤY STATUS = "Scheduled"
       try {
         const res = await api.get("/TrainingSession");
-        const sessions = Array.isArray(res.data) ? res.data : [];
+        const rawSessions = Array.isArray(res.data) ? res.data : [];
+
+        const sessions = rawSessions.filter(
+          (s) => (s.status || "").toLowerCase().trim() === "scheduled"
+        );
 
         const mappedEvents = sessions.map((s) => {
           const isoDate = (s.sessionDate || "").slice(0, 10);
@@ -912,7 +914,11 @@ export default function Calendar() {
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
           Lịch
         </h1>
-        <button className="btn btn-booking" data-bs-toggle="modal" data-bs-target="#bookingModal">
+        <button
+          className="btn btn-booking"
+          data-bs-toggle="modal"
+          data-bs-target="#bookingModal"
+        >
           <span>Đặt lịch tập</span>
         </button>
       </div>
@@ -1088,7 +1094,6 @@ export default function Calendar() {
                     "Bạn đã sử dụng hết số buổi trong gói này. Vui lòng gia hạn hoặc mua gói mới trước khi đặt thêm lịch."
                   );
                 } else if (apiMsg) {
-                  // Nếu backend trả message khác thì show trực tiếp (hoặc bạn có thể map ra tiếng Việt)
                   message.error(apiMsg);
                 } else {
                   message.error("Có lỗi khi đặt lịch. Vui lòng thử lại sau.");
@@ -1355,7 +1360,7 @@ export default function Calendar() {
               thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
               first = new Date(thedate);
               last = new Date(thedate);
-              last.setDate(last.getDate()+6);
+              last.setDate(thedate.getDate()+6);
             } else if (mode === 'day') {
               thedate = new Date(date);
               first = new Date(thedate);
