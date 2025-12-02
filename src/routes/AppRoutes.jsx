@@ -23,6 +23,7 @@ import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
 import ManageSchedule from "../pages/Manager/Schedule.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
+import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -33,7 +34,8 @@ import PackageList from "../pages/Member/PackageList.jsx";
 import PackageDetail from "../pages/Member/PackageDetail.jsx";
 import TrainerSchedule from "../pages/Member/Schedule.jsx";
 import Payment from "../pages/Member/Payment.jsx";
-import ChatBot from "../pages/Member/ChatBox.jsx";
+import MemberVoucherList from "../pages/Member/Voucher.jsx";
+import PaymentHistory from "../pages/Member/MyPayment.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -130,6 +132,8 @@ export default function AppRoutes() {
           <Route path="/chat/:conversationId" element={<ChatConversation />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
+          <Route path="/member/voucher" element={<MemberVoucherList />} />
+          <Route path="/member/my-payments" element={<PaymentHistory />} />
         </Route>
 
         {/* ===== Trainer protected ===== */}
@@ -137,7 +141,7 @@ export default function AppRoutes() {
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
-          <Route path="/trainer/:id/schedule" element={<TrainerSchedule />} />
+          <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
         </Route>
 
         {/* ===== Staff protected ===== */}

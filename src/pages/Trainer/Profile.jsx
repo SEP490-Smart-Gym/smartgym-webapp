@@ -27,7 +27,7 @@ const ProfileTrainer = () => {
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
 
-  // 👉 Tab đang chọn: "user" | "password"
+  // 👉 Tab đang chọn: "user" | "trainer" | "password"
   const [activeSection, setActiveSection] = useState("user");
 
   useEffect(() => {
@@ -45,6 +45,20 @@ const ProfileTrainer = () => {
     phone: "",
     address: "",
     gioiTinh: "",
+  });
+
+  // 👉 State cho thông tin huấn luyện viên
+  const [trainerInfo, setTrainerInfo] = useState({
+    specialization: "",
+    trainerBio: "",
+    workingShift: "",
+    isAvailableForNewClients: true,
+    certificates: [
+      {
+        certificateName: "",
+        certificateDetail: "",
+      },
+    ],
   });
 
   // 👉 State cho Reset Password
@@ -78,6 +92,14 @@ const ProfileTrainer = () => {
     return `${dd}/${mm}/${yyyy}`;
   };
 
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
@@ -99,58 +121,58 @@ const ProfileTrainer = () => {
   };
 
   const handleFileChange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-  
-      // Preview tạm tại client
-      const localUrl = URL.createObjectURL(file);
-      setPreview(localUrl);
-  
-      try {
-        // Đọc file -> base64 (data URL)
-        const toBase64 = (file) =>
-          new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-  
-        const base64Image = await toBase64(file);
-  
-        // Gửi JSON lên API
-        const payload = {
-          profileImageUrl: base64Image,
-        };
-  
-        const res = await api.put("/UserAccount/avatar", payload);
-        const newUrl = res.data?.profileImageUrl || base64Image;
-  
-        // Cập nhật state user + localStorage
-        setUser((prev) => ({
-          ...(prev || {}),
-          photo: newUrl,
-        }));
-  
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          parsed.photo = newUrl;
-          localStorage.setItem("user", JSON.stringify(parsed));
-        }
-  
-        // 👉 Bắn event cho Navbar biết user đã đổi avatar
-        window.dispatchEvent(new Event("app-auth-changed"));
-  
-        setPreview(newUrl);
-        alert("Cập nhật ảnh đại diện thành công!");
-      } catch (err) {
-        console.error("Error uploading avatar:", err);
-        alert(
-          `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
-        );
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview tạm tại client
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+
+    try {
+      // Đọc file -> base64 (data URL)
+      const toBase64 = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+      const base64Image = await toBase64(file);
+
+      // Gửi JSON lên API
+      const payload = {
+        profileImageUrl: base64Image,
+      };
+
+      const res = await api.put("/UserAccount/avatar", payload);
+      const newUrl = res.data?.profileImageUrl || base64Image;
+
+      // Cập nhật state user + localStorage
+      setUser((prev) => ({
+        ...(prev || {}),
+        photo: newUrl,
+      }));
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.photo = newUrl;
+        localStorage.setItem("user", JSON.stringify(parsed));
       }
-    };
+
+      // 👉 Bắn event cho Navbar biết user đã đổi avatar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      setPreview(newUrl);
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert(
+        `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
+      );
+    }
+  };
 
   const age = calculateAge(userInfo.birthday);
 
@@ -164,15 +186,16 @@ const ProfileTrainer = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || "" } ${data.firstName || ""}`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${
+          data.firstName || ""
+        }`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -207,75 +230,200 @@ const ProfileTrainer = () => {
     fetchUserInfoFromApi();
   }, [navigate]);
 
-  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
-  const handleUpdateUserInfo = async (e) => {
-      e && e.preventDefault();
+  // 🚀 LẤY THÔNG TIN HUẤN LUYỆN VIÊN /Profile/my-profile FILL VÀO TAB TRAINER
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+
+    const fetchTrainerInfoFromApi = async () => {
       try {
-        const nameParts = (userInfo.fullName || "")
-          .trim()
-          .split(" ")
-          .filter(Boolean);
-        const lastName = nameParts.length > 0 ? nameParts[0] : "";
-        const firstName =
-          nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
-  
-        // dd/MM/yyyy -> ISO
-        const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-        const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
-  
-        // map giới tính đúng enum backend: Male / Female / Other
-        const genderMapApi = {
-          Nam: "Male",
-          Nữ: "Female",
-          Khác: "Other",
-        };
-  
-        const payload = {
-          firstName,
-          lastName,
-          email: userInfo.email || "",
-          phoneNumber: userInfo.phone || "",
-          gender: genderMapApi[userInfo.gioiTinh] || null,
-          address: userInfo.address || "",
-          dateOfBirth: dateOfBirthIso,
-        };
-  
-        console.log("UPDATE /UserAccount/update payload:", payload);
-  
-        await api.put("/UserAccount/update", payload);
-  
-        // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
-        const storedUser = localStorage.getItem("user");
-        let newUser = user || {};
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          parsed.firstName = firstName;
-          parsed.lastName = lastName;
-          parsed.email = userInfo.email || parsed.email;
-          parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-          parsed.address = userInfo.address || parsed.address;
-          newUser = parsed;
-          localStorage.setItem("user", JSON.stringify(parsed));
-        }
-        setUser(newUser);
-  
-        // 👉 Bắn event cho Navbar
-        window.dispatchEvent(new Event("app-auth-changed"));
-  
-        alert("Cập nhật thông tin cá nhân thành công!");
+        const res = await api.get("/Profile/my-profile");
+        const data = res.data;
+
+        setTrainerInfo({
+          specialization: data.specialization || "",
+          trainerBio: data.trainerBio || "",
+          workingShift: data.workingShift || "",
+          isAvailableForNewClients:
+            data.isAvailableForNewClients !== undefined
+              ? data.isAvailableForNewClients
+              : true,
+          certificates:
+            Array.isArray(data.certificates) && data.certificates.length > 0
+              ? data.certificates
+              : [
+                  {
+                    certificateName: "",
+                    certificateDetail: "",
+                  },
+                ],
+        });
       } catch (err) {
-        console.error("Error updating user info:", err.response?.data || err);
-  
-        const serverData = err.response?.data;
-        let msg =
-          serverData?.title ||
-          serverData?.message ||
-          JSON.stringify(serverData) ||
-          "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-  
-        alert(msg);
+        if (err.response?.status === 401) {
+          console.log(
+            "Không có quyền / chưa đăng nhập -> /Profile/my-profile trả 401"
+          );
+          return;
+        }
+        console.error("Error fetching /Profile/my-profile:", err);
       }
     };
+
+    fetchTrainerInfoFromApi();
+  }, []);
+
+  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
+  const handleUpdateUserInfo = async (e) => {
+    e && e.preventDefault();
+    try {
+      const nameParts = (userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+      const lastName = nameParts.length > 0 ? nameParts[0] : "";
+      const firstName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
+
+      // map giới tính đúng enum backend: Male / Female / Other
+      const genderMapApi = {
+        Nam: "Male",
+        Nữ: "Female",
+        Khác: "Other",
+      };
+
+      const payload = {
+        firstName,
+        lastName,
+        email: userInfo.email || "",
+        phoneNumber: userInfo.phone || "",
+        gender: genderMapApi[userInfo.gioiTinh] || null,
+        address: userInfo.address || "",
+        dateOfBirth: dateOfBirthApi,
+      };
+
+      console.log("UPDATE /UserAccount/update payload:", payload);
+
+      await api.put("/UserAccount/update", payload);
+
+      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+      const storedUser = localStorage.getItem("user");
+      let newUser = user || {};
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.firstName = firstName;
+        parsed.lastName = lastName;
+        parsed.email = userInfo.email || parsed.email;
+        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+        parsed.address = userInfo.address || parsed.address;
+        newUser = parsed;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      setUser(newUser);
+
+      // 👉 Bắn event cho Navbar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      alert("Cập nhật thông tin cá nhân thành công!");
+    } catch (err) {
+      console.error("Error updating user info:", err.response?.data || err);
+
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
+
+      alert(msg);
+    }
+  };
+
+  // ⚙️ HANDLE UPDATE TAB TRAINER INFORMATION
+  const handleUpdateTrainerInfo = async (e) => {
+    e && e.preventDefault();
+    try {
+      const cleanedCertificates =
+        trainerInfo.certificates?.filter(
+          (c) => c.certificateName || c.certificateDetail
+        ) || [];
+
+      const payload = {
+        specialization: trainerInfo.specialization || "",
+        trainerBio: trainerInfo.trainerBio || "",
+        workingShift: trainerInfo.workingShift || null,
+        isAvailableForNewClients: !!trainerInfo.isAvailableForNewClients,
+        certificates: cleanedCertificates.map((c) => ({
+          certificateName: c.certificateName || "",
+          certificateDetail: c.certificateDetail || "",
+        })),
+      };
+
+      console.log("UPDATE /Profile/trainer payload:", payload);
+
+      await api.put("/Profile/trainer", payload);
+
+      alert("Cập nhật thông tin huấn luyện viên thành công!");
+    } catch (err) {
+      console.error("Error updating trainer info:", err);
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin huấn luyện viên thất bại, vui lòng thử lại!";
+      alert(msg);
+    }
+  };
+
+  // 👉 handler đổi field trainerInfo
+  const handleTrainerFieldChange = (field, value) => {
+    setTrainerInfo((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // 👉 handler đổi từng chứng chỉ
+  const handleCertChange = (index, field, value) => {
+    setTrainerInfo((prev) => {
+      const newCerts = [...(prev.certificates || [])];
+      newCerts[index] = {
+        ...newCerts[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        certificates: newCerts,
+      };
+    });
+  };
+
+  const handleAddCertificate = () => {
+    setTrainerInfo((prev) => ({
+      ...prev,
+      certificates: [
+        ...(prev.certificates || []),
+        { certificateName: "", certificateDetail: "" },
+      ],
+    }));
+  };
+
+  const handleRemoveCertificate = (index) => {
+    setTrainerInfo((prev) => {
+      const newCerts = [...(prev.certificates || [])];
+      newCerts.splice(index, 1);
+      return {
+        ...prev,
+        certificates:
+          newCerts.length > 0
+            ? newCerts
+            : [{ certificateName: "", certificateDetail: "" }],
+      };
+    });
+  };
 
   // ⚙️ HANDLE CHANGE PASSWORD
   const handleChangePassword = async (e) => {
@@ -443,6 +591,25 @@ const ProfileTrainer = () => {
                     >
                       User Information
                     </Button>
+
+                    <Button
+                      size="sm"
+                      type="button"
+                      style={{
+                        backgroundColor:
+                          activeSection === "trainer"
+                            ? "#ffffff"
+                            : "transparent",
+                        color:
+                          activeSection === "trainer" ? "#0c1844" : "#ffffff",
+                        border: "1px solid #ffffff",
+                        fontWeight: activeSection === "trainer" ? 700 : 500,
+                      }}
+                      onClick={() => setActiveSection("trainer")}
+                    >
+                      Trainer Information
+                    </Button>
+
                     <Button
                       size="sm"
                       type="button"
@@ -625,11 +792,212 @@ const ProfileTrainer = () => {
                           Update User Information
                         </Button>
                       </Col>
+                    </>
+                  )}
 
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
+                  {/* ====== TAB 2: TRAINER INFORMATION ====== */}
+                  {activeSection === "trainer" && (
+                    <>
+                      <div className="pl-lg-4">
+                        <Row>
+                          <Col lg="12">
+                            <FormGroup>
+                              <Label className="form-control-label">
+                                💪 Specialization
+                              </Label>
+                              <Input
+                                className="form-control-alternative"
+                                type="text"
+                                placeholder="Ví dụ: Strength Training, Fat Loss..."
+                                value={trainerInfo.specialization}
+                                onChange={(e) =>
+                                  handleTrainerFieldChange(
+                                    "specialization",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </FormGroup>
+                          </Col>
+                        </Row>
+
+                        <Row>
+                          <Col lg="12">
+                            <FormGroup>
+                              <Label className="form-control-label">
+                                📘 Trainer Bio
+                              </Label>
+                              <Input
+                                className="form-control-alternative"
+                                type="textarea"
+                                rows="4"
+                                placeholder="Giới thiệu về bản thân, kinh nghiệm, phong cách huấn luyện..."
+                                value={trainerInfo.trainerBio}
+                                onChange={(e) =>
+                                  handleTrainerFieldChange(
+                                    "trainerBio",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </FormGroup>
+                          </Col>
+                        </Row>
+
+                        <Row>
+                          <Col lg="8">
+                            <FormGroup>
+                              <Label className="form-control-label">
+                                🕒 Working Shift
+                              </Label>
+                              <Input
+                                className="form-control-alternative"
+                                type="select"
+                                value={trainerInfo.workingShift || ""}
+                                onChange={(e) =>
+                                  handleTrainerFieldChange(
+                                    "workingShift",
+                                    e.target.value
+                                  )
+                                }
+                              >
+                                <option value="">
+                                  -- Chọn ca làm việc --
+                                </option>
+                                <option value="5h-13h">
+                                  Ca sáng: 5h - 13h
+                                </option>
+                                <option value="13h-21h">
+                                  Ca chiều: 13h - 21h
+                                </option>
+                              </Input>
+                            </FormGroup>
+                          </Col>
+
+                          <Col lg="4" className="d-flex align-items-center">
+                            <FormGroup check>
+                              <Label check className="form-control-label">
+                                <Input
+                                  type="checkbox"
+                                  checked={trainerInfo.isAvailableForNewClients}
+                                  onChange={(e) =>
+                                    handleTrainerFieldChange(
+                                      "isAvailableForNewClients",
+                                      e.target.checked
+                                    )
+                                  }
+                                  style={{ marginRight: "8px" }}
+                                />
+                                Available for new clients
+                              </Label>
+                            </FormGroup>
+                          </Col>
+                        </Row>
+
+                        {/* Certificates */}
+                        <Row className="mt-3">
+                          <Col lg="12">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <Label className="form-control-label mb-0">
+                                📜 Certificates
+                              </Label>
+                              <Button
+                                size="sm"
+                                type="button"
+                                color="info"
+                                onClick={handleAddCertificate}
+                              >
+                                + Add Certificate
+                              </Button>
+                            </div>
+                          </Col>
+
+                          {trainerInfo.certificates?.map((cert, idx) => (
+                            <Col lg="12" key={idx} className="mb-3">
+                              <Card
+                                className="border-0"
+                                style={{
+                                  backgroundColor: "rgba(255,255,255,0.05)",
+                                  padding: "12px",
+                                  borderRadius: "8px",
+                                }}
+                              >
+                                <Row>
+                                  <Col lg="11">
+                                    <FormGroup>
+                                      <Label className="form-control-label">
+                                        Tên chứng chỉ
+                                      </Label>
+                                      <Input
+                                        className="form-control-alternative"
+                                        type="text"
+                                        placeholder="Ví dụ: ACE Certified Personal Trainer"
+                                        value={cert.certificateName || ""}
+                                        onChange={(e) =>
+                                          handleCertChange(
+                                            idx,
+                                            "certificateName",
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                    </FormGroup>
+                                    <FormGroup>
+                                      <Label className="form-control-label">
+                                        Mô tả chi tiết
+                                      </Label>
+                                      <Input
+                                        className="form-control-alternative"
+                                        type="textarea"
+                                        rows="2"
+                                        placeholder="Ví dụ: Chứng chỉ huấn luyện viên cá nhân từ..."
+                                        value={cert.certificateDetail || ""}
+                                        onChange={(e) =>
+                                          handleCertChange(
+                                            idx,
+                                            "certificateDetail",
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                    </FormGroup>
+                                  </Col>
+                                  <Col
+                                    lg="1"
+                                    className="d-flex justify-content-end"
+                                  >
+                                    <Button
+                                      close
+                                      aria-label="Remove"
+                                      type="button"
+                                      style={{
+                                        filter: "invert(1)",
+                                        marginTop: "4px",
+                                      }}
+                                      onClick={() =>
+                                        handleRemoveCertificate(idx)
+                                      }
+                                    />
+                                  </Col>
+                                </Row>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                      </div>
+
+                      <Col className="d-flex justify-content-center align-items-center mt-4">
+                        <Button
+                          color="primary"
+                          style={{
+                            transform: "none",
+                          }}
+                          type="button"
+                          onClick={handleUpdateTrainerInfo}
+                        >
+                          Update Trainer Information
+                        </Button>
+                      </Col>
                     </>
                   )}
 
@@ -768,11 +1136,6 @@ const ProfileTrainer = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
                 </Form>

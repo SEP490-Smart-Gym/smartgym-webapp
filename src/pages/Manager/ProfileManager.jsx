@@ -21,7 +21,6 @@ import { FcPhone } from "react-icons/fc";
 import api from "../../config/axios";
 import { useNavigate } from "react-router-dom";
 
-
 import { storage } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -80,6 +79,14 @@ const ProfileManager = () => {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
+  };
+
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
@@ -177,11 +184,10 @@ const ProfileManager = () => {
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -228,9 +234,8 @@ const ProfileManager = () => {
       const firstName =
         nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> ISO
-      const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-      const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
+      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
 
       // map giới tính đúng enum backend: Male / Female / Other
       const genderMapApi = {
@@ -246,7 +251,7 @@ const ProfileManager = () => {
         phoneNumber: userInfo.phone || "",
         gender: genderMapApi[userInfo.gioiTinh] || null,
         address: userInfo.address || "",
-        dateOfBirth: dateOfBirthIso,
+        dateOfBirth: dateOfBirthApi,
       };
 
       console.log("UPDATE /UserAccount/update payload:", payload);
@@ -771,11 +776,6 @@ const ProfileManager = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
                     </>
                   )}
                 </Form>

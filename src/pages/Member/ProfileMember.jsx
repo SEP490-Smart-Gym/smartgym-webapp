@@ -44,11 +44,11 @@ const ProfileMember = () => {
     email: "",
     phone: "",
     address: "",
-    canNang: 68,
-    chieuCao: 172,
+    canNang: "",
+    chieuCao: "",
     gioiTinh: "",
-    mucTieu: "Giảm cân",
-    sucKhoe: "Tốt",
+    mucTieu: "",
+    sucKhoe: "",
     bmi: "",
   });
 
@@ -60,18 +60,25 @@ const ProfileMember = () => {
   });
 
   const [showPassword, setShowPassword] = useState({
-  current: false,
-  new: false,
-  confirm: false,
-});
+    current: false,
+    new: false,
+    confirm: false,
+  });
 
   // 🧮 Tự động tính BMI khi cân nặng/chiều cao thay đổi
   useEffect(() => {
     const { canNang, chieuCao } = userInfo;
     if (canNang && chieuCao) {
-      const heightInMeters = chieuCao / 100;
-      const bmi = (canNang / (heightInMeters * heightInMeters)).toFixed(1);
-      setUserInfo((prev) => ({ ...prev, bmi }));
+      const weight = Number(canNang);
+      const height = Number(chieuCao);
+      if (!isNaN(weight) && !isNaN(height) && height > 0) {
+        const heightInMeters = height / 100;
+        const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
+        setUserInfo((prev) => ({ ...prev, bmi }));
+      }
+    } else {
+      // nếu thiếu 1 trong 2 thì clear BMI
+      setUserInfo((prev) => ({ ...prev, bmi: "" }));
     }
   }, [userInfo.canNang, userInfo.chieuCao]);
 
@@ -91,6 +98,14 @@ const ProfileMember = () => {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
+  };
+
+  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần cho API, tránh timezone)
+  const toApiDate = (s) => {
+    if (!s) return null;
+    const [dd, mm, yyyy] = s.split("/");
+    if (!dd || !mm || !yyyy) return null;
+    return `${yyyy}-${mm}-${dd}`;
   };
 
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
@@ -115,87 +130,71 @@ const ProfileMember = () => {
       return {
         category: "🚨 Gầy độ III",
         workout:
-          "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. \
-        Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
+          "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
         meal:
-          "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. \
-        Hạn chế đồ uống có gas và cà phê quá mức.",
+          "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. Hạn chế đồ uống có gas và cà phê quá mức.",
       };
 
     if (bmi < 17)
       return {
         category: "⚠️ Gầy độ II",
         workout:
-          "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). \
-        Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
+          "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
         meal:
-          "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. \
-        Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
+          "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
       };
 
     if (bmi < 18.5)
       return {
         category: "⚠️ Gầy độ I",
         workout:
-          "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). \
-        Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
+          "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
         meal:
-          "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). \
-        Uống đủ 2–2.5L nước/ngày.",
+          "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). Uống đủ 2–2.5L nước/ngày.",
       };
 
     if (bmi < 25)
       return {
         category: "✅ Bình thường",
         workout:
-          "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). \
-        Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
+          "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
         meal:
-          "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. \
-        Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
+          "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
       };
 
     if (bmi < 30)
       return {
         category: "⚠️ Thừa cân",
         workout:
-          "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. \
-        Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
+          "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
         meal:
-          "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. \
-        Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
+          "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
       };
 
     if (bmi < 35)
       return {
         category: "⚠️ Béo phì độ I",
         workout:
-          "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. \
-        Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
+          "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
         meal:
-          "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. \
-        Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
+          "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
       };
 
     if (bmi < 40)
       return {
         category: "⚠️ Béo phì độ II",
         workout:
-          "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. \
-        Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
+          "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
         meal:
-          "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. \
-        Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
+          "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
       };
 
     return {
       category: "🚨 Béo phì độ III",
       workout:
-        "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. \
-      Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
+        "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
       meal:
-        "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. \
-      Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
+        "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
     };
   };
 
@@ -228,62 +227,62 @@ const ProfileMember = () => {
   };
 
   const handleFileChange = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-    
-        // Preview tạm tại client
-        const localUrl = URL.createObjectURL(file);
-        setPreview(localUrl);
-    
-        try {
-          // Đọc file -> base64 (data URL)
-          const toBase64 = (file) =>
-            new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-    
-          const base64Image = await toBase64(file);
-    
-          // Gửi JSON lên API
-          const payload = {
-            profileImageUrl: base64Image,
-          };
-    
-          const res = await api.put("/UserAccount/avatar", payload);
-          const newUrl = res.data?.profileImageUrl || base64Image;
-    
-          // Cập nhật state user + localStorage
-          setUser((prev) => ({
-            ...(prev || {}),
-            photo: newUrl,
-          }));
-    
-          const storedUser = localStorage.getItem("user");
-          if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            parsed.photo = newUrl;
-            localStorage.setItem("user", JSON.stringify(parsed));
-          }
-    
-          // 👉 Bắn event cho Navbar biết user đã đổi avatar
-          window.dispatchEvent(new Event("app-auth-changed"));
-    
-          setPreview(newUrl);
-          alert("Cập nhật ảnh đại diện thành công!");
-        } catch (err) {
-          console.error("Error uploading avatar:", err);
-          alert(
-            `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
-          );
-        }
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview tạm tại client
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
+
+    try {
+      // Đọc file -> base64 (data URL)
+      const toBase64 = (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+      const base64Image = await toBase64(file);
+
+      // Gửi JSON lên API
+      const payload = {
+        profileImageUrl: base64Image,
       };
+
+      const res = await api.put("/UserAccount/avatar", payload);
+      const newUrl = res.data?.profileImageUrl || base64Image;
+
+      // Cập nhật state user + localStorage
+      setUser((prev) => ({
+        ...(prev || {}),
+        photo: newUrl,
+      }));
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.photo = newUrl;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+
+      // 👉 Bắn event cho Navbar biết user đã đổi avatar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      setPreview(newUrl);
+      alert("Cập nhật ảnh đại diện thành công!");
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert(
+        `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
+      );
+    }
+  };
 
   const age = calculateAge(userInfo.birthday);
 
-  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER
+  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER + GENDER
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
@@ -293,15 +292,16 @@ const ProfileMember = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || "" } ${data.firstName || ""}`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${
+          data.firstName || ""
+        }`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
-          const d = new Date(data.dateOfBirth);
-          if (!isNaN(d)) {
-            const dd = String(d.getDate()).padStart(2, "0");
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const yyyy = d.getFullYear();
+          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
+          const datePart = String(data.dateOfBirth).split("T")[0];
+          const [yyyy, mm, dd] = datePart.split("-");
+          if (dd && mm && yyyy) {
             birthday = `${dd}/${mm}/${yyyy}`;
           }
         }
@@ -336,89 +336,197 @@ const ProfileMember = () => {
     fetchUserInfoFromApi();
   }, [navigate]);
 
+  // 🚀 LẤY THÔNG TIN SỨC KHỎE /Profile/my-profile FILL VÀO TAB HEALTH
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+
+    const fetchMemberProfile = async () => {
+      try {
+        const res = await api.get("/Profile/my-profile");
+        const data = res.data;
+
+        setUserInfo((prev) => ({
+          ...prev,
+          canNang:
+            data.weight !== null && data.weight !== undefined
+              ? data.weight
+              : prev.canNang,
+          chieuCao:
+            data.height !== null && data.height !== undefined
+              ? data.height
+              : prev.chieuCao,
+          mucTieu: data.target || prev.mucTieu,
+          sucKhoe: data.healthStatus || prev.sucKhoe,
+        }));
+      } catch (err) {
+        if (err.response?.status === 401) {
+          console.log(
+            "Không có quyền / chưa đăng nhập -> /Profile/my-profile trả 401"
+          );
+          return;
+        }
+        console.error("Error fetching /Profile/my-profile:", err);
+      }
+    };
+
+    fetchMemberProfile();
+  }, []);
+
   // ⚙️ HANDLE UPDATE TAB USER INFORMATION
   const handleUpdateUserInfo = async (e) => {
-        e && e.preventDefault();
-        try {
-          const nameParts = (userInfo.fullName || "")
-            .trim()
-            .split(" ")
-            .filter(Boolean);
-          const lastName = nameParts.length > 0 ? nameParts[0] : "";
-          const firstName =
-            nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
-    
-          // dd/MM/yyyy -> ISO
-          const dobDate = toDateFromDDMMYYYY(userInfo.birthday);
-          const dateOfBirthIso = dobDate ? dobDate.toISOString() : null;
-    
-          // map giới tính đúng enum backend: Male / Female / Other
-          const genderMapApi = {
-            Nam: "Male",
-            Nữ: "Female",
-            Khác: "Other",
-          };
-    
-          const payload = {
-            firstName,
-            lastName,
-            email: userInfo.email || "",
-            phoneNumber: userInfo.phone || "",
-            gender: genderMapApi[userInfo.gioiTinh] || null,
-            address: userInfo.address || "",
-            dateOfBirth: dateOfBirthIso,
-          };
-    
-          console.log("UPDATE /UserAccount/update payload:", payload);
-    
-          await api.put("/UserAccount/update", payload);
-    
-          // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
-          const storedUser = localStorage.getItem("user");
-          let newUser = user || {};
-          if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            parsed.firstName = firstName;
-            parsed.lastName = lastName;
-            parsed.email = userInfo.email || parsed.email;
-            parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-            parsed.address = userInfo.address || parsed.address;
-            newUser = parsed;
-            localStorage.setItem("user", JSON.stringify(parsed));
-          }
-          setUser(newUser);
-    
-          // 👉 Bắn event cho Navbar
-          window.dispatchEvent(new Event("app-auth-changed"));
-    
-          alert("Cập nhật thông tin cá nhân thành công!");
-        } catch (err) {
-          console.error("Error updating user info:", err.response?.data || err);
-    
-          const serverData = err.response?.data;
-          let msg =
-            serverData?.title ||
-            serverData?.message ||
-            JSON.stringify(serverData) ||
-            "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-    
-          alert(msg);
-        }
+    e && e.preventDefault();
+    try {
+      const nameParts = (userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+      const lastName = nameParts.length > 0 ? nameParts[0] : "";
+      const firstName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      // dd/MM/yyyy -> yyyy-MM-dd (string thuần)
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
+
+      // map giới tính đúng enum backend: Male / Female / Other
+      const genderMapApi = {
+        Nam: "Male",
+        Nữ: "Female",
+        Khác: "Other",
       };
 
-  // ⚙️ HANDLE UPDATE TAB HEALTH (CHƯA GẮN API, ĐỂ SAU)
-  const handleUpdateHealthInfo = (e) => {
+      const payload = {
+        firstName,
+        lastName,
+        email: userInfo.email || "",
+        phoneNumber: userInfo.phone || "",
+        gender: genderMapApi[userInfo.gioiTinh] || null,
+        address: userInfo.address || "",
+        dateOfBirth: dateOfBirthApi,
+      };
+
+      console.log("UPDATE /UserAccount/update payload:", payload);
+
+      await api.put("/UserAccount/update", payload);
+
+      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+      const storedUser = localStorage.getItem("user");
+      let newUser = user || {};
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.firstName = firstName;
+        parsed.lastName = lastName;
+        parsed.email = userInfo.email || parsed.email;
+        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+        parsed.address = userInfo.address || parsed.address;
+        newUser = parsed;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      setUser(newUser);
+
+      // 👉 Bắn event cho Navbar
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      alert("Cập nhật thông tin cá nhân thành công!");
+    } catch (err) {
+      console.error("Error updating user info:", err.response?.data || err);
+
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
+
+      alert(msg);
+    }
+  };
+
+  // ⚙️ HANDLE UPDATE TAB HEALTH
+  const handleUpdateHealthInfo = async (e) => {
     e && e.preventDefault();
-    // TODO: gắn API riêng cho health nếu có
-    console.log("Health info:", {
-      canNang: userInfo.canNang,
-      chieuCao: userInfo.chieuCao,
-      gioiTinh: userInfo.gioiTinh,
-      bmi: userInfo.bmi,
-      mucTieu: userInfo.mucTieu,
-      sucKhoe: userInfo.sucKhoe,
-    });
-    alert("Cập nhật thông tin sức khỏe (demo) – chưa gắn API backend.");
+
+    try {
+      // 1️⃣ Update gender (và info user) qua /UserAccount/update
+      const nameParts = (userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
+      const lastName = nameParts.length > 0 ? nameParts[0] : "";
+      const firstName =
+        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+      const dateOfBirthApi = toApiDate(userInfo.birthday);
+
+      const genderMapApi = {
+        Nam: "Male",
+        Nữ: "Female",
+        Khác: "Other",
+      };
+
+      const userPayload = {
+        firstName,
+        lastName,
+        email: userInfo.email || "",
+        phoneNumber: userInfo.phone || "",
+        gender: genderMapApi[userInfo.gioiTinh] || null,
+        address: userInfo.address || "",
+        dateOfBirth: dateOfBirthApi,
+      };
+
+      await api.put("/UserAccount/update", userPayload);
+
+      // Cập nhật localStorage + state user
+      const storedUser = localStorage.getItem("user");
+      let newUser = user || {};
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.firstName = firstName;
+        parsed.lastName = lastName;
+        parsed.email = userInfo.email || parsed.email;
+        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
+        parsed.address = userInfo.address || parsed.address;
+        newUser = parsed;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      setUser(newUser);
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      // 2️⃣ Update health data qua /Profile/member
+      const memberPayload = {
+        weight:
+          userInfo.canNang !== null &&
+          userInfo.canNang !== undefined &&
+          userInfo.canNang !== ""
+            ? Number(userInfo.canNang)
+            : null,
+        height:
+          userInfo.chieuCao !== null &&
+          userInfo.chieuCao !== undefined &&
+          userInfo.chieuCao !== ""
+            ? Number(userInfo.chieuCao)
+            : null,
+        target: userInfo.mucTieu || null,
+        healthStatus: userInfo.sucKhoe || null,
+      };
+
+      console.log("UPDATE /Profile/member payload:", memberPayload);
+
+      await api.put("/Profile/member", memberPayload);
+
+      alert("Cập nhật thông tin sức khỏe thành công!");
+    } catch (err) {
+      console.error("Error updating health info:", err.response?.data || err);
+
+      const serverData = err.response?.data;
+      let msg =
+        serverData?.title ||
+        serverData?.message ||
+        JSON.stringify(serverData) ||
+        "Cập nhật thông tin sức khỏe thất bại, vui lòng thử lại!";
+
+      alert(msg);
+    }
   };
 
   // ⚙️ HANDLE CHANGE PASSWORD
@@ -568,7 +676,10 @@ const ProfileMember = () => {
               >
                 <Form>
                   {/* Tabs chọn section */}
-                  <div className="d-flex mb-4 justify-content-center" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div
+                    className="d-flex mb-4 justify-content-center"
+                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
+                  >
                     <Button
                       size="sm"
                       type="button"
@@ -623,7 +734,6 @@ const ProfileMember = () => {
                   {/* ====== TAB 1: USER INFORMATION ====== */}
                   {activeSection === "user" && (
                     <>
-
                       <div className="pl-lg-4">
                         <Row>
                           <Col lg="6">
@@ -790,7 +900,6 @@ const ProfileMember = () => {
                   {/* ====== TAB 2: PHYSICAL & HEALTH INFORMATION + ABOUT ME ====== */}
                   {activeSection === "health" && (
                     <>
-
                       <div className="pl-lg-4">
                         <Row>
                           <Col lg="4">
@@ -809,7 +918,7 @@ const ProfileMember = () => {
                                 onChange={(e) =>
                                   setUserInfo({
                                     ...userInfo,
-                                    canNang: Number(e.target.value),
+                                    canNang: e.target.value,
                                   })
                                 }
                               />
@@ -832,7 +941,7 @@ const ProfileMember = () => {
                                 onChange={(e) =>
                                   setUserInfo({
                                     ...userInfo,
-                                    chieuCao: Number(e.target.value),
+                                    chieuCao: e.target.value,
                                   })
                                 }
                               />
@@ -1004,7 +1113,9 @@ const ProfileMember = () => {
                       <div className="pl-lg-4">
                         {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
-                          <Label className="form-control-label">🔐 Current Password</Label>
+                          <Label className="form-control-label">
+                            🔐 Current Password
+                          </Label>
                           <Input
                             className="form-control-alternative"
                             type={showPassword.current ? "text" : "password"}
@@ -1042,7 +1153,9 @@ const ProfileMember = () => {
                           {/* NEW PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">🔑 New Password</Label>
+                              <Label className="form-control-label">
+                                🔑 New Password
+                              </Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.new ? "text" : "password"}
@@ -1057,7 +1170,10 @@ const ProfileMember = () => {
                               />
                               <span
                                 onClick={() =>
-                                  setShowPassword({ ...showPassword, new: !showPassword.new })
+                                  setShowPassword({
+                                    ...showPassword,
+                                    new: !showPassword.new,
+                                  })
                                 }
                                 style={{
                                   position: "absolute",
@@ -1076,7 +1192,9 @@ const ProfileMember = () => {
                           {/* CONFIRM PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">🔁 Confirm New Password</Label>
+                              <Label className="form-control-label">
+                                🔁 Confirm New Password
+                              </Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.confirm ? "text" : "password"}
@@ -1124,11 +1242,8 @@ const ProfileMember = () => {
                           Change Password
                         </Button>
                       </Col>
-
-                      <hr className="my-4" style={{ borderColor: "#ffffff", opacity: 1 }} />
                     </>
                   )}
-
                 </Form>
               </CardBody>
             </Card>

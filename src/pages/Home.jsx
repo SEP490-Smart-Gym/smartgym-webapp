@@ -1,7 +1,9 @@
+// src/pages/Home.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import GymFeedbackSection from "../pages/Member/Feedback.jsx";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Navigation, Pagination } from "swiper/modules";
@@ -57,36 +59,35 @@ export default function Home() {
     fetchPackages();
   }, []);
 
-  // ✅ Lấy trainers từ API: /member/trainers?onlyAvailable=true
+  // ✅ Lấy trainers từ API: /guest/trainers?onlyAvailable=true
   useEffect(() => {
-  const fetchTrainers = async () => {
-    try {
-      const res = await api.get("/guest/trainers?onlyAvailable=false", {
-        params: { onlyAvailable: true },
-      });
+    const fetchTrainers = async () => {
+      try {
+        const res = await api.get("/guest/trainers?onlyAvailable=false", {
+          params: { onlyAvailable: true },
+        });
 
-      const list = res.data || [];
+        const list = res.data || [];
 
-      const normalized = list.map((t) => ({
-        id: t.trainerId,
-        name: `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim(),
-        profession: t.specialization || "Personal Trainer",
-        rating: t.trainerRating ?? 0,
-        reviews: t.totalReviews ?? 0,
-        isAvailable: t.isAvailableForNewClients ?? true,
-        img: "/img/team-1.jpg",
-      }));
+        const normalized = list.map((t) => ({
+          id: t.trainerId,
+          name: `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim(),
+          profession: t.specialization || "Personal Trainer",
+          rating: t.trainerRating ?? 0,
+          reviews: t.totalReviews ?? 0,
+          isAvailable: t.isAvailableForNewClients ?? true,
+          img: "/img/team-1.jpg",
+        }));
 
-      setTrainers(normalized);
-    } catch (err) {
-      console.error("Fetch trainers error:", err);
-      setTrainers([]);
-    }
-  };
+        setTrainers(normalized);
+      } catch (err) {
+        console.error("Fetch trainers error:", err);
+        setTrainers([]);
+      }
+    };
 
-  fetchTrainers();
-}, []);
-
+    fetchTrainers();
+  }, []);
 
   const featureSlides = [
     { img: "/img/feature-1.jpg", title: "Work Your Butt Off" },
@@ -117,7 +118,11 @@ export default function Home() {
             id="spinner"
             className="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center"
           >
-            <div className="spinner-border text-primary" style={{ width: "3rem", height: "3rem" }} role="status">
+            <div
+              className="spinner-border text-primary"
+              style={{ width: "3rem", height: "3rem" }}
+              role="status"
+            >
               <span className="sr-only">Loading...</span>
             </div>
           </div>
@@ -134,11 +139,13 @@ export default function Home() {
                 <div className="about-content h-100">
                   <h4 className="text-primary">About Fitness Center</h4>
                   <h1 className="display-4 text-white mb-4">
-                    We are the best at fulfilling your potential and achieving your goals.
+                    We are the best at fulfilling your potential and achieving
+                    your goals.
                   </h1>
                   <p className="mb-4">
-                    Lorem ipsum dolor, sit amet consectetur adipisicing elit. In impedit accusantium autem quaerat natus
-                    nesciunt veritatis fugiat dolor eaque fuga.
+                    Lorem ipsum dolor, sit amet consectetur adipisicing elit. In
+                    impedit accusantium autem quaerat natus nesciunt veritatis
+                    fugiat dolor eaque fuga.
                   </p>
 
                   {/* Tabs Bootstrap */}
@@ -146,30 +153,46 @@ export default function Home() {
                     <ul className="nav d-flex mb-2">
                       <li className="nav-item mb-3">
                         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                        <a className="d-flex py-2 active" data-bs-toggle="pill" href="#home-tab-1">
+                        <a
+                          className="d-flex py-2 active"
+                          data-bs-toggle="pill"
+                          href="#home-tab-1"
+                        >
                           <span style={{ width: 150 }}>Our Mission</span>
                         </a>
                       </li>
                       <li className="nav-item mb-3">
                         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                        <a className="d-flex py-2 mx-3" data-bs-toggle="pill" href="#home-tab-2">
+                        <a
+                          className="d-flex py-2 mx-3"
+                          data-bs-toggle="pill"
+                          href="#home-tab-2"
+                        >
                           <span style={{ width: 150 }}>Our Vision</span>
                         </a>
                       </li>
                       <li className="nav-item mb-3">
                         {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-                        <a className="d-flex py-2" data-bs-toggle="pill" href="#home-tab-3">
+                        <a
+                          className="d-flex py-2"
+                          data-bs-toggle="pill"
+                          href="#home-tab-3"
+                        >
                           <span style={{ width: 150 }}>Our Goal</span>
                         </a>
                       </li>
                     </ul>
 
                     <div className="tab-content">
-                      <div id="home-tab-1" className="tab-pane fade show p-0 active">
+                      <div
+                        id="home-tab-1"
+                        className="tab-pane fade show p-0 active"
+                      >
                         <div className="d-flex align-items-center border-top border-bottom py-4">
                           <span className="fas fa-rocket text-white fa-4x me-4"></span>
                           <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and typesetting industry...
+                            Lorem Ipsum is simply dummy text of the printing and
+                            typesetting industry...
                           </p>
                         </div>
                       </div>
@@ -177,7 +200,8 @@ export default function Home() {
                         <div className="d-flex align-items-center border-top border-bottom py-4">
                           <span className="fas fa-rocket text-white fa-4x me-4"></span>
                           <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and typesetting industry...
+                            Lorem Ipsum is simply dummy text of the printing and
+                            typesetting industry...
                           </p>
                         </div>
                       </div>
@@ -185,7 +209,8 @@ export default function Home() {
                         <div className="d-flex align-items-center border-top border-bottom py-4">
                           <span className="fas fa-rocket text-white fa-4x me-4"></span>
                           <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and typesetting industry...
+                            Lorem Ipsum is simply dummy text of the printing and
+                            typesetting industry...
                           </p>
                         </div>
                       </div>
@@ -207,7 +232,10 @@ export default function Home() {
                           data-aos-delay="300"
                         >
                           <i className="fa fa-phone-alt fa-2x"></i>
-                          <div className="position-absolute" style={{ top: 5, right: 5 }}>
+                          <div
+                            className="position-absolute"
+                            style={{ top: 5, right: 5 }}
+                          >
                             <span>
                               <i className="fa fa-comment-dots text-dark"></i>
                             </span>
@@ -216,7 +244,9 @@ export default function Home() {
                         <div className="d-flex flex-column ms-3">
                           <span>Call to Our Experts</span>
                           <a href="tel:+ 0123 456 7890">
-                            <span className="text-white">Free: + 0123 456 7890</span>
+                            <span className="text-white">
+                              Free: + 0123 456 7890
+                            </span>
                           </a>
                         </div>
                       </div>
@@ -255,28 +285,36 @@ export default function Home() {
 
                   <div className="goal-item d-flex p-4">
                     <div className="d-flex me-4">
-                      <div className="bg-primary d-inline p-3" style={{ width: 80, height: 80 }}>
+                      <div
+                        className="bg-primary d-inline p-3"
+                        style={{ width: 80, height: 80 }}
+                      >
                         <img src="/img/icon-1.png" className="img-fluid" alt="" />
                       </div>
                     </div>
                     <div>
                       <h4>Free Fitness Training</h4>
                       <p className="text-white mb-0">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Tempore est harum
+                        Lorem ipsum dolor sit amet consectetur, adipisicing
+                        elit. Tempore est harum
                       </p>
                     </div>
                   </div>
 
                   <div className="goal-item d-flex p-4 mb-4">
                     <div className="d-flex me-4">
-                      <div className="bg-primary d-inline p-3" style={{ width: 80, height: 80 }}>
+                      <div
+                        className="bg-primary d-inline p-3"
+                        style={{ width: 80, height: 80 }}
+                      >
                         <img src="/img/icon-6.png" className="img-fluid" alt="" />
                       </div>
                     </div>
                     <div>
                       <h4>Cardio and Strength</h4>
                       <p className="text-white mb-0">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Tempore est harum
+                        Lorem ipsum dolor sit amet consectetur, adipisicing
+                        elit. Tempore est harum
                       </p>
                     </div>
                   </div>
@@ -304,7 +342,10 @@ export default function Home() {
         </div>
 
         {/* Features (Swiper) */}
-        <div id="features-section" className="container-fluid feature bg-light py-5">
+        <div
+          id="features-section"
+          className="container-fluid feature bg-light py-5"
+        >
           <div className="container py-5">
             <div
               className="text-center mx-auto pb-5"
@@ -313,7 +354,9 @@ export default function Home() {
             >
               <h4 className="text-primary"> Why choose us?</h4>
               <h1 className="display-4 mb-4">Out Our Highlights Below</h1>
-              <p className="mb-0">Lorem ipsum dolor sit amet consectetur adipisicing elit...</p>
+              <p className="mb-0">
+                Lorem ipsum dolor sit amet consectetur adipisicing elit...
+              </p>
             </div>
 
             <Swiper
@@ -344,7 +387,8 @@ export default function Home() {
                     <div className="feature-content p-4">
                       <h4 className="mb-3">{f.title}</h4>
                       <p className="mb-4">
-                        Lorem ipsum dolor sit amet consectetur adipisicing elit. Aspernatur obcaecati voluptatum,
+                        Lorem ipsum dolor sit amet consectetur adipisicing elit.
+                        Aspernatur obcaecati voluptatum,
                       </p>
                       <a href="#" className="btn btn-primary py-2 px-4">
                         <span>Read More</span>
@@ -358,7 +402,10 @@ export default function Home() {
         </div>
 
         {/* Package */}
-        <div id="package-section" className="container-fluid courses overflow-hidden py-5">
+        <div
+          id="package-section"
+          className="container-fluid courses overflow-hidden py-5"
+        >
           <div className="container py-5">
             <div
               className="text-center mx-auto pb-5"
@@ -366,7 +413,9 @@ export default function Home() {
               style={{ maxWidth: 800 }}
             >
               <h4 className="text-primary">Our Packages</h4>
-              <h1 className="display-4 text-white mb-4">Out Our Highlights Below</h1>
+              <h1 className="display-4 text-white mb-4">
+                Out Our Highlights Below
+              </h1>
               <p className="text-white mb-0">
                 Lorem ipsum dolor, sit amet consectetur adipisicing elit...
               </p>
@@ -377,7 +426,8 @@ export default function Home() {
               {packages.slice(0, 6).map((item, idx) => {
                 const duration = item.durationInDays ?? item.duration ?? 0;
                 const sessions = item.sessionCount ?? item.sessions ?? 0;
-                const hasPT = item.includesPersonalTrainer ?? item.hasPT ?? false;
+                const hasPT =
+                  item.includesPersonalTrainer ?? item.hasPT ?? false;
                 const title = item.packageName ?? item.title ?? "Package";
 
                 return (
@@ -407,12 +457,8 @@ export default function Home() {
                           </div>
                           <div className="data-info d-flex flex-column">
                             <div className="courses-date" style={{ fontSize: "1rem" }}>
-                              <p className="mb-1">
-                                Thời hạn: {duration} ngày
-                              </p>
-                              <p className="mb-0">
-                                Số buổi: {sessions} buổi
-                              </p>
+                              <p className="mb-1">Thời hạn: {duration} ngày</p>
+                              <p className="mb-0">Số buổi: {sessions} buổi</p>
                               <p className="mb-0 d-flex align-items-center">
                                 PT:&nbsp;
                                 {hasPT ? (
@@ -440,7 +486,11 @@ export default function Home() {
                         <a
                           href="#"
                           className="d-inline-block h4 mb-3"
-                          style={{ letterSpacing: "0.2px", fontSize: "2rem", fontWeight: "bold" }}
+                          style={{
+                            letterSpacing: "0.2px",
+                            fontSize: "2rem",
+                            fontWeight: "bold",
+                          }}
                         >
                           {title}
                         </a>
@@ -450,7 +500,10 @@ export default function Home() {
                         >
                           {Number(item.price || 0).toLocaleString("vi-VN")} ₫
                         </p>
-                        <Link to={`/packages/${item.id}`} className="btn btn-primary py-2 px-4">
+                        <Link
+                          to={`/packages/${item.id}`}
+                          className="btn btn-primary py-2 px-4"
+                        >
                           <span>Read More</span>
                         </Link>
                       </div>
@@ -477,8 +530,12 @@ export default function Home() {
               style={{ maxWidth: 800 }}
             >
               <h4 className="text-primary">  Our Blogs</h4>
-              <h1 className="display-4 mb-4">Check out our latest stories</h1>
-              <p className="mb-0">Lorem ipsum dolor, sit amet consectetur adipisicing elit...</p>
+              <h1 className="display-4 mb-4">
+                Check out our latest stories
+              </h1>
+              <p className="mb-0">
+                Lorem ipsum dolor, sit amet consectetur adipisicing elit...
+              </p>
             </div>
 
             <Swiper
@@ -502,21 +559,24 @@ export default function Home() {
                     <div className="blog-content p-4">
                       <div className="blog-comment d-flex justify-content-between py-2 px-3 mb-4">
                         <div className="small">
-                          <span className="fa fa-user text-primary me-2"></span> Martin.C
+                          <span className="fa fa-user text-primary me-2"></span>{" "}
+                          Martin.C
                         </div>
                         <div className="small">
-                          <span className="fa fa-calendar text-primary me-2"></span> 30 Dec 2025
+                          <span className="fa fa-calendar text-primary me-2"></span>{" "}
+                          30 Dec 2025
                         </div>
                       </div>
                       <a href="#" className="h4 d-inline-block mb-3">
                         {b.title}
                       </a>
                       <p className="mb-3">
-                        Lorem, ipsum dolor sit amet consectetur adipisicing elit. Eius libero soluta
-                        impedit eligendi?
+                        Lorem, ipsum dolor sit amet consectetur adipisicing
+                        elit. Eius libero soluta impedit eligendi?
                       </p>
                       <a href="#" className="btn btn-dark py-2 px-4 ms-2">
-                        <span className="me-2">Read More</span> <i className="fa fa-arrow-right"></i>
+                        <span className="me-2">Read More</span>{" "}
+                        <i className="fa fa-arrow-right"></i>
                       </a>
                     </div>
                   </div>
@@ -526,17 +586,31 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Trainer */}
-         <div id="trainers-section" className="container-fluid team py-5">
-          <div className="container py-5">
+        {/* Trainer – dùng background giống Packages + overlay tối */}
+        <div
+          id="trainers-section"
+          className="container-fluid courses overflow-hidden py-5 trainer-bg"
+          style={{
+            backgroundImage: "url('/img/image.png')",
+          }}
+        >
+          {/* overlay tối trong suốt */}
+          <div className="trainer-overlay" />
+
+          <div
+            className="container py-5 position-relative"
+            style={{ zIndex: 2 }}
+          >
             <div
               className="text-center mx-auto pb-5"
               data-aos="fade-up"
               style={{ maxWidth: 800 }}
             >
               <h4 className="text-primary">Our Trainer</h4>
-              <h1 className="display-4 mb-4">Meet Our Amazing Team</h1>
-              <p className="mb-0">
+              <h1 className="display-4 text-white mb-4">
+                Meet Our Amazing Team
+              </h1>
+              <p className="mb-0 text-white-50">
                 Lorem ipsum dolor, sit amet consectetur adipisicing elit...
               </p>
             </div>
@@ -547,7 +621,11 @@ export default function Home() {
                   <div className="team-item">
                     <Link to={`/trainer/${t.id}`}>
                       <div className="team-img">
-                        <img src={t.img} className="img-fluid w-100" alt={t.name} />
+                        <img
+                          src={t.img}
+                          className="img-fluid w-100"
+                          alt={t.name}
+                        />
                       </div>
                     </Link>
                     <div className="team-content">
@@ -571,58 +649,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Testimonial */}
-        <div
-          id="testimonial-section"
-          className="container-fluid testimonial py-5"
-          style={{ marginBottom: 90 }}
-        >
-          <div className="container py-5">
-            <div
-              className="text-center mx-auto pb-5"
-              data-aos="fade-up"
-              style={{ maxWidth: 800 }}
-            >
-              <h4 className="text-primary">Testimonial</h4>
-              <h1 className="display-4 text-white">What Our Customers Are Saying</h1>
-            </div>
-
-            <Swiper
-              modules={[Autoplay, Pagination, Navigation]}
-              autoplay={{ delay: 4000, disableOnInteraction: false }}
-              loop
-              pagination={{ clickable: true }}
-              spaceBetween={24}
-              slidesPerView={1}
-            >
-              {testimonials.map((t, i) => (
-                <SwiperSlide key={i}>
-                  <div className="testimonial-item mx-auto" style={{ maxWidth: 900 }}>
-                    <span className="fa fa-quote-left fa-3x quote-icon"></span>
-                    <div className="testimonial-img mb-4">
-                      <img src={t.img} className="img-fluid" alt="Testimonial" />
-                    </div>
-                    <p className="fs-4 text-white mb-4">
-                      Lorem ipsum dolor sit amet consectetur adipisicing elit. Vero quasi deleniti ratione
-                      similique eaque blanditiis fugit voluptas ex officiis expedita...
-                    </p>
-                    <div className="d-block">
-                      <h4 className="text-white">Client Name</h4>
-                      <p className="m-0 pb-3">Profession</p>
-                      <div className="d-flex">
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-primary"></i>
-                        <i className="fas fa-star text-white"></i>
-                      </div>
-                    </div>
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-        </div>
+        {/* Feedback */}
+        <GymFeedbackSection />
       </div>
     </>
   );

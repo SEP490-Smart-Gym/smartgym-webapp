@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AiOutlineClose } from "react-icons/ai";
+import { message } from "antd";
 import api from "../../config/axios";
 
 const styles = `
@@ -204,6 +205,7 @@ export default function MyPackage() {
       console.error("Error fetching my-packages:", err);
       setLoadError("Không tải được lịch sử gói tập.");
       setGymPackagesHistory([]);
+      message.error("Không tải được lịch sử gói tập.");
     } finally {
       setLoading(false);
     }
@@ -281,12 +283,12 @@ export default function MyPackage() {
 
     const id = selected.history.id;
     if (!id) {
-      alert("Không tìm được ID gói để hủy.");
+      message.error("Không tìm được ID gói để hủy.");
       return;
     }
 
     if (!selectedReason) {
-      alert("Vui lòng chọn lý do hủy gói.");
+      message.warning("Vui lòng chọn lý do hủy gói.");
       return;
     }
 
@@ -295,7 +297,7 @@ export default function MyPackage() {
       selectedReason === "Khác (tự nhập)" || selectedReason === "Khác";
     if (isOther) {
       if (!customReason.trim()) {
-        alert("Vui lòng nhập lý do hủy gói.");
+        message.warning("Vui lòng nhập lý do hủy gói.");
         return;
       }
       finalReason = customReason.trim();
@@ -311,7 +313,7 @@ export default function MyPackage() {
         cancellationReason: finalReason,
       });
 
-      alert("Hủy gói thành công.");
+      message.success("Hủy gói thành công.");
 
       // Reload lại danh sách lịch sử gói
       await fetchPackages();
@@ -324,7 +326,7 @@ export default function MyPackage() {
         err?.response?.data?.message ||
         err?.message ||
         "Hủy gói thất bại.";
-      alert(detail);
+      message.error(detail);
     } finally {
       setCancelLoading(false);
     }
@@ -457,7 +459,7 @@ export default function MyPackage() {
                         className="btn btn-primary btn-sm mb-1"
                         onClick={() => handleOpen(pkg)}
                       >
-                        Detail
+                        Chi tiết
                       </button>
                       <div
                         className={status.className}
@@ -637,10 +639,10 @@ export default function MyPackage() {
               <button
                 className="btn btn-primary"
                 onClick={() =>
-                  alert(
-                    `Mua lại gói #${
+                  message.info(
+                    `Chức năng mua lại gói #${
                       selected.history?.packageId ?? "?"
-                    }`
+                    } đang được phát triển.`
                   )
                 }
               >
