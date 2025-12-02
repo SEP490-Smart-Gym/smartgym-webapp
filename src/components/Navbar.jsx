@@ -130,7 +130,7 @@ export default function Navbar() {
                         <span className="user-name-text" style={{ color: "white" }}>
                           {user.lastName && user.firstName
                             ? `${user.lastName} ${user.firstName}`
-                            : "User"}
+                            : user.name ? user.name :"User"}
                         </span>
                       </button>
 
