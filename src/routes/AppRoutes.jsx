@@ -53,6 +53,8 @@ import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.js
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
 import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import ChatPage from "../pages/Member/ChatPage.jsx";
+import ChatConversation from "../pages/Member/ChatConversation.jsx";
 
 function Layout() {
   return (
@@ -124,6 +126,8 @@ export default function AppRoutes() {
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
           <Route path="/chatbot/:id" element={<ChatBot />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/:conversationId" element={<ChatConversation />} />
           {/* Nếu muốn lớp học riêng cho member: */}
           {/* <Route path="/member/classes" element={<Classes />} /> */}
         </Route>
