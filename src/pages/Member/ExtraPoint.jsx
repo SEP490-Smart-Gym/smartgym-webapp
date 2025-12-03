@@ -79,17 +79,11 @@ const ExtraPoint = () => {
             "url('https://setupphonggym.vn/wp-content/uploads/2020/12/mo-hinh-kinh-doanh-phong-gym-300m2.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundColor: "rgba(2, 0, 68, 0.75)",
+        backgroundBlendMode: "multiply",
         zIndex: 1,
         }}
         >
-            {/* Lớp phủ xanh đen */}
-        <div
-            className="absolute inset-0"
-            style={{
-            background: "rgba(1, 0, 31, 0.55)",
-            zIndex: 2,
-            }}
-            />
 
         {/* Nội dung */}
         <div className="relative z-10">
@@ -165,7 +159,7 @@ const ExtraPoint = () => {
                   </p>
                 ) : (
                   // 🔽 Khung trắng full theo card, table full trong khung
-                  <div className="mt-2 rounded-2xl overflow-hidden backdrop-blur-sm bg-white/5">
+                  <div className="mt-2 rounded-2xl overflow-hidden backdrop-blur-sm bg-white/5 ">
                     <table className="w-full" style={{ marginLeft: 50 }}>
                       <thead>
                         <tr className="bg-white/10 text-white text-sm">
@@ -218,20 +212,21 @@ const ExtraPoint = () => {
             </AnimatePresence>
 
             {/* Phân trang */}
-            <div className="mt-6 flex justify-center space-x-2">
+            <div className="mb-6 flex flex-wrap justify-center text-center gap-4">
               {Array.from({ length: pageCount }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
+                  style={{ marginBottom: 10, marginLeft: 10 }}
+                  className={`px-2 py-1 rounded-md text-sm font-medium ${
                     currentPage === page
-                      ? "bg-red-600 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white bg-opacity-60 text-gray-700 border-gray-300 hover:bg-gray-100"
                   }`}
                   aria-label={`Trang ${page}`}
                   aria-current={currentPage === page ? "page" : undefined}
                 >
-                  {page}
+                  Trang {page}
                 </button>
               ))}
             </div>
