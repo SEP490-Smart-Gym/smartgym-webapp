@@ -35,6 +35,14 @@ const ExtraPoint = () => {
     []
   );
 
+  const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   // lọc + sắp xếp dữ liệu (ngày mới luôn lên đầu)
   const filtered = useMemo(() => {
     let list = pointHistory;
@@ -168,13 +176,13 @@ const ExtraPoint = () => {
                       }}>
                         <thead>
                           <tr className="text-sm">
-                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 pl-4 pr-2 text-left w-[55%]">
+                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 pl-4 pr-2 text-left w-[50%]">
                               <b>Nội dung</b>
                             </th>
                             <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 px-2 text-center w-[25%]">
                               <b>Ngày</b>
                             </th>
-                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 px-2 text-right w-[20%]">
+                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 px-2 text-right w-[25%]">
                               <b>Điểm</b>
                             </th>
                           </tr>
@@ -194,7 +202,7 @@ const ExtraPoint = () => {
                                 </td>
 
                                 <td className="py-3 px-2 text-center whitespace-nowrap">
-                                  {item.date}
+                                  {formatDate(item.date)}
                                 </td>
 
                                 <td
