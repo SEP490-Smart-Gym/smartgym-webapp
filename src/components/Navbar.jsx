@@ -144,7 +144,6 @@ export default function Navbar() {
                             background: "#f8f9fa",
                           }}
                         />
-
                         {/* username + điểm thưởng */}
                         <div className="d-flex align-items-center">
                           <span

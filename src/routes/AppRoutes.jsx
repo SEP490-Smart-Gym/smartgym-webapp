@@ -56,6 +56,9 @@ import EquipmentRepairPending from "../pages/Manager/EquipmentRepairPending.jsx"
 import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.jsx";
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
+import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import ChatPage from "../pages/Member/ChatPage.jsx";
+import ChatConversation from "../pages/Member/ChatConversation.jsx";
 
 function Layout() {
   return (
@@ -126,6 +129,11 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
+          <Route path="/chatbot/:id" element={<ChatBot />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/:conversationId" element={<ChatConversation />} />
+          {/* Nếu muốn lớp học riêng cho member: */}
+          {/* <Route path="/member/classes" element={<Classes />} /> */}
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
           <Route path="/member/payment/:id" element={<PaymentPage />} />          
@@ -148,6 +156,8 @@ export default function AppRoutes() {
           <Route path="/profile/staff" element={<ProfileStaff />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
+          <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
+
         </Route>
 
         {/* ===== Admin protected ===== */}
