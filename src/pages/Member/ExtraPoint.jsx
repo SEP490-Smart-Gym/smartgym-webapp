@@ -22,7 +22,6 @@ const pointHistory = [
 const ExtraPoint = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [filter, setFilter] = useState("all"); // all | earn | redeem
-  // sortOrder không cần nữa nhưng giữ lại cũng không sao
   const [sortOrder, setSortOrder] = useState("desc"); // mặc định desc = mới → cũ
 
   const itemsPerPage = 5;
@@ -55,7 +54,7 @@ const ExtraPoint = () => {
     });
 
     return sorted;
-  }, [filter]); // không cần sortOrder nữa nếu luôn mới → cũ
+  }, [filter]);
 
   const pageCount = Math.ceil(filtered.length / itemsPerPage);
   const offset = (currentPage - 1) * itemsPerPage;
@@ -74,16 +73,23 @@ const ExtraPoint = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-100 to-yellow-100 flex items-center justify-center p-4">
       <div
-        className="relative rounded-3xl shadow-2xl p-8 w-full max-w-3xl overflow-hidden"
+        className="absolute inset-0"
         style={{
-          backgroundImage:
+        backgroundImage:
             "url('https://setupphonggym.vn/wp-content/uploads/2020/12/mo-hinh-kinh-doanh-phong-gym-300m2.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        zIndex: 1,
         }}
-      >
-        {/* Lớp phủ xanh đen */}
-        <div className="absolute inset-0 bg-[#0b1220]/80 pointer-events-none" />
+        >
+            {/* Lớp phủ xanh đen */}
+        <div
+            className="absolute inset-0"
+            style={{
+            background: "rgba(1, 0, 31, 0.55)",
+            zIndex: 2,
+            }}
+            />
 
         {/* Nội dung */}
         <div className="relative z-10">
@@ -158,44 +164,55 @@ const ExtraPoint = () => {
                     Chưa có lịch sử điểm phù hợp với bộ lọc
                   </p>
                 ) : (
-                  <ul className="list-none mx-auto max-w-[85%] space-y-3">
-                    {currentTransactions.map((item) => {
-                      const isEarn = item.type === "earn";
+                  // 🔽 Khung trắng full theo card, table full trong khung
+                  <div className="mt-2 rounded-2xl overflow-hidden backdrop-blur-sm bg-white/5">
+                    <table className="w-full" style={{ marginLeft: 50 }}>
+                      <thead>
+                        <tr className="bg-white/10 text-white text-sm">
+                          <th className="py-2 pl-4 pr-2 text-left w-[60%]">
+                            Nội dung
+                          </th>
+                          <th className="py-2 px-2 text-center w-[25%]" style={{ marginLeft: 50 }}>
+                            Ngày
+                          </th>
+                          <th className="py-2 pr-4 pl-2 text-right w-[15%]" style={{ marginLeft: 50 }}>
+                            Điểm
+                          </th>
+                        </tr>
+                      </thead>
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="backdrop-blur-sm px-4 py-3 rounded-2xl shadow-md"
-                        >
-                          {/* 3 cột trên cùng một hàng: note - ngày - điểm */}
-                          <div className="flex items-center gap-3 w-full">
-                            {/* NOTE - căn trái, chiếm nhiều nhất, cắt nếu dài */}
-                            <div className="flex-1 min-w-0 text-left text-sm md:text-base text-white truncate">
-                              {item.note || "—"}
-                            </div>
+                      <tbody>
+                        {currentTransactions.map((item) => {
+                          const isEarn = item.type === "earn";
 
-                            {/* NGÀY - cột giữa, cố định, không xuống dòng */}
-                            <div className="w-28 text-center text-xs md:text-sm text-white whitespace-nowrap">
-                              {item.date}
-                            </div>
+                          return (
+                            <tr
+                              key={item.id}
+                              className="text-white bg-white/10 border-t border-white/10"
+                            >
+                              <td className="py-3 pl-4 pr-2 truncate">
+                                {item.note}
+                              </td>
 
-                            {/* ĐIỂM - cột phải, in đậm, xanh/đỏ, không xuống dòng */}
-                            <div className="w-32 text-right whitespace-nowrap">
-                              <span
-                                className="font-extrabold"
-                                style={{
-                                  color: isEarn ? "#16a34a" : "#dc2626",
-                                }}
+                              <td className="py-3 px-2 text-center whitespace-nowrap" style={{ marginLeft: 50 }}>
+                                {item.date}
+                              </td>
+
+                              <td
+                                className="py-3 pr-4 pl-2 text-right font-black whitespace-nowrap"
+                                style={{ color: isEarn ? "#22c55e" : "#ef4444", marginLeft: 50 }}
                               >
-                                {isEarn ? "+" : "-"}
-                                {item.points.toLocaleString()} điểm
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </ul>
+                                <b>
+                                  {isEarn ? "+" : "-"}
+                                  {item.points.toLocaleString()} điểm
+                                </b>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </motion.div>
             </AnimatePresence>
