@@ -37,6 +37,7 @@ import Payment from "../pages/Member/Payment.jsx";
 import MemberVoucherList from "../pages/Member/Voucher.jsx";
 import PaymentHistory from "../pages/Member/MyPayment.jsx";
 import PaymentPage from "../pages/Member/PaymentCont.jsx";
+import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -127,7 +128,8 @@ export default function AppRoutes() {
           <Route path="/:id/cart/:id" element={<Payment />} />
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
-          <Route path="/member/payment/:id" element={<PaymentPage />} />
+          <Route path="/member/payment/:id" element={<PaymentPage />} />          
+          <Route path="/member/points-history" element={<ExtraPoint />} />
         </Route>
 
         {/* ===== Trainer protected ===== */}
