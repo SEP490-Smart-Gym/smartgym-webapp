@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 // mock dữ liệu lịch sử điểm thưởng
@@ -24,7 +23,7 @@ const ExtraPoint = () => {
   const [filter, setFilter] = useState("all"); // all | earn | redeem
   const [sortOrder, setSortOrder] = useState("desc"); // mặc định desc = mới → cũ
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // tổng điểm hiện tại
   const totalPoints = useMemo(
@@ -75,16 +74,15 @@ const ExtraPoint = () => {
       <div
         className="absolute inset-0"
         style={{
-        backgroundImage:
-            "url('https://setupphonggym.vn/wp-content/uploads/2020/12/mo-hinh-kinh-doanh-phong-gym-300m2.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundColor: "rgba(2, 0, 68, 0.75)",
-        backgroundBlendMode: "multiply",
-        zIndex: 1,
+          backgroundImage:
+            "url('https://enhome.vn/wp-content/uploads/2023/11/thiet-ke-phong-gym-10.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundColor: "rgba(2, 0, 68, 0.75)",
+          backgroundBlendMode: "multiply",
+          zIndex: 1,
         }}
-        >
-
+      >
         {/* Nội dung */}
         <div className="relative z-10">
           {/* Header + tổng điểm */}
@@ -95,13 +93,13 @@ const ExtraPoint = () => {
             <p className="text-sm text-white mb-3">
               Theo dõi điểm bạn đã tích lũy và đã sử dụng trong hệ thống
             </p>
-            <p className="text-2xl md:text-3xl font-extrabold text-white">
+            <b className="text-2xl md:text-3xl font-extrabold text-white">
               Tổng điểm hiện tại: {totalPoints.toLocaleString()} điểm
-            </p>
+            </b>
           </div>
 
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white mb-4 text-center">
+            <h2 className="text-xl md:text-2xl font-bold text-white mb-4 text-center" style={{ marginTop: "20px"}}>
               Chi tiết giao dịch điểm
             </h2>
 
@@ -158,54 +156,62 @@ const ExtraPoint = () => {
                     Chưa có lịch sử điểm phù hợp với bộ lọc
                   </p>
                 ) : (
-                  // 🔽 Khung trắng full theo card, table full trong khung
-                  <div className="mt-2 rounded-2xl overflow-hidden backdrop-blur-sm bg-white/5 ">
-                    <table className="w-full" style={{ marginLeft: 50 }}>
-                      <thead>
-                        <tr className="bg-white/10 text-white text-sm">
-                          <th className="py-2 pl-4 pr-2 text-left w-[60%]">
-                            Nội dung
-                          </th>
-                          <th className="py-2 px-2 text-center w-[25%]" style={{ marginLeft: 50 }}>
-                            Ngày
-                          </th>
-                          <th className="py-2 pr-4 pl-2 text-right w-[15%]" style={{ marginLeft: 50 }}>
-                            Điểm
-                          </th>
-                        </tr>
-                      </thead>
+                  // 🔽 Khung trắng + table giữa, có margin 50px 2 bên
+                  <div className="mt-2 rounded-2xl overflow-hidden backdrop-blur-sm bg-white/5">
+                    <div style={{ margin: "0 50px" }}>
+                      <table className="w-full" style={{
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        width: "100%",       // chiều ngang tối đa
+                        maxWidth: "600px",  // giới hạn nếu muốn
+                        borderCollapse: "collapse"
+                      }}>
+                        <thead>
+                          <tr className="text-sm">
+                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 pl-4 pr-2 text-left w-[55%]">
+                              <b>Nội dung</b>
+                            </th>
+                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 px-2 text-center w-[25%]">
+                              <b>Ngày</b>
+                            </th>
+                            <th style={{ color: "#ff8383ff", textAlign: "center", fontSize: "24px" }} className="py-2 px-2 text-right w-[20%]">
+                              <b>Điểm</b>
+                            </th>
+                          </tr>
+                        </thead>
 
-                      <tbody>
-                        {currentTransactions.map((item) => {
-                          const isEarn = item.type === "earn";
+                        <tbody>
+                          {currentTransactions.map((item) => {
+                            const isEarn = item.type === "earn";
 
-                          return (
-                            <tr
-                              key={item.id}
-                              className="text-white bg-white/10 border-t border-white/10"
-                            >
-                              <td className="py-3 pl-4 pr-2 truncate">
-                                {item.note}
-                              </td>
-
-                              <td className="py-3 px-2 text-center whitespace-nowrap" style={{ marginLeft: 50 }}>
-                                {item.date}
-                              </td>
-
-                              <td
-                                className="py-3 pr-4 pl-2 text-right font-black whitespace-nowrap"
-                                style={{ color: isEarn ? "#22c55e" : "#ef4444", marginLeft: 50 }}
+                            return (
+                              <tr
+                                key={item.id}
+                                className="text-white bg-white/10 border-t border-white/10"
                               >
-                                <b>
-                                  {isEarn ? "+" : "-"}
-                                  {item.points.toLocaleString()} điểm
-                                </b>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                <td className="py-3 pl-4 pr-2 truncate">
+                                  {item.note}
+                                </td>
+
+                                <td className="py-3 px-2 text-center whitespace-nowrap">
+                                  {item.date}
+                                </td>
+
+                                <td
+                                  className="py-3 pr-4 pl-2 text-center font-black whitespace-nowrap"
+                                  style={{ color: isEarn ? "#22c55e" : "#ef4444" }}
+                                >
+                                  <b>
+                                    {isEarn ? "+" : "-"}
+                                    {item.points.toLocaleString()} điểm
+                                  </b>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </motion.div>
