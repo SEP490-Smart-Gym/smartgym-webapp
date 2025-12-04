@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// mock dữ liệu lịch sử điểm thưởng
-// type = "earn" (nhận) hoặc "redeem" (tiêu)
 const pointHistory = [
   { id: 1, type: "earn", points: 100, date: "2023-05-01", note: "Check-in tại gym" },
   { id: 2, type: "redeem", points: 50, date: "2023-05-02", note: "Đổi voucher giảm giá" },
@@ -101,7 +99,7 @@ const ExtraPoint = () => {
             <p className="text-sm text-white mb-3">
               Theo dõi điểm bạn đã tích lũy và đã sử dụng trong hệ thống
             </p>
-            <b className="text-2xl md:text-3xl font-extrabold text-white">
+            <b className="text-2xl md:text-3xl font-extrabold" style={{ color: "#fcb0b0ff", fontSize: "20px"}}>
               Tổng điểm hiện tại: {totalPoints.toLocaleString()} điểm
             </b>
           </div>

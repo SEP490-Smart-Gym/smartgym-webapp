@@ -147,6 +147,8 @@ const CANCEL_REASONS = [
   "Khác (tự nhập)",
 ];
 
+const ITEMS_PER_PAGE = 5;
+
 export default function MyPackage() {
   // danh sách lịch sử gói (từ API my-packages)
   const [gymPackagesHistory, setGymPackagesHistory] = useState([]);
@@ -155,6 +157,9 @@ export default function MyPackage() {
 
   // filter tab: all / active / cancelled / expired
   const [filterStatus, setFilterStatus] = useState("all");
+
+  // phân trang
+  const [currentPage, setCurrentPage] = useState(1);
 
   // modal / confirm state
   const [open, setOpen] = useState(false);
@@ -254,6 +259,25 @@ export default function MyPackage() {
     });
   }, [sortedPackages, filterStatus]);
 
+  // tổng số trang
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPackages.length / ITEMS_PER_PAGE) || 1
+  );
+
+  // đảm bảo currentPage không vượt quá totalPages khi filter đổi / data đổi
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // data 5 gói / trang
+  const paginatedPackages = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPackages.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredPackages, currentPage]);
+
   const handleOpen = (historyItem) => {
     const master = null;
     setSelected({ history: historyItem, master });
@@ -338,7 +362,10 @@ export default function MyPackage() {
         <button
           type="button"
           className={"nav-link " + (filterStatus === "all" ? "active" : "")}
-          onClick={() => setFilterStatus("all")}
+          onClick={() => {
+            setFilterStatus("all");
+            setCurrentPage(1);
+          }}
         >
           Tất cả
         </button>
@@ -347,7 +374,10 @@ export default function MyPackage() {
         <button
           type="button"
           className={"nav-link " + (filterStatus === "active" ? "active" : "")}
-          onClick={() => setFilterStatus("active")}
+          onClick={() => {
+            setFilterStatus("active");
+            setCurrentPage(1);
+          }}
         >
           Đang hoạt động
         </button>
@@ -358,7 +388,10 @@ export default function MyPackage() {
           className={
             "nav-link " + (filterStatus === "cancelled" ? "active" : "")
           }
-          onClick={() => setFilterStatus("cancelled")}
+          onClick={() => {
+            setFilterStatus("cancelled");
+            setCurrentPage(1);
+          }}
         >
           Đã hủy
         </button>
@@ -369,7 +402,10 @@ export default function MyPackage() {
           className={
             "nav-link " + (filterStatus === "expired" ? "active" : "")
           }
-          onClick={() => setFilterStatus("expired")}
+          onClick={() => {
+            setFilterStatus("expired");
+            setCurrentPage(1);
+          }}
         >
           Hết hạn
         </button>
@@ -378,361 +414,431 @@ export default function MyPackage() {
   );
 
   return (
-    <div className="container py-4">
-      <style>{styles}</style>
+    <div className="min-h-screen bg-gradient-to-br from-red-100 to-yellow-100 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "url('https://setupphonggym.vn/wp-content/uploads/2020/09/mau-thiet-ke-phong-gym-100m2.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundColor: "rgba(2, 0, 68, 0.75)",
+          backgroundBlendMode: "multiply",
+          weight: "90%",
+          zIndex: 1,
+        }}
+      >
+        <style>{styles}</style>
 
-      <div className="row mb-3 text-center">
-        <div className="col-12">
-          <h3 className="mb-0 fw-bold">Lịch sử gói tập</h3>
-        </div>
-      </div>
-
-      {/* Tabs filter */}
-      {renderFilterTabs()}
-
-      {loading && (
-        <div className="row justify-content-center mb-3">
-          <div className="col-12 col-xl-10">
-            <div className="alert alert-info text-center mb-0">
-              Đang tải thông tin gói tập...
-            </div>
+        <div className="row mb-3 text-center">
+          <div className="col-12">
+            <h3
+              className="mb-0 fw-bold"
+              style={{ color: "#fde6e6ff", fontSize: "30px" }}
+            >
+              Lịch sử gói tập
+            </h3>
           </div>
         </div>
-      )}
 
-      {loadError && (
-        <div className="row justify-content-center mb-3">
-          <div className="col-12 col-xl-10">
-            <div className="alert alert-danger text-center mb-0">
-              {loadError}
-            </div>
-          </div>
-        </div>
-      )}
+        {/* Tabs filter */}
+        {renderFilterTabs()}
 
-      {/* Danh sách gói sau khi lọc */}
-      {filteredPackages.map((pkg) => {
-        const status = getStatus(pkg);
-        const daysRemainDisplay = getDaysRemainingDisplay(pkg);
-
-        return (
-          <div className="row justify-content-center mb-3" key={pkg.id}>
+        {loading && (
+          <div className="row justify-content-center mb-3">
             <div className="col-12 col-xl-10">
-              <div className="card shadow-0 border rounded-3 card-shadow">
-                <div className="card-body">
-                  <div className="row g-3 align-items-center">
-                    <div className="col-12 col-md-6">
-                      <div className="pkg-title mb-1">{pkg.name}</div>
-                      <div className="text-muted">
-                        Thời hạn:{" "}
-                        <strong>{durationLabel(pkg.durationMonths)}</strong>
-                      </div>
-                      {pkg.apiStatus && (
-                        <div className="text-muted small mt-1">
-                          Trạng thái hệ thống:{" "}
-                          <strong>{pkg.apiStatus}</strong>
-                        </div>
-                      )}
-                    </div>
+              <div className="alert alert-info text-center mb-0">
+                Đang tải thông tin gói tập...
+              </div>
+            </div>
+          </div>
+        )}
 
-                    <div className="col-12 col-md-4">
-                      <div className="text-muted small">Ngày bắt đầu</div>
-                      <div className="fw-semibold">
-                        {formatDDMMYYYY(pkg.startDate)}
+        {loadError && (
+          <div className="row justify-content-center mb-3">
+            <div className="col-12 col-xl-10">
+              <div className="alert alert-danger text-center mb-0">
+                {loadError}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Danh sách gói sau khi lọc + phân trang (5 gói / trang) */}
+        {paginatedPackages.map((pkg) => {
+          const status = getStatus(pkg);
+          const daysRemainDisplay = getDaysRemainingDisplay(pkg);
+
+          return (
+            <div className="row justify-content-center mb-3" key={pkg.id}>
+              <div className="col-12 col-xl-10">
+                <div className="card shadow-0 border rounded-3 card-shadow">
+                  <div className="card-body">
+                    <div className="row g-3 align-items-center">
+                      <div className="col-12 col-md-6">
+                        <div className="pkg-title mb-1">{pkg.name}</div>
+                        <div className="text-muted">
+                          Thời hạn:{" "}
+                          <strong>{durationLabel(pkg.durationMonths)}</strong>
+                        </div>
+                        {pkg.apiStatus && (
+                          <div className="text-muted small mt-1">
+                            Trạng thái hệ thống:{" "}
+                            <strong>{pkg.apiStatus}</strong>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-muted small mt-2">
-                        Ngày kết thúc
-                      </div>
-                      <div className="fw-semibold">
-                        {formatDDMMYYYY(pkg.endDate)}
-                      </div>
-                      {daysRemainDisplay !== null && (
+
+                      <div className="col-12 col-md-4">
+                        <div className="text-muted small">Ngày bắt đầu</div>
+                        <div className="fw-semibold">
+                          {formatDDMMYYYY(pkg.startDate)}
+                        </div>
                         <div className="text-muted small mt-2">
-                          Còn lại:{" "}
-                          <strong>{daysRemainDisplay} ngày</strong>
+                          Ngày kết thúc
                         </div>
-                      )}
-                    </div>
+                        <div className="fw-semibold">
+                          {formatDDMMYYYY(pkg.endDate)}
+                        </div>
+                        {daysRemainDisplay !== null && (
+                          <div className="text-muted small mt-2">
+                            Còn lại:{" "}
+                            <strong>{daysRemainDisplay} ngày</strong>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="col-12 col-md-2 text-md-end">
-                      <button
-                        className="btn btn-primary btn-sm mb-1"
-                        onClick={() => handleOpen(pkg)}
-                      >
-                        Chi tiết
-                      </button>
-                      <div
-                        className={status.className}
-                        style={{ fontSize: "0.9rem" }}
-                      >
-                        {status.text}
+                      <div className="col-12 col-md-2 text-md-end">
+                        <button
+                          className="btn btn-primary btn-sm mb-1"
+                          onClick={() => handleOpen(pkg)}
+                        >
+                          Chi tiết
+                        </button>
+                        <div
+                          className={status.className}
+                          style={{ fontSize: "0.9rem" }}
+                        >
+                          {status.text}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
 
-      {/* Không có gói trong tab hiện tại */}
-      {!loading &&
-        !loadError &&
-        filteredPackages.length === 0 &&
-        sortedPackages.length > 0 && (
+        {/* Phân trang: 5 gói / trang */}
+        {!loading && !loadError && filteredPackages.length > 0 && (
+          <div className="row justify-content-center mt-3">
+            <div className="col-12 col-xl-10 d-flex justify-content-center">
+              <nav>
+                <ul className="pagination mb-0">
+                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                    <button
+                      type="button"
+                      className="page-link"
+                      style={{ marginBottom: 10 }}
+                      onClick={() =>
+                        currentPage > 1 && setCurrentPage(currentPage - 1)
+                      }
+                    >
+                      «
+                    </button>
+                  </li>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <li
+                        key={page}
+                        className={
+                          "page-item " +
+                          (page === currentPage ? "active" : "")
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="page-link"
+                          style={{ marginBottom: 10, marginLeft: 10 }}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      </li>
+                    )
+                  )}
+
+                  <li
+                    className={`page-item ${
+                      currentPage === totalPages ? "disabled" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      style={{ marginBottom: 10, marginLeft: 10 }}
+                      className="page-link"
+                      onClick={() =>
+                        currentPage < totalPages &&
+                        setCurrentPage(currentPage + 1)
+                      }
+                    >
+                      »
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Không có gói trong tab hiện tại */}
+        {!loading &&
+          !loadError &&
+          filteredPackages.length === 0 &&
+          sortedPackages.length > 0 && (
+            <div className="row justify-content-center">
+              <div className="col-12 col-xl-10">
+                <div
+                  className="alert alert-light border text-center"
+                  role="alert"
+                >
+                  Không có gói nào trong mục này.
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Không có lịch sử gói (tổng) */}
+        {!loading && !loadError && sortedPackages.length === 0 && (
           <div className="row justify-content-center">
             <div className="col-12 col-xl-10">
               <div
                 className="alert alert-light border text-center"
                 role="alert"
               >
-                Không có gói nào trong mục này.
+                Chưa có lịch sử gói tập.
               </div>
             </div>
           </div>
         )}
 
-      {/* Không có lịch sử gói (tổng) */}
-      {!loading && !loadError && sortedPackages.length === 0 && (
-        <div className="row justify-content-center">
-          <div className="col-12 col-xl-10">
-            <div
-              className="alert alert-light border text-center"
-              role="alert"
-            >
-              Chưa có lịch sử gói tập.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Modal Detail ===== */}
-      {open && selected && (
-        <div
-          className="modal-backdrop-custom"
-          onClick={handleClose}
-          role="dialog"
-          aria-modal="true"
-        >
+        {/* ===== Modal Detail ===== */}
+        {open && selected && (
           <div
-            className="modal-card"
-            onClick={(e) => e.stopPropagation()}
+            className="modal-backdrop-custom"
+            onClick={handleClose}
+            role="dialog"
+            aria-modal="true"
           >
-            <div className="modal-header d-flex justify-content-between align-items-center">
-              <h5 className="m-0">
-                {selected.history?.name || "Chi tiết gói"}
-              </h5>
-              <button
-                className="btn btn-sm btn-outline-secondary"
-                onClick={handleClose}
-              >
-                <AiOutlineClose />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {/* Status + thời gian thực tế */}
-              <div className="mb-3">
-                {(() => {
-                  const st = getStatus(selected.history);
-                  return (
-                    <div
-                      className={st.className}
-                      style={{ fontSize: "0.95rem" }}
-                    >
-                      Trạng thái: {st.text}
-                      {selected.history.apiStatus && (
-                        <span className="text-muted ms-2">
-                          ({selected.history.apiStatus})
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-                <div className="text-muted small">
-                  Thời gian sử dụng:{" "}
-                  <strong>
-                    {formatDDMMYYYY(selected.history.startDate)}
-                  </strong>{" "}
-                  –{" "}
-                  <strong>
-                    {formatDDMMYYYY(selected.history.endDate)}
-                  </strong>
-                </div>
-                {(() => {
-                  const daysRemainDisplay = getDaysRemainingDisplay(
-                    selected.history
-                  );
-                  if (daysRemainDisplay === null) return null;
-                  return (
-                    <div className="text-muted small mt-1">
-                      Còn lại:{" "}
-                      <strong>{daysRemainDisplay} ngày</strong>
-                    </div>
-                  );
-                })()}
-                {selected.history.cancellationReason && (
-                  <div className="text-muted small mt-1">
-                    Lý do hủy:{" "}
-                    <strong>
-                      {selected.history.cancellationReason}
-                    </strong>
-                  </div>
-                )}
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header d-flex justify-content-between align-items-center">
+                <h5 className="m-0">
+                  {selected.history?.name || "Chi tiết gói"}
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={handleClose}
+                >
+                  <AiOutlineClose />
+                </button>
               </div>
 
-              {/* Info chi tiết – dùng data từ API */}
-              <div className="row g-3">
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Số buổi</div>
-                  <div className="fw-semibold">
-                    {selected.history.totalSessionsCount ?? "—"} buổi
+              <div className="modal-body">
+                {/* Status + thời gian thực tế */}
+                <div className="mb-3">
+                  {(() => {
+                    const st = getStatus(selected.history);
+                    return (
+                      <div
+                        className={st.className}
+                        style={{ fontSize: "0.95rem" }}
+                      >
+                        Trạng thái: {st.text}
+                        {selected.history.apiStatus && (
+                          <span className="text-muted ms-2">
+                            ({selected.history.apiStatus})
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div className="text-muted small">
+                    Thời gian sử dụng:{" "}
+                    <strong>
+                      {formatDDMMYYYY(selected.history.startDate)}
+                    </strong>{" "}
+                    –{" "}
+                    <strong>
+                      {formatDDMMYYYY(selected.history.endDate)}
+                    </strong>
                   </div>
-                  {typeof selected.history
-                    .remainingSessionsCount === "number" && (
+                  {(() => {
+                    const daysRemainDisplay =
+                      getDaysRemainingDisplay(selected.history);
+                    if (daysRemainDisplay === null) return null;
+                    return (
+                      <div className="text-muted small mt-1">
+                        Còn lại: <strong>{daysRemainDisplay} ngày</strong>
+                      </div>
+                    );
+                  })()}
+                  {selected.history.cancellationReason && (
                     <div className="text-muted small mt-1">
-                      Còn lại:{" "}
-                      <strong>
-                        {selected.history.remainingSessionsCount} buổi
-                      </strong>
+                      Lý do hủy:{" "}
+                      <strong>{selected.history.cancellationReason}</strong>
                     </div>
                   )}
                 </div>
 
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">
-                    Thời lượng gói (ước tính)
-                  </div>
-                  <div className="fw-semibold">
-                    {durationLabel(
-                      selected.history.durationMonths
-                    ) || "—"}
-                  </div>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Huấn luyện viên</div>
-                  <div className="fw-semibold">
-                    {selected.history.trainerName || (
-                      <span className="text-muted">Không rõ</span>
+                {/* Info chi tiết – dùng data từ API */}
+                <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Số buổi</div>
+                    <div className="fw-semibold">
+                      {selected.history.totalSessionsCount ?? "—"} buổi
+                    </div>
+                    {typeof selected.history.remainingSessionsCount ===
+                      "number" && (
+                      <div className="text-muted small mt-1">
+                        Còn lại:{" "}
+                        <strong>
+                          {selected.history.remainingSessionsCount} buổi
+                        </strong>
+                      </div>
                     )}
                   </div>
-                </div>
 
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Giá niêm yết</div>
-                  <div className="fw-semibold">
-                    {currencyVND(selected.history.packagePrice)}
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">
+                      Thời lượng gói (ước tính)
+                    </div>
+                    <div className="fw-semibold">
+                      {durationLabel(selected.history.durationMonths) || "—"}
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Huấn luyện viên</div>
+                    <div className="fw-semibold">
+                      {selected.history.trainerName || (
+                        <span className="text-muted">Không rõ</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Giá niêm yết</div>
+                    <div className="fw-semibold">
+                      {currencyVND(selected.history.packagePrice)}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="modal-footer d-flex justify-content-end gap-2">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={handleRequestCancel}
-              >
-                Hủy gói
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() =>
-                  message.info(
-                    `Chức năng mua lại gói #${
-                      selected.history?.packageId ?? "?"
-                    } đang được phát triển.`
-                  )
-                }
-              >
-                Mua lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Modal chọn lý do hủy gói ===== */}
-      {confirmOpen && (
-        <div
-          className="confirm-backdrop"
-          onClick={handleCancelModalClose}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="confirm-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
-            <p className="text-muted mb-2">
-              Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
-              cải thiện dịch vụ.
-            </p>
-
-            <div
-              className="mb-3"
-              style={{ maxHeight: 260, overflowY: "auto" }}
-            >
-              {CANCEL_REASONS.map((reason) => (
-                <div className="form-check mb-1" key={reason}>
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name="cancelReason"
-                    id={`cancel-${reason}`}
-                    value={reason}
-                    checked={selectedReason === reason}
-                    onChange={(e) => setSelectedReason(e.target.value)}
-                    disabled={cancelLoading}
-                  />
-                  <label
-                    className="form-check-label"
-                    htmlFor={`cancel-${reason}`}
-                  >
-                    {reason}
-                  </label>
-                </div>
-              ))}
-            </div>
-
-            {(selectedReason === "Khác (tự nhập)" ||
-              selectedReason === "Khác") && (
-              <div className="mb-3">
-                <label className="form-label small">
-                  Nhập lý do chi tiết
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  disabled={cancelLoading}
-                  placeholder="Ví dụ: chuyển chỗ làm xa, không tiện đi tập..."
-                />
+              <div className="modal-footer d-flex justify-content-end gap-2">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={handleRequestCancel}
+                >
+                  Hủy gói
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() =>
+                    message.info(
+                      `Chức năng mua lại gói #${
+                        selected.history?.packageId ?? "?"
+                      } đang được phát triển.`
+                    )
+                  }
+                >
+                  Mua lại
+                </button>
               </div>
-            )}
-
-            <div className="d-flex justify-content-end gap-2 mt-3">
-              <button
-                className="btn btn-light"
-                onClick={handleCancelModalClose}
-                disabled={cancelLoading}
-              >
-                Không
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={handleCancelSubmit}
-                disabled={cancelLoading}
-              >
-                {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ===== Modal chọn lý do hủy gói ===== */}
+        {confirmOpen && (
+          <div
+            className="confirm-backdrop"
+            onClick={handleCancelModalClose}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
+              <p className="text-muted mb-2">
+                Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
+                cải thiện dịch vụ.
+              </p>
+
+              <div
+                className="mb-3"
+                style={{ maxHeight: 260, overflowY: "auto" }}
+              >
+                {CANCEL_REASONS.map((reason) => (
+                  <div className="form-check mb-1" key={reason}>
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="cancelReason"
+                      id={`cancel-${reason}`}
+                      value={reason}
+                      checked={selectedReason === reason}
+                      onChange={(e) => setSelectedReason(e.target.value)}
+                      disabled={cancelLoading}
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor={`cancel-${reason}`}
+                    >
+                      {reason}
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {(selectedReason === "Khác (tự nhập)" ||
+                selectedReason === "Khác") && (
+                <div className="mb-3">
+                  <label className="form-label small">
+                    Nhập lý do chi tiết
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    disabled={cancelLoading}
+                    placeholder="Ví dụ: chuyển chỗ làm xa, không tiện đi tập..."
+                  />
+                </div>
+              )}
+
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-light"
+                  onClick={handleCancelModalClose}
+                  disabled={cancelLoading}
+                >
+                  Không
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleCancelSubmit}
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

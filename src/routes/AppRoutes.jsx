@@ -129,7 +129,6 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
-          <Route path="/chatbot/:id" element={<ChatBot />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:conversationId" element={<ChatConversation />} />
           {/* Nếu muốn lớp học riêng cho member: */}

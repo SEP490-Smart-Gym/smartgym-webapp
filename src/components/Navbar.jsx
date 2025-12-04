@@ -250,16 +250,6 @@ export default function Navbar() {
                             >
                               Mã giảm giá
                             </button>
-
-                            <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/member/points-history")
-                              }
-                            >
-                              Lịch sử điểm thưởng
-                            </button>
                           </li>
                         )}
 
