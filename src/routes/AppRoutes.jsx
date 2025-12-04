@@ -57,6 +57,7 @@ import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMain
 import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
 import ChatPage from "../pages/Member/ChatPage.jsx";
 import ChatConversation from "../pages/Member/ChatConversation.jsx";
+import ChatBot from "../pages/Member/ChatBox.jsx";
 
 function Layout() {
   return (
