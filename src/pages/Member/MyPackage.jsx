@@ -425,6 +425,8 @@ export default function MyPackage() {
           backgroundColor: "rgba(2, 0, 68, 0.75)",
           backgroundBlendMode: "multiply",
           weight: "90%",
+          paddingTop: "50px",
+          paddingBottom: "50px",
           zIndex: 1,
         }}
       >
@@ -434,7 +436,7 @@ export default function MyPackage() {
           <div className="col-12">
             <h3
               className="mb-0 fw-bold"
-              style={{ color: "#fde6e6ff", fontSize: "30px" }}
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}
             >
               Lịch sử gói tập
             </h3>
@@ -540,7 +542,6 @@ export default function MyPackage() {
                     <button
                       type="button"
                       className="page-link"
-                      style={{ marginBottom: 10 }}
                       onClick={() =>
                         currentPage > 1 && setCurrentPage(currentPage - 1)
                       }
@@ -561,7 +562,7 @@ export default function MyPackage() {
                         <button
                           type="button"
                           className="page-link"
-                          style={{ marginBottom: 10, marginLeft: 10 }}
+                          style={{ marginLeft: 10 }}
                           onClick={() => setCurrentPage(page)}
                         >
                           {page}
@@ -577,7 +578,7 @@ export default function MyPackage() {
                   >
                     <button
                       type="button"
-                      style={{ marginBottom: 10, marginLeft: 10 }}
+                      style={{ marginLeft: 10 }}
                       className="page-link"
                       onClick={() =>
                         currentPage < totalPages &&

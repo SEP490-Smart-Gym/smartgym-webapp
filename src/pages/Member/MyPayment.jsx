@@ -324,9 +324,7 @@ export default function PaymentHistory() {
       <li className="nav-item">
         <button
           type="button"
-          className={
-            "nav-link " + (filterStatus === "completed" ? "active" : "")
-          }
+          className={"nav-link " + (filterStatus === "completed" ? "active" : "")}
           onClick={() => {
             setFilterStatus("completed");
             setCurrentPage(1);
@@ -344,12 +342,14 @@ export default function PaymentHistory() {
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "url('https://setupphonggym.vn/wp-content/uploads/2020/09/mau-thiet-ke-phong-gym-100m2.jpg')",
+            "url('https://ptfitness.vn/wp-content/uploads/2021/03/setup-mo-phong-gym-tu-a-den-z-anh-bia.jpg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundColor: "rgba(2, 0, 68, 0.75)",
           backgroundBlendMode: "multiply",
           weight: "90%",
+          paddingTop: "50px",
+          paddingBottom: "50px",
           zIndex: 1,
         }}
       >
@@ -357,7 +357,8 @@ export default function PaymentHistory() {
 
         <div className="row mb-3 text-center">
           <div className="col-12">
-            <h3 className="mb-0 fw-bold">Lịch sử thanh toán</h3>
+            <h3 className="mb-0 fw-bold" 
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}>Lịch sử thanh toán</h3>
           </div>
         </div>
 

@@ -153,12 +153,14 @@ export default function MemberVoucherList() {
       <div className="absolute inset-0"
           style={{
             backgroundImage:
-              "url('https://enhome.vn/wp-content/uploads/2023/11/thiet-ke-phong-gym-10.jpg')",
+              "url('https://enhome.vn/wp-content/uploads/2023/11/thiet-ke-phong-gym-42.jpg')",
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundColor: "rgba(2, 0, 68, 0.75)",
             backgroundBlendMode: "multiply",
             minHeight: "100%",
+            paddingTop: "50px",
+            paddingBottom: "50px",
             zIndex: 1,
           }}>
 
@@ -167,7 +169,7 @@ export default function MemberVoucherList() {
         <div className="row mb-3 text-center">
           <div className="col-12">
             <h3 className="mb-0 fw-bold" 
-              style={{ color: "#fde6e6ff", fontSize: "30px" }}>Voucher của bạn</h3>
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}>Voucher của bạn</h3>
           </div>
         </div>
 
