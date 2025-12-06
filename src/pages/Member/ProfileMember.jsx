@@ -20,6 +20,7 @@ import { HiArrowUpTray } from "react-icons/hi2";
 import { FcPhone } from "react-icons/fc";
 import api from "../../config/axios";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 
 const ProfileMember = () => {
   const [user, setUser] = useState(null);
@@ -173,10 +174,10 @@ const ProfileMember = () => {
       window.dispatchEvent(new Event("app-auth-changed"));
 
       setPreview(newUrl);
-      alert("Cập nhật ảnh đại diện thành công!");
+      message.success("Cập nhật ảnh đại diện thành công!");
     } catch (err) {
       console.error("Error uploading avatar:", err);
-      alert(
+      message.error(
         `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
       );
     }
@@ -329,7 +330,7 @@ const ProfileMember = () => {
       // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      alert("Cập nhật thông tin cá nhân thành công!");
+      message.success("Cập nhật thông tin cá nhân thành công!");
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
 
@@ -340,7 +341,7 @@ const ProfileMember = () => {
         JSON.stringify(serverData) ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
 
-      alert(msg);
+      message.error(msg);
     }
   };
 
@@ -416,7 +417,7 @@ const ProfileMember = () => {
 
       await api.put("/Profile/member", memberPayload);
 
-      alert("Cập nhật thông tin sức khỏe thành công!");
+      message.success("Cập nhật thông tin sức khỏe thành công!");
     } catch (err) {
       console.error("Error updating health info:", err.response?.data || err);
 
@@ -427,7 +428,7 @@ const ProfileMember = () => {
         JSON.stringify(serverData) ||
         "Cập nhật thông tin sức khỏe thất bại, vui lòng thử lại!";
 
-      alert(msg);
+      message.error(msg);
     }
   };
 
@@ -438,17 +439,19 @@ const ProfileMember = () => {
     const { currentPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      alert("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
+      message.warning(
+        "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!"
+      );
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      message.warning("Mật khẩu mới và xác nhận mật khẩu không khớp!");
       return;
     }
 
     if (newPassword.length < 6) {
-      alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
 
@@ -460,7 +463,7 @@ const ProfileMember = () => {
       };
 
       await api.put("/UserAccount/change-password", payload);
-      alert("Đổi mật khẩu thành công!");
+      message.success("Đổi mật khẩu thành công!");
 
       // reset form
       setPasswordData({
@@ -471,15 +474,15 @@ const ProfileMember = () => {
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
-        alert(
+        message.error(
           err.response.data?.message ||
             "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
         );
       } else if (err.response?.status === 401) {
-        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        message.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
         navigate("/login");
       } else {
-        alert("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+        message.error("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
       }
     }
   };
