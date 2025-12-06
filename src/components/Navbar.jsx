@@ -227,7 +227,13 @@ export default function Navbar() {
                             >
                               Lịch tập
                             </button>
-
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/workout-meal-plan")}
+                            >
+                              Quản lý chế độ dinh dưỡng và tập luyện
+                            </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"

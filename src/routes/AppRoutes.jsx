@@ -38,6 +38,7 @@ import MemberVoucherList from "../pages/Member/Voucher.jsx";
 import PaymentHistory from "../pages/Member/MyPayment.jsx";
 import PaymentPage from "../pages/Member/PaymentCont.jsx";
 import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
+import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -126,18 +127,17 @@ export default function AppRoutes() {
 
         {/* ===== Member protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Member"]} />}>
-          {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:conversationId" element={<ChatConversation />} />
-          {/* Nếu muốn lớp học riêng cho member: */}
-          {/* <Route path="/member/classes" element={<Classes />} /> */}
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
           <Route path="/member/payment/:id" element={<PaymentPage />} />          
-          <Route path="/member/points-history" element={<ExtraPoint />} />
+          <Route path="/member/points-history" element={<ExtraPoint />} />       
+          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
+          WorkoutMealPlan
         </Route>
 
         {/* ===== Trainer protected ===== */}
