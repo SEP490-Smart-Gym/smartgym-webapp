@@ -299,6 +299,13 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
+                              onClick={() => navigate("/manager/manager-refund")}
+                            >
+                              Quản lý Hoàn tiền
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
                               onClick={() => navigate("/manager/schedule")}
                             >
                               Quản lý lịch làm việc

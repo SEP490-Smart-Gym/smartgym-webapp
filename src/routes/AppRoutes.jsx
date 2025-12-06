@@ -60,7 +60,7 @@ import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMain
 import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
 import ChatPage from "../pages/Member/ChatPage.jsx";
 import ChatConversation from "../pages/Member/ChatConversation.jsx";
-import ChatBot from "../pages/Member/ChatBox.jsx";
+import RefundManagement from "../pages/Manager/ManageRefund.jsx";
 
 function Layout() {
   return (
@@ -182,6 +182,7 @@ export default function AppRoutes() {
           <Route path="/manager/equipment-create-maintain" element={<ManagerCreateMaintenanceSchedule />} />
           <Route path="/profile/manager" element={<ProfileManager />} />
           <Route path="/manager/schedule" element={<ManageSchedule />} />
+          <Route path="/manager/manager-refund" element={<RefundManagement />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}
