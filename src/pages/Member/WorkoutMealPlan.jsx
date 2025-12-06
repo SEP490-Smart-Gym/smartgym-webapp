@@ -404,7 +404,7 @@ export default function WorkoutMealPlan() {
                 color: "#2a3fdb",
               }}
             >
-              Gợi ý theo BMI
+              📊 Gợi ý theo BMI
             </h4>
 
             {loadingBmi ? (
