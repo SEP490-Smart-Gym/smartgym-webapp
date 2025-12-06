@@ -232,7 +232,7 @@ export default function Navbar() {
                               className="dropdown-item"
                               onClick={() => navigate("/member/workout-meal-plan")}
                             >
-                              Quản lý chế độ dinh dưỡng và tập luyện
+                              Kế hoạch tập luyện & dinh dưỡng
                             </button>
                             <hr className="dropdown-divider" />
                             <button

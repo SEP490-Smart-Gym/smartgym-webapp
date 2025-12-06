@@ -644,7 +644,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-fullname"
                               >
-                                👤 Full Name
+                                👤 Họ tên
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -667,7 +667,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-birthday-visible"
                               >
-                                🎂 Birthday
+                                🎂 Ngày sinh
                               </label>
 
                               <div
@@ -717,7 +717,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-email"
                               >
-                                ✉️ Email Address
+                                ✉️ Email
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -740,7 +740,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-phone"
                               >
-                                <FcPhone /> Phone Number
+                                <FcPhone /> SDT
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -765,7 +765,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-address"
                               >
-                                🏠 Address
+                                🏠 Địa chỉ
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -793,7 +793,7 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleUpdateUserInfo}
                         >
-                          Update User Information
+                          Cập nhật thông tin cá nhân
                         </Button>
                       </Col>
                     </>
@@ -956,7 +956,7 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleUpdateHealthInfo}
                         >
-                          Update Health Information
+                          Cập nhật thông tin sức khỏe
                         </Button>
                       </Col>
                     </>
@@ -969,7 +969,7 @@ const ProfileMember = () => {
                         {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
                           <Label className="form-control-label">
-                            🔐 Current Password
+                            🔐 Mật khẩu hiện tại
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -1009,7 +1009,7 @@ const ProfileMember = () => {
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
                               <Label className="form-control-label">
-                                🔑 New Password
+                                🔑 Mật khẩu mới
                               </Label>
                               <Input
                                 className="form-control-alternative"
@@ -1048,7 +1048,7 @@ const ProfileMember = () => {
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
                               <Label className="form-control-label">
-                                🔁 Confirm New Password
+                                🔁 Xác nhận mật khẩu
                               </Label>
                               <Input
                                 className="form-control-alternative"
@@ -1094,7 +1094,7 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleChangePassword}
                         >
-                          Change Password
+                          Thay đổi mật khẩu
                         </Button>
                       </Col>
                     </>

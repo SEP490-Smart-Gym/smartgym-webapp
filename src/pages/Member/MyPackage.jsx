@@ -16,11 +16,20 @@ const styles = `
   display:flex; align-items:center; justify-content:center; z-index:1050;
 }
 .modal-card {
-  background:#fff; border-radius: .75rem; width: min(680px, 92vw);
+  background:#fff;
+  border-radius: .75rem;
+  width: min(680px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 1rem 2rem rgba(0,0,0,.2);
 }
 .modal-header, .modal-footer { padding: 1rem 1.25rem; }
-.modal-body { padding: 0 1.25rem 1.25rem; }
+.modal-body {
+  padding: 0 1.25rem 1.25rem;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
 .modal-header { border-bottom: 1px solid #eee; }
 .modal-footer { border-top: 1px solid #eee; }
 
@@ -34,6 +43,37 @@ const styles = `
   box-shadow: 0 .75rem 2rem rgba(0,0,0,.25); padding: 1rem 1.25rem;
 }
 `;
+
+// ⭐ Component chọn Rating bằng sao
+function StarRating({ value, onChange, size = 24, disabled = false }) {
+  const stars = [1, 2, 3, 4, 5];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontSize: size,
+      }}
+    >
+      {stars.map((star) => (
+        <span
+          key={star}
+          onClick={() => {
+            if (!disabled) onChange(star);
+          }}
+          style={{
+            color: star <= value ? "#FFD700" : "#ccc",
+            transition: "color 0.2s",
+          }}
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function formatDDMMYYYY(iso) {
   if (!iso) return "";
@@ -171,6 +211,27 @@ export default function MyPackage() {
   const [customReason, setCustomReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  // modal yêu cầu hoàn tiền
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundLoading, setRefundLoading] = useState(false);
+
+  // feedback state
+  const [gymRating, setGymRating] = useState(5);
+  const [gymFeedbackType, setGymFeedbackType] = useState("");
+  const [gymComments, setGymComments] = useState("");
+  const [trainerRating, setTrainerRating] = useState(5);
+  const [trainerComments, setTrainerComments] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  function resetFeedbackForms() {
+    setGymRating(5);
+    setGymFeedbackType("");
+    setGymComments("");
+    setTrainerRating(5);
+    setTrainerComments("");
+  }
+
   // ===== GỌI API my-packages (history) =====
   const fetchPackages = async () => {
     try {
@@ -281,6 +342,7 @@ export default function MyPackage() {
   const handleOpen = (historyItem) => {
     const master = null;
     setSelected({ history: historyItem, master });
+    resetFeedbackForms();
     setOpen(true);
   };
 
@@ -288,6 +350,9 @@ export default function MyPackage() {
     setOpen(false);
     setSelected(null);
     setConfirmOpen(false);
+    setRefundOpen(false);
+    setRefundReason("");
+    resetFeedbackForms();
   };
 
   // Khi bấm "Hủy gói" trong modal -> mở modal chọn lý do
@@ -331,8 +396,6 @@ export default function MyPackage() {
       setCancelLoading(true);
 
       // Gọi API cancel:
-      // POST /MemberPackage/:id/cancel
-      // body: { cancellationReason: "..." }
       await api.post(`/MemberPackage/${id}/cancel`, {
         cancellationReason: finalReason,
       });
@@ -342,7 +405,10 @@ export default function MyPackage() {
       // Reload lại danh sách lịch sử gói
       await fetchPackages();
 
+      // 👉 tự động tắt cả modal chọn lý do + modal chi tiết
       setConfirmOpen(false);
+      setOpen(false);
+      setSelected(null);
     } catch (err) {
       console.error("Error cancel package:", err);
       const detail =
@@ -353,6 +419,123 @@ export default function MyPackage() {
       message.error(detail);
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  // ==== Refund request ====
+  const handleOpenRefund = () => {
+    if (!selected || !selected.history) return;
+    setRefundReason("");
+    setRefundOpen(true);
+  };
+
+  // Refund từ list (không cần mở chi tiết trước)
+  const handleOpenRefundFromList = (pkg) => {
+    setSelected({ history: pkg, master: null });
+    setRefundReason("");
+    resetFeedbackForms();
+    setRefundOpen(true);
+  };
+
+  const handleRefundModalClose = () => {
+    if (refundLoading) return;
+    setRefundOpen(false);
+  };
+
+  const handleRefundSubmit = async () => {
+    if (!selected || !selected.history) return;
+
+    if (!refundReason.trim()) {
+      message.warning("Vui lòng nhập lý do yêu cầu hoàn tiền.");
+      return;
+    }
+
+    try {
+      setRefundLoading(true);
+      // Hiện tại dùng mock, chưa có API chính thức cho hoàn tiền
+      console.log("Mock refund request payload:", {
+        memberPackageId: selected.history.id,
+        reason: refundReason.trim(),
+      });
+      message.success("Yêu cầu hoàn tiền đã được ghi nhận (mock).");
+      setRefundOpen(false);
+    } catch (err) {
+      console.error("Error requesting refund:", err);
+      message.error("Gửi yêu cầu hoàn tiền thất bại. Vui lòng thử lại sau.");
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  // ==== Feedback handlers ====
+  const handleSubmitGymFeedback = async () => {
+    if (!selected || !selected.history) return;
+
+    if (!gymComments.trim()) {
+      message.warning("Vui lòng nhập nội dung đánh giá cho phòng gym.");
+      return;
+    }
+
+    try {
+      setFeedbackLoading(true);
+      const payload = {
+        rating: Number(gymRating) || 5,
+        feedbackType: gymFeedbackType || "GYM",
+        comments: gymComments.trim(),
+      };
+      await api.post("/member/feedback/gym", payload);
+      message.success("Đã gửi đánh giá cho phòng gym. Cảm ơn bạn!");
+      setGymComments("");
+      setGymFeedbackType("");
+    } catch (err) {
+      console.error("Error sending gym feedback:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi đánh giá phòng gym thất bại.";
+      message.error(detail);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const handleSubmitTrainerFeedback = async () => {
+    if (!selected || !selected.history) return;
+
+    if (!selected.history.id) {
+      message.error("Không tìm thấy gói tập để gửi đánh giá HLV.");
+      return;
+    }
+    if (!selected.history.trainerId && !selected.history.trainerName) {
+      message.warning("Gói này không có huấn luyện viên để đánh giá.");
+      return;
+    }
+    if (!trainerComments.trim()) {
+      message.warning("Vui lòng nhập nội dung đánh giá cho huấn luyện viên.");
+      return;
+    }
+
+    try {
+      setFeedbackLoading(true);
+      const payload = {
+        memberPackageId: selected.history.id,
+        rating: Number(trainerRating) || 5,
+        comments: trainerComments.trim(),
+      };
+      await api.post("/member/feedback/trainer", payload);
+      message.success("Đã gửi đánh giá cho huấn luyện viên. Cảm ơn bạn!");
+      setTrainerComments("");
+    } catch (err) {
+      console.error("Error sending trainer feedback:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi đánh giá huấn luyện viên thất bại.";
+      message.error(detail);
+    } finally {
+      setFeedbackLoading(false);
     }
   };
 
@@ -470,6 +653,8 @@ export default function MyPackage() {
         {paginatedPackages.map((pkg) => {
           const status = getStatus(pkg);
           const daysRemainDisplay = getDaysRemainingDisplay(pkg);
+          const isCancelled =
+            (pkg.apiStatus || "").toLowerCase() === "cancelled";
 
           return (
             <div className="row justify-content-center mb-3" key={pkg.id}>
@@ -477,7 +662,8 @@ export default function MyPackage() {
                 <div className="card shadow-0 border rounded-3 card-shadow">
                   <div className="card-body">
                     <div className="row g-3 align-items-center">
-                      <div className="col-12 col-md-6">
+                      {/* Cột tên gói */}
+                      <div className="col-12 col-md-5">
                         <div className="pkg-title mb-1">{pkg.name}</div>
                         <div className="text-muted">
                           Thời hạn:{" "}
@@ -491,7 +677,8 @@ export default function MyPackage() {
                         )}
                       </div>
 
-                      <div className="col-12 col-md-4">
+                      {/* Cột ngày bắt đầu / kết thúc */}
+                      <div className="col-12 col-md-3">
                         <div className="text-muted small">Ngày bắt đầu</div>
                         <div className="fw-semibold">
                           {formatDDMMYYYY(pkg.startDate)}
@@ -510,16 +697,30 @@ export default function MyPackage() {
                         )}
                       </div>
 
-                      <div className="col-12 col-md-2 text-md-end">
-                        <button
-                          className="btn btn-primary btn-sm mb-1"
-                          onClick={() => handleOpen(pkg)}
-                        >
-                          Chi tiết
-                        </button>
+                      {/* Cột button + status */}
+                      <div className="col-12 col-md-4 d-flex flex-column align-items-md-end align-items-start">
+                        <div className="d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap flex-md-nowrap">
+                          {/* Nút yêu cầu hoàn tiền hiển thị ngay trên list nếu gói đã hủy */}
+                          {isCancelled && (
+                            <button
+                              className="btn btn-warning btn-sm"
+                              onClick={() => handleOpenRefundFromList(pkg)}
+                            >
+                              Yêu cầu hoàn tiền
+                            </button>
+                          )}
+
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpen(pkg)}
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
+
                         <div
                           className={status.className}
-                          style={{ fontSize: "0.9rem" }}
+                          style={{ fontSize: "0.9rem", marginTop: 8 }}
                         >
                           {status.text}
                         </div>
@@ -538,7 +739,11 @@ export default function MyPackage() {
             <div className="col-12 col-xl-10 d-flex justify-content-center">
               <nav>
                 <ul className="pagination mb-0">
-                  <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <li
+                    className={`page-item ${
+                      currentPage === 1 ? "disabled" : ""
+                    }`}
+                  >
                     <button
                       type="button"
                       className="page-link"
@@ -736,15 +941,136 @@ export default function MyPackage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Feedback section */}
+                <hr className="mt-4 mb-3" />
+                <h6 className="mb-3">Đánh giá & phản hồi</h6>
+                <div className="row g-3">
+                  {/* Gym feedback */}
+                  <div className="col-12 col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <h6 className="mb-2">Phòng gym</h6>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Mức độ hài lòng
+                        </label>
+                        <StarRating
+                          value={gymRating}
+                          onChange={setGymRating}
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Loại phản hồi (tuỳ chọn)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="VD: Cơ sở vật chất, dịch vụ, không gian..."
+                          value={gymFeedbackType}
+                          onChange={(e) =>
+                            setGymFeedbackType(e.target.value)
+                          }
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Nội dung đánh giá
+                        </label>
+                        <textarea
+                          className="form-control"
+                          rows={3}
+                          value={gymComments}
+                          onChange={(e) => setGymComments(e.target.value)}
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary mt-1"
+                        onClick={handleSubmitGymFeedback}
+                        disabled={feedbackLoading}
+                      >
+                        {feedbackLoading
+                          ? "Đang gửi..."
+                          : "Gửi đánh giá phòng gym"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Trainer feedback (nếu có trainer) */}
+                  {selected.history?.trainerName && (
+                    <div className="col-12 col-md-6">
+                      <div className="border rounded p-3 h-100">
+                        <h6 className="mb-2">
+                          Huấn luyện viên{" "}
+                          <span className="fw-semibold">
+                            {selected.history.trainerName}
+                          </span>
+                        </h6>
+                        <div className="mb-2">
+                          <label className="form-label small mb-1">
+                            Mức độ hài lòng
+                          </label>
+                          <StarRating
+                            value={trainerRating}
+                            onChange={setTrainerRating}
+                            disabled={feedbackLoading}
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label className="form-label small mb-1">
+                            Nội dung đánh giá
+                          </label>
+                          <textarea
+                            className="form-control"
+                            rows={3}
+                            value={trainerComments}
+                            onChange={(e) =>
+                              setTrainerComments(e.target.value)
+                            }
+                            disabled={feedbackLoading}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-success mt-1"
+                          onClick={handleSubmitTrainerFeedback}
+                          disabled={feedbackLoading}
+                        >
+                          {feedbackLoading
+                            ? "Đang gửi..."
+                            : "Gửi đánh giá huấn luyện viên"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="modal-footer d-flex justify-content-end gap-2">
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={handleRequestCancel}
-                >
-                  Hủy gói
-                </button>
+                {/* Refund chỉ khi đã hủy */}
+                {selected.history?.apiStatus?.toLowerCase() === "cancelled" && (
+                  <button
+                    className="btn btn-warning"
+                    onClick={handleOpenRefund}
+                  >
+                    Yêu cầu hoàn tiền
+                  </button>
+                )}
+
+                {/* Nút hủy gói chỉ hiện khi status Active */}
+                {selected.history?.apiStatus?.toLowerCase() === "active" && (
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={handleRequestCancel}
+                  >
+                    Hủy gói
+                  </button>
+                )}
+
                 <button
                   className="btn btn-primary"
                   onClick={() =>
@@ -834,6 +1160,52 @@ export default function MyPackage() {
                   disabled={cancelLoading}
                 >
                   {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== Modal yêu cầu hoàn tiền ===== */}
+        {refundOpen && (
+          <div
+            className="confirm-backdrop"
+            onClick={handleRefundModalClose}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <h6 className="mb-2">Yêu cầu hoàn tiền</h6>
+              <p className="text-muted mb-2">
+                Vui lòng mô tả ngắn gọn lý do bạn muốn hoàn tiền cho gói này.
+              </p>
+
+              <div className="mb-3">
+                <label className="form-label small">Lý do hoàn tiền</label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  disabled={refundLoading}
+                  placeholder="Ví dụ: không thể tiếp tục sử dụng gói do chuyển nơi ở..."
+                />
+              </div>
+
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-light"
+                  onClick={handleRefundModalClose}
+                  disabled={refundLoading}
+                >
+                  Đóng
+                </button>
+                <button
+                  className="btn btn-warning"
+                  onClick={handleRefundSubmit}
+                  disabled={refundLoading}
+                >
+                  {refundLoading ? "Đang gửi..." : "Gửi yêu cầu hoàn tiền"}
                 </button>
               </div>
             </div>
