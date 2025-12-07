@@ -281,6 +281,15 @@ export default function Navbar() {
                             <button
                               className="dropdown-item"
                               onClick={() =>
+                                navigate(`/staff/chat-list`)
+                              }
+                            >
+                              Chat với Học viên
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
                                 navigate("/staff/reward-redemption")
                               }
                             >
@@ -366,6 +375,15 @@ export default function Navbar() {
                               }
                             >
                               Quản lý học viên
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate(`/trainer/chat-list`)
+                              }
+                            >
+                              Chat với Học viên
                             </button>
                           </li>
                         )}

@@ -13,6 +13,7 @@ import NotFound from "../pages/NotFound.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
+import ChatList from "../pages/Chatlist.jsx";
 
 // Profiles
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
@@ -58,6 +59,7 @@ import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
+import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -69,6 +71,7 @@ import ManageSchedule from "../pages/Manager/Schedule.jsx";
 //Trainer
 import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
+import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 
 function Layout() {
   return (
@@ -153,6 +156,8 @@ export default function AppRoutes() {
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
           <Route path="/trainer/member-list" element={<ManageMember />} />
+          <Route path="/trainer/chat-list" element={<ChatList />} />
+          <Route path="/trainer/chat/:id" element={<ChatBoxTrainer />} />
         </Route>
 
         {/* ===== Staff protected ===== */}
@@ -165,7 +170,8 @@ export default function AppRoutes() {
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
           <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
-
+          <Route path="/staff/chat-list" element={<ChatList />} />
+          <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
         </Route>
 
         {/* ===== Admin protected ===== */}
