@@ -38,6 +38,7 @@ import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
 import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
 import ChatPage from "../pages/Member/ChatPage.jsx";
 import ChatConversation from "../pages/Member/ChatConversation.jsx";
+import RewardGifts from "../pages/Member/RewardGifts.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -140,9 +141,9 @@ export default function AppRoutes() {
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
           <Route path="/member/payment/:id" element={<PaymentPage />} />          
-          <Route path="/member/points-history" element={<ExtraPoint />} />       
-          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
-          WorkoutMealPlan
+          <Route path="/member/points-history" element={<ExtraPoint />} />
+          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />    
+          <Route path="/member/reward-gifts" element={<RewardGifts />} />
         </Route>
 
         {/* ===== Trainer protected ===== */}

@@ -251,7 +251,13 @@ export default function Navbar() {
                             >
                               Lịch sử thanh toán
                             </button>
-
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/reward-gifts")}
+                            >
+                              Đổi quà
+                            </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
