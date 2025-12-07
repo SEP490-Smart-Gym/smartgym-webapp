@@ -351,7 +351,9 @@ const saveMaintenanceLog = async () => {
                       <p className="card-text text-muted small mb-3">
                         Mẫu máy: <strong>{it.model}</strong>
                         <br />
-                        Mua: {formatDate(it.purchaseDate)} • Giá:{" "}
+                        Mua: {formatDate(it.purchaseDate)} 
+                        <br />
+                        Giá:{" "}
                         {it.purchaseCost
                           ? Number(it.purchaseCost).toLocaleString() + " đ"
                           : "—"}

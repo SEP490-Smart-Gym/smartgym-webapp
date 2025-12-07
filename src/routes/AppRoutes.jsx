@@ -72,6 +72,12 @@ import ManageSchedule from "../pages/Manager/Schedule.jsx";
 import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
 import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
+import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
+import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
+import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import ChatPage from "../pages/Member/ChatPage.jsx";
+import ChatConversation from "../pages/Member/ChatConversation.jsx";
+import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 
 function Layout() {
   return (
@@ -154,9 +160,9 @@ export default function AppRoutes() {
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
+          <Route path="/trainer/chatlist" element={<TrainerChatList />} />
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
           <Route path="/trainer/member-list" element={<ManageMember />} />
-          <Route path="/trainer/chat-list" element={<ChatList />} />
           <Route path="/trainer/chat/:id" element={<ChatBoxTrainer />} />
         </Route>
 

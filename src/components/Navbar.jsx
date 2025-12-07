@@ -465,6 +465,11 @@ export default function Navbar() {
                   >
                     Blogs
                   </HashLink>
+                  {user?.roleName == "Trainer" &&(
+                    <NavLink to="/trainer/chatlist" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
 
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}
