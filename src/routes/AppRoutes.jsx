@@ -50,6 +50,7 @@ import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 import TimeSlot from "../pages/admin/SettingTimeSlot.jsx";
 import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
 import AdminManagerList from "../pages/admin/AdminManagerList.jsx";
+import AdminPromotionGifts from "../pages/admin/ManagePromotion.jsx";
 
 // Staff
 import ProtectedRoute from "./ProtectedRoute.jsx";
@@ -179,6 +180,7 @@ export default function AppRoutes() {
           <Route path="/admin/managers" element={<AdminManagerList />} />
           <Route path="/admin/vouchers" element={<AdminVoucher />} />
           <Route path="/admin/timeslot" element={<TimeSlot />} />
+          <Route path="/admin/promotion-gifts" element={<AdminPromotionGifts />} />
         </Route>
 
         {/* ===== Manager protected ===== */}

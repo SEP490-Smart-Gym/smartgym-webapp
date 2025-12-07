@@ -986,6 +986,7 @@ export default function Calendar() {
                   memberPackageId: memberPackageId,
                   notes: "",
                 };
+                console.log("Booking payload:", payload);
 
                 const res = await api.post("/TrainingSession/book", payload);
                 const created = res.data;

@@ -89,6 +89,12 @@ export default function AdminSidebar() {
             <span className="label">Thiết bị</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
+          <NavLink to="/admin/promotion-gifts" className="admin-side-item">
+            <i className="fa fa-users icon" />
+            <AiOutlineTool />
+            <span className="label">Quà đổi điểm</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
           <NavLink to="/admin/vouchers" className="admin-side-item">
             <i className="fa fa-users icon" />
             <IoTicketOutline />

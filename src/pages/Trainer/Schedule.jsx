@@ -1,14 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-
-// mock event ban đầu (có thể bỏ khi dùng API thật cho lịch staff)
-const mockData = [
-  { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
-  { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
-  { date: "2025-11-20", time: "08:00-09:00", title: "Training session", status: "not yet" },
-  { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
-  { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
-  { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
-];
+import api from "../../config/axios"; // chỉnh lại path nếu cần
 
 function parseTimeRange(timeStr) {
   if (!timeStr) return [0, 0, 0, 0];
@@ -17,37 +8,11 @@ function parseTimeRange(timeStr) {
   const [eh, em] = end ? end.split(":").map((v) => +v) : [sh, sm];
   return [sh, sm, eh, em];
 }
+
 function startOfDay(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
-}
-
-function normalizeMockData(arr) {
-  const today = startOfDay(new Date());
-  const seen = new Set();
-  const out = [];
-  for (const it of arr) {
-    const d = new Date(it.date);
-    const k = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    if (seen.has(k)) continue; // mỗi ngày 1 event cho display
-    seen.add(k);
-    const [sh, sm, eh, em] = parseTimeRange(it.time);
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm, 0, 0);
-    const end = eh || em ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em, 0, 0) : null;
-    const dateOnly = startOfDay(d);
-    const status = dateOnly.getTime() > today.getTime() ? "not yet" : it.status || "present";
-    out.push({
-      title: it.title,
-      start,
-      end,
-      allDay: false,
-      status,
-      text: `<div><strong>${it.title}</strong><br/>${it.time || ""}<br/><em>Status: ${status}</em></div>`,
-    });
-  }
-  out.sort((a, b) => +a.start - +b.start);
-  return out;
 }
 
 function loadScript(src) {
@@ -87,17 +52,90 @@ function toDDMMYYYY(date) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/**
+ * Chuẩn hóa dữ liệu từ API /api/TrainerSchedule/my-schedules
+ * Mỗi ngày gom tất cả schedule lại → 1 event cho calendar
+ * nhưng event đó chứa mảng sessions để hiển thị chi tiết trong modal
+ */
+function normalizeScheduleData(apiList) {
+  const today = startOfDay(new Date());
+  const map = new Map();
+
+  (apiList || []).forEach((item) => {
+    if (!item.sessionDate) return;
+
+    const d = new Date(item.sessionDate);
+    const dateKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+    const [sh, sm, eh, em] = parseTimeRange(item.timeSlotName || item.time || "");
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh || 0, sm || 0, 0, 0);
+    const end =
+      eh || em
+        ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh || 0, em || 0, 0, 0)
+        : null;
+
+    const scheduleInfo = {
+      id: item.id,
+      memberName: item.memberName || "",
+      timeSlotName: item.timeSlotName || item.time || "",
+      status: item.status || "",
+      start,
+      end,
+      raw: item,
+    };
+
+    if (!map.has(dateKey)) {
+      map.set(dateKey, {
+        date: startOfDay(d),
+        start,
+        end,
+        sessions: [scheduleInfo],
+      });
+    } else {
+      const g = map.get(dateKey);
+      g.sessions.push(scheduleInfo);
+      if (start < g.start) g.start = start;
+      if (end && (!g.end || end > g.end)) g.end = end;
+    }
+  });
+
+  const out = [];
+  for (const [, g] of map.entries()) {
+    const status = g.date.getTime() > today.getTime() ? "upcoming" : "past";
+    out.push({
+      title: `${g.sessions.length} lịch dạy`,
+      start: g.start,
+      end: g.end,
+      allDay: false,
+      status,
+      date: g.date,
+      sessions: g.sessions,
+    });
+  }
+  out.sort((a, b) => +a.start - +b.start);
+  return out;
+}
+
+function getStatusBadgeClass(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "present" || s === "đã dạy" || s === "completed") return "badge bg-success";
+  if (s === "absent" || s === "hủy" || s === "cancelled" || s === "missed")
+    return "badge bg-danger";
+  if (s === "upcoming" || s === "scheduled") return "badge bg-primary";
+  return "badge bg-secondary";
+}
+
 function StaffSchedule() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
-  const dataRef = useRef([...mockData]); // giờ chỉ để display, không cho staff chỉnh sửa
-
-  // event đang xem chi tiết
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  // state lưu dữ liệu ngày đang xem chi tiết
+  const [selectedDay, setSelectedDay] = useState(null);
   const eventModalRef = useRef(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     (async () => {
       await loadScript("https://code.jquery.com/jquery-3.6.4.min.js");
 
@@ -157,7 +195,13 @@ function StaffSchedule() {
 
       // Popover helpers
       let currentPopover = null;
-      const POPOVER_OPTS = { html: true, container: "body", placement: "auto", trigger: "manual", sanitize: false };
+      const POPOVER_OPTS = {
+        html: true,
+        container: "body",
+        placement: "auto",
+        trigger: "manual",
+        sanitize: false,
+      };
       function getOrCreatePopover(elem, opts) {
         const PopCtor =
           (window.bootstrap && window.bootstrap.Popover) || (BootstrapBundle && BootstrapBundle.Popover);
@@ -259,7 +303,7 @@ function StaffSchedule() {
             draw();
           });
 
-        // CLICK CHIP EVENT → mở modal detail (view only)
+        // CLICK CHIP EVENT → mở modal detail
         $el.on("click", ".event-chip", function (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -270,19 +314,29 @@ function StaffSchedule() {
           return false;
         });
 
+        // CLICK CẢ Ô NGÀY (calendar-day) nếu có lịch → mở modal
+        $el.on("click", ".calendar-day.has-event", function (e) {
+          // đừng ngăn chặn bubble hoàn toàn, chỉ tránh trùng với chip nếu cần
+          const dateStr = this.getAttribute("data-date");
+          if (!dateStr || !options.data) return;
+          const d = new Date(dateStr);
+          const cssClass = d.toDateCssClass();
+          const ev = options.data.find((x) => x.date && x.date.toDateCssClass() === cssClass);
+          if (ev && options.onOpenEvent) {
+            options.onOpenEvent(ev);
+          }
+        });
+
+        // render icon 👥 cho ngày có lịch
         function monthAddEvent(index, event) {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
           if (!dayCell.length || dayCell.hasClass("has-event")) return;
-          const time = event.start.toTimeString();
-          const status = (event.status || "").toLowerCase();
+          const count = (event.sessions && event.sessions.length) || 0;
           const $chip = $(`
-            <div class="event-chip status-${status.replace(/\s+/g, "-")}" data-index="${index}" title="${event.title}">
-              <div class="event-chip-title">${event.title}</div>
-              <div class="event-chip-time">${time}${
-            event.end ? " - " + event.end.toTimeString() : ""
-          }</div>
-              <div class="event-chip-badge">${status}</div>
+            <div class="event-chip status-has" data-index="${index}" title="${count} lịch dạy">
+              <span class="event-chip-icon">👥</span>
+              ${count > 1 ? `<span class="event-chip-count">x${count}</span>` : ""}
             </div>
           `);
           dayCell.addClass("has-event").append($chip);
@@ -303,7 +357,8 @@ function StaffSchedule() {
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
             if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
+            else if (options.mode === "month" || options.mode === "week")
+              $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -354,22 +409,32 @@ function StaffSchedule() {
         document
       );
 
-      const normalized = normalizeMockData(dataRef.current);
+      // ==== CALL API LẤY LỊCH DẠY CỦA TRAINER ====
+      let apiData = [];
+      try {
+        const res = await api.get("/api/TrainerSchedule/my-schedules");
+        apiData = res.data || [];
+      } catch (err) {
+        console.error("Failed to load trainer schedules:", err);
+      }
+      if (!isMounted) return;
+
+      const normalized = normalizeScheduleData(apiData);
+
       window.jQuery(holderRef.current).calendar({
         data: normalized,
         onOpenEvent: (ev) => {
-          setSelectedEvent({
-            title: ev.title,
-            date: ev.start,
-            start: ev.start,
-            end: ev.end,
-            status: ev.status || "present",
+          setSelectedDay({
+            date: ev.date || ev.start,
+            sessions: ev.sessions || [],
           });
           try {
             const ModalClass =
               (window.bootstrap && window.bootstrap.Modal) || (BootstrapBundle && BootstrapBundle.Modal);
             if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
+              const inst = ModalClass.getOrCreateInstance(
+                document.getElementById("eventDetailModal")
+              );
               inst.show();
             }
           } catch (e) {
@@ -378,6 +443,10 @@ function StaffSchedule() {
         },
       });
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -422,27 +491,15 @@ function StaffSchedule() {
 .calendar-day.has-event .date{ font-weight:700; color:#c80036; }
 .calendar-day.has-event.today{ background:#ffe9a8 !important; border-color:#ffcc66 !important; }
 
-/* ===== EVENT CHIP ===== */
+/* ===== EVENT CHIP (ICON MEMBER) ===== */
 .event-chip{
-  margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
-  cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
+  margin-top:4px; padding:4px 6px; border-radius:999px; background:#ffe4ef; border:1px dashed #ff9eb2;
+  cursor:pointer; font-size:12px; line-height:1; display:inline-flex; align-items:center; gap:4px;
 }
-.event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-badge{
-  display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.3px;
-}
+.event-chip-icon{ font-size:14px; line-height:1; }
+.event-chip-count{ font-size:11px; font-weight:600; }
 
-/* ===== STATUS COLORS ===== */
-.event-chip.status-present{ background:#e6ffed; border-color:#9ae6b4; }
-.event-chip.status-present .event-chip-badge{ background:#34d399; color:#053321; }
-
-.event-chip.status-absent{ background:#ffe6e6; border-color:#ffb3b3; }
-.event-chip.status-absent .event-chip-badge{ background:#f87171; color:#4a0a0a; }
-
-.event-chip.status-not\\ yet, .event-chip.status-not-yet{ background:#f1f5f9; border-color:#cbd5e1; }
-.event-chip.status-not\\ yet .event-chip-badge, .event-chip.status-not-yet .event-chip-badge{ background:#94a3b8; color:#0f172a; }
+.event-chip.status-has{ background:#fef2ff; border-color:#e9d5ff; }
 
 /* ===== YEAR VIEW ===== */
 .calendar-table td.calendar-month{
@@ -460,60 +517,58 @@ function StaffSchedule() {
 @media (max-width: 576px){
   .calendar-day{ min-height:90px; padding:6px; }
   .event-chip{ font-size:11px; }
-  .event-chip-time{ font-size:10px; }
   .nav-arrow{ font-size:20px; padding:2px 8px; }
 }
       `}</style>
 
-      {/* TIÊU ĐỀ: LỊCH LÀM VIỆC (staff view only) */}      
+      {/* TIÊU ĐỀ: LỊCH LÀM VIỆC (trainer view) */}
       <div className="d-flex justify-content-center align-items-center mb-3">
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Lịch làm việc</h1>
       </div>
 
-      {/* MODAL CHI TIẾT EVENT - chỉ xem, không có nút hủy */}
+      {/* MODAL CHI TIẾT LỊCH DẠY TRONG 1 NGÀY */}
       <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
-        <div className="modal-dialog">
+        <div className="modal-dialog modal-dialog-scrollable">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">{selectedEvent?.title || "Chi tiết lịch làm việc"}</h5>
+              <h5 className="modal-title">
+                {selectedDay ? `Lịch dạy ngày ${toDDMMYYYY(selectedDay.date)}` : "Chi tiết lịch dạy"}
+              </h5>
               <button
                 type="button"
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => setSelectedDay(null)}
               />
             </div>
             <div className="modal-body">
-              {selectedEvent ? (
-                <>
-                  <div className="mb-2 text-muted">
-                    Ngày: <strong>{toDDMMYYYY(selectedEvent.date)}</strong>
-                  </div>
-                  <div className="mb-2">
-                    Thời gian:{" "}
-                    <strong>
-                      {hhmm(selectedEvent.start)}
-                      {selectedEvent.end ? ` - ${hhmm(selectedEvent.end)}` : ""}
-                    </strong>
-                  </div>
-                  <div className="mb-2">
-                    Trạng thái:{" "}
-                    <span
-                      className={
-                        (selectedEvent.status || "").toLowerCase() === "present"
-                          ? "badge bg-success"
-                          : (selectedEvent.status || "").toLowerCase() === "absent"
-                          ? "badge bg-danger"
-                          : "badge bg-secondary"
-                      }
-                    >
-                      {selectedEvent.status}
-                    </span>
-                  </div>
-                </>
+              {selectedDay && selectedDay.sessions && selectedDay.sessions.length ? (
+                <div className="list-group">
+                  {selectedDay.sessions.map((s, idx) => (
+                    <div key={s.id || idx} className="list-group-item">
+                      <div className="fw-bold">
+                        {s.memberName || "Member"}
+                      </div>
+                      <div className="small text-muted">
+                        Khung giờ:{" "}
+                        <strong>
+                          {s.timeSlotName ||
+                            `${hhmm(s.start)}${s.end ? ` - ${hhmm(s.end)}` : ""}`}
+                        </strong>
+                      </div>
+                      {s.status ? (
+                        <div className="mt-1">
+                          <span className={getStatusBadgeClass(s.status)}>
+                            {s.status}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <div className="text-muted">Không có dữ liệu lịch làm việc.</div>
+                <div className="text-muted">Không có lịch dạy trong ngày này.</div>
               )}
             </div>
             <div className="modal-footer">
@@ -521,7 +576,7 @@ function StaffSchedule() {
                 type="button"
                 className="btn btn-light"
                 data-bs-dismiss="modal"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => setSelectedDay(null)}
               >
                 Đóng
               </button>
@@ -530,7 +585,7 @@ function StaffSchedule() {
         </div>
       </div>
 
-      {/* Template calendar */} 
+      {/* Template calendar */}
       <script type="text/tmpl" id="tmpl" ref={tmplRef}>
         {`
   {{ 
