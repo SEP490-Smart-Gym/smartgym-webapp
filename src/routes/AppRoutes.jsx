@@ -56,6 +56,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
+import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -162,6 +163,7 @@ export default function AppRoutes() {
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
+          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
 
         </Route>
 

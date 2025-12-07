@@ -42,7 +42,7 @@ const MOCK_GIFTS = [
     id: 2,
     name: "Bình nước thể thao cao cấp",
     image:
-      "https://fungift.vn/wp-content/uploads/2024/03/binh-nuoc-nhua-in-logo-cong-ty.jpg",
+      "https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=1200",
     pointsRequired: 800,
     shortDescription:
       "Bình nước 1L chống rò rỉ, giúp bạn luôn đủ nước trong buổi tập.",
@@ -58,7 +58,7 @@ const MOCK_GIFTS = [
     id: 3,
     name: "Khăn tập Gym cao cấp",
     image:
-      "https://bizweb.dktcdn.net/thumb/1024x1024/100/334/475/products/tam-60x130-2.jpg?v=1631588096303",
+      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
     pointsRequired: 500,
     shortDescription:
       "Khăn cotton mềm mại, thấm hút tốt cho mỗi buổi tập của bạn.",
@@ -74,7 +74,7 @@ const MOCK_GIFTS = [
     id: 4,
     name: "Voucher 1 lần xông hơi miễn phí",
     image:
-      "https://dulichtoday.vn/wp-content/uploads/2019/04/dia-chi-xong-hoi-sai-gon-7.jpg",
+      "https://images.pexels.com/photos/3738046/pexels-photo-3738046.jpeg?auto=compress&cs=tinysrgb&w=1200",
     pointsRequired: 600,
     shortDescription:
       "Thư giãn cơ bắp và giải tỏa căng thẳng sau buổi tập với 1 lần xông hơi.",
@@ -94,7 +94,7 @@ const MOCK_REDEEMED_GIFTS = [
     id: 101,
     name: "Khăn tập Gym cao cấp",
     image:
-      "https://bizweb.dktcdn.net/thumb/1024x1024/100/334/475/products/tam-60x130-2.jpg?v=1631588096303",
+      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
     pointsUsed: 500,
     redeemedAt: "20/11/2025 18:30",
     status: "Đã nhận",
@@ -105,10 +105,10 @@ const MOCK_REDEEMED_GIFTS = [
     id: 102,
     name: "Voucher 1 lần xông hơi miễn phí",
     image:
-      "https://dulichtoday.vn/wp-content/uploads/2019/04/dia-chi-xong-hoi-sai-gon-7.jpg",
+      "https://images.pexels.com/photos/3738046/pexels-photo-3738046.jpeg?auto=compress&cs=tinysrgb&w=1200",
     pointsUsed: 600,
     redeemedAt: "05/12/2025 09:15",
-    status: "Chưa nhận",
+    status: "Chưa sử dụng",
     pickupLocation: "Quầy lễ tân - Chi nhánh Quận 7",
     note: "Cần đặt lịch trước ít nhất 24h. Hạn sử dụng đến 20/12/2025.",
   },
@@ -123,6 +123,9 @@ const RewardGifts = () => {
 
   // 'store' = Đổi quà, 'my' = Quà của tôi
   const [activeTab, setActiveTab] = useState("store");
+
+  // filter theo điểm cho tab ĐỔI QUÀ: all | 0-500 | 500-1000 | 1000+
+  const [pointFilter, setPointFilter] = useState("all");
 
   const [selectedGift, setSelectedGift] = useState(null);
   const [selectedSource, setSelectedSource] = useState("store"); // 'store' | 'my'
@@ -154,18 +157,34 @@ const RewardGifts = () => {
       setRedeeming(true);
       setTimeout(() => {
         message.success(
-          `Đổi quà thành công: ${selectedGift.name}. Vui lòng liên hệ lễ tân để nhận quà!`
+          `Đổi quà thành công (mock): ${selectedGift.name}. Vui lòng liên hệ lễ tân để nhận quà!`
         );
         setRedeeming(false);
         setDetailOpen(false);
         setSelectedGift(null);
       }, 700);
     } catch (err) {
-      console.error("Redeem error:", err);
-      message.error("Đổi quà thất bại, vui lòng thử lại!");
+      console.error("Redeem error (mock):", err);
+      message.error("Đổi quà thất bại (mock), vui lòng thử lại!");
       setRedeeming(false);
     }
   };
+
+  // ====== ÁP DỤNG FILTER THEO ĐIỂM CHO TAB ĐỔI QUÀ ======
+  const filteredStoreGifts = gifts.filter((gift) => {
+    const p = gift.pointsRequired || 0;
+
+    if (pointFilter === "0-500") {
+      return p <= 500;
+    }
+    if (pointFilter === "500-1000") {
+      return p > 500 && p <= 1000;
+    }
+    if (pointFilter === "1000+") {
+      return p > 1000;
+    }
+    return true; // all
+  });
 
   return (
     <Container className="mt-5 mb-5" fluid>
@@ -241,7 +260,7 @@ const RewardGifts = () => {
                     </span>
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
-                    Đổi quà trước khi điểm hết hạn theo chương trình.
+                    Đổi quà trước khi điểm hết hạn.
                   </div>
                 </div>
               </div>
@@ -257,7 +276,7 @@ const RewardGifts = () => {
                 >
                   <Button
                     size="sm"
-                    color={activeTab === "store" ? "primary" : "secondary"}
+                    color={activeTab === "store" ? "danger" : "secondary"}
                     style={{
                       fontWeight: activeTab === "store" ? 700 : 500,
                       borderRadius: "999px 0 0 999px",
@@ -268,7 +287,7 @@ const RewardGifts = () => {
                   </Button>
                   <Button
                     size="sm"
-                    color={activeTab === "my" ? "primary" : "secondary"}
+                    color={activeTab === "my" ? "danger" : "secondary"}
                     style={{
                       fontWeight: activeTab === "my" ? 700 : 500,
                       borderRadius: "0 999px 999px 0",
@@ -283,15 +302,69 @@ const RewardGifts = () => {
               {/* ========== TAB: ĐỔI QUÀ ========== */}
               {activeTab === "store" && (
                 <>
-                  {gifts.length === 0 && (
+                  {/* Filter theo điểm */}
+                  <div className="d-flex justify-content-center mb-3">
+                    <div
+                      className="btn-group"
+                      role="group"
+                      aria-label="Point filter"
+                    >
+                      <Button
+                        size="sm"
+                        color={pointFilter === "all" ? "danger" : "secondary"}
+                        style={{
+                          fontSize: 12,
+                          borderRadius: "999px 0 0 999px",
+                        }}
+                        onClick={() => setPointFilter("all")}
+                      >
+                        Tất cả
+                      </Button>
+                      <Button
+                        size="sm"
+                        color={
+                          pointFilter === "0-500" ? "danger" : "secondary"
+                        }
+                        style={{ fontSize: 12 }}
+                        onClick={() => setPointFilter("0-500")}
+                      >
+                        0 – 500
+                      </Button>
+                      <Button
+                        size="sm"
+                        color={
+                          pointFilter === "500-1000" ? "danger" : "secondary"
+                        }
+                        style={{ fontSize: 12 }}
+                        onClick={() => setPointFilter("500-1000")}
+                      >
+                        500 – 1000
+                      </Button>
+                      <Button
+                        size="sm"
+                        color={
+                          pointFilter === "1000+" ? "danger" : "secondary"
+                        }
+                        style={{
+                          fontSize: 12,
+                          borderRadius: "0 999px 999px 0",
+                        }}
+                        onClick={() => setPointFilter("1000+")}
+                      >
+                        1000+
+                      </Button>
+                    </div>
+                  </div>
+
+                  {filteredStoreGifts.length === 0 && (
                     <div className="alert alert-light border text-center mb-0">
-                      Hiện chưa có quà tặng nào khả dụng. Vui lòng quay lại sau!
+                      Không có quà nào trong khoảng điểm đã chọn.
                     </div>
                   )}
 
-                  {gifts.length > 0 && (
+                  {filteredStoreGifts.length > 0 && (
                     <Row className="mt-2">
-                      {gifts.map((gift) => {
+                      {filteredStoreGifts.map((gift) => {
                         const canRedeem =
                           currentPoints >= gift.pointsRequired;
 
@@ -759,7 +832,7 @@ const RewardGifts = () => {
               {redeeming
                 ? "Đang xử lý..."
                 : currentPoints >= selectedGift.pointsRequired
-                ? "Xác nhận đổi quà"
+                ? "Xác nhận đổi quà (mock)"
                 : "Chưa đủ điểm"}
             </Button>
           )}

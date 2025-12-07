@@ -281,6 +281,15 @@ export default function Navbar() {
                             <button
                               className="dropdown-item"
                               onClick={() =>
+                                navigate("/staff/reward-redemption")
+                              }
+                            >
+                              Quản lý đổi quà
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
                                 navigate("staff/equipmentlist")
                               }
                             >
