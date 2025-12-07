@@ -13,7 +13,6 @@ import NotFound from "../pages/NotFound.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
-import ChatList from "../pages/Chatlist.jsx";
 
 // Profiles
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
@@ -60,6 +59,7 @@ import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.js
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
 import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
+import StaffChatList from "../pages/Staff/StaffChatList.jsx"; 
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -72,11 +72,6 @@ import ManageSchedule from "../pages/Manager/Schedule.jsx";
 import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
 import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
-import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
-import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
-import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
-import ChatPage from "../pages/Member/ChatPage.jsx";
-import ChatConversation from "../pages/Member/ChatConversation.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 
 function Layout() {
@@ -175,8 +170,8 @@ export default function AppRoutes() {
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
-          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
-          <Route path="/staff/chat-list" element={<ChatList />} />
+          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />          
+          <Route path="/staff/chatlist" element={<StaffChatList />} />
           <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
         </Route>
 

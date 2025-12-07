@@ -376,15 +376,6 @@ export default function Navbar() {
                             >
                               Quản lý học viên
                             </button>
-                            <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate(`/trainer/chat-list`)
-                              }
-                            >
-                              Chat với Học viên
-                            </button>
                           </li>
                         )}
 
@@ -467,6 +458,11 @@ export default function Navbar() {
                   </HashLink>
                   {user?.roleName == "Trainer" &&(
                     <NavLink to="/trainer/chatlist" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
+                  {user?.roleName == "Staff" &&(
+                    <NavLink to="/staff/chatlist" className="nav-item nav-link">
                       Chat
                     </NavLink>
                   )}
