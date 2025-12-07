@@ -21,9 +21,6 @@ import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
-import ManageSchedule from "../pages/Manager/Schedule.jsx";
-import StaffSchedule from "../pages/Staff/Schedule.jsx";
-import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -39,6 +36,8 @@ import PaymentHistory from "../pages/Member/MyPayment.jsx";
 import PaymentPage from "../pages/Member/PaymentCont.jsx";
 import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
 import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
+import ChatPage from "../pages/Member/ChatPage.jsx";
+import ChatConversation from "../pages/Member/ChatConversation.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -48,19 +47,25 @@ import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
 import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
 import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 import TimeSlot from "../pages/admin/SettingTimeSlot.jsx";
-
-// Guard
-import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
 import AdminManagerList from "../pages/admin/AdminManagerList.jsx";
+
+// Staff
+import ProtectedRoute from "./ProtectedRoute.jsx";
+import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
+import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import StaffSchedule from "../pages/Staff/Schedule.jsx";
+
+//Manager pages
+import RefundManagement from "../pages/Manager/ManageRefund.jsx";
+import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
 import EquipmentRepairPending from "../pages/Manager/EquipmentRepairPending.jsx";
 import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.jsx";
-import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
-import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
-import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
-import ChatPage from "../pages/Member/ChatPage.jsx";
-import ChatConversation from "../pages/Member/ChatConversation.jsx";
-import RefundManagement from "../pages/Manager/ManageRefund.jsx";
+import ManageSchedule from "../pages/Manager/Schedule.jsx";
+
+//Trainer
+import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
+import ManageMember from "../pages/Trainer/ManageMember.jsx";
 
 function Layout() {
   return (
@@ -142,10 +147,9 @@ export default function AppRoutes() {
 
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
-          {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
-          {/* Nếu muốn schedule riêng cho trainer: */}
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
+          <Route path="/trainer/member-list" element={<ManageMember />} />
         </Route>
 
         {/* ===== Staff protected ===== */}

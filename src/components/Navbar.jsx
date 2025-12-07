@@ -156,20 +156,23 @@ export default function Navbar() {
                           </span>
 
                           {/* điểm thưởng click được */}
-                          <span
-                            className="d-inline-flex align-items-center reward-points-badge"
-                            style={{
-                              color: "#ffd966",
-                              fontWeight: 600,
-                              fontSize: "0.9rem",
-                              cursor: "pointer",
-                              marginLeft: "20px",
-                            }}
-                            onClick={goToPointsHistory}
-                            title="Xem lịch sử điểm thưởng"
-                          >                            
-                            {rewardPoints}<span style={{ marginRight: 2 }}>₫</span>
-                          </span>
+                          {user.roleName === "Member" && (
+                            <span
+                              className="d-inline-flex align-items-center reward-points-badge"
+                              style={{
+                                color: "#ffd966",
+                                fontWeight: 600,
+                                fontSize: "0.9rem",
+                                cursor: "pointer",
+                                marginLeft: "20px",
+                              }}
+                              onClick={goToPointsHistory}
+                              title="Xem lịch sử điểm thưởng"
+                            >
+                              {rewardPoints}
+                              <span style={{ marginRight: 2 }}>₫</span>
+                            </span>
+                          )}
                         </div>
                       </button>
 
@@ -339,6 +342,15 @@ export default function Navbar() {
                               }
                             >
                               Lịch làm việc
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate(`/trainer/member-list`)
+                              }
+                            >
+                              Quản lý học viên
                             </button>
                           </li>
                         )}
