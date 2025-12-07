@@ -340,6 +340,11 @@ export default function Navbar() {
                   <HashLink smooth to="/#blogs-section" className="nav-item nav-link">
                     Blogs
                   </HashLink>
+                  {user?.roleName == "Trainer" &&(
+                    <NavLink to="/trainer/chatlist" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
 
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}

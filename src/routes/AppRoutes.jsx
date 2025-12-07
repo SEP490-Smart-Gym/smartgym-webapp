@@ -58,6 +58,7 @@ import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.js
 import ChatPage from "../pages/Member/ChatPage.jsx";
 import ChatConversation from "../pages/Member/ChatConversation.jsx";
 import ChatBot from "../pages/Member/ChatBox.jsx";
+import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 
 function Layout() {
   return (
@@ -141,6 +142,7 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
+          <Route path="/trainer/chatlist" element={<TrainerChatList />} />
           {/* Nếu muốn schedule riêng cho trainer: */}
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
         </Route>
