@@ -345,6 +345,12 @@ export default function Navbar() {
                       Chat
                     </NavLink>
                   )}
+                  {user?.roleName == "Member" &&(
+                    <NavLink to="/chat" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
+
 
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}

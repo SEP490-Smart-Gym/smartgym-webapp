@@ -20,9 +20,47 @@ export default function ChatPage() {
       setLoading(false);
     }
   };
-
+const mockConversations = [
+    {
+      id: 101,
+      otherUserId: 21,
+      otherUserName: "Nguyễn Văn Hùng",
+      otherUserAvatar: "/img/user1.jpg",
+      lastMessage: "Anh ơi mai mình tập buổi mấy vậy?",
+      lastMessageTime: "2025-02-15T09:32:00",
+      unreadCount: 2,
+    },
+    {
+      id: 102,
+      otherUserId: 37,
+      otherUserName: "Trần Thảo",
+      otherUserAvatar: "/img/user2.jpg",
+      lastMessage: "Em cảm ơn anh HLV nhiều ạ ❤️",
+      lastMessageTime: "2025-02-14T21:10:00",
+      unreadCount: 0,
+    },
+    {
+      id: 103,
+      otherUserId: 44,
+      otherUserName: "Phạm Quốc Trí",
+      otherUserAvatar: "/img/user3.jpg",
+      lastMessage: "Buổi tập hôm nay hơi căng anh ạ 😅",
+      lastMessageTime: "2025-02-14T18:22:00",
+      unreadCount: 5,
+    },
+    {
+      id: 104,
+      otherUserId: 56,
+      otherUserName: "Lê Mỹ Duyên",
+      otherUserAvatar: "/img/user4.jpg",
+      lastMessage: "Anh gửi giúp em video mẫu bài squat với!",
+      lastMessageTime: "2025-02-13T11:47:00",
+      unreadCount: 0,
+    }
+  ];
   useEffect(() => {
     fetchConversations();
+    // setConversations(mockConversations);
   }, []);
 
   const startConversation = async () => {
@@ -40,6 +78,8 @@ export default function ChatPage() {
       message.error("Không thể bắt đầu trò chuyện");
     }
   };
+  
+
 
   return (
     <div className="container py-4">
