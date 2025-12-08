@@ -1,5 +1,5 @@
 // src/views/RefundManagement.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   Card,
@@ -20,77 +20,16 @@ import {
   PaginationItem,
   PaginationLink,
 } from "reactstrap";
-
-// ================= MOCK DATA =================
-const mockRefundRequests = [
-  {
-    id: 1,
-    memberName: "Nguyễn Văn A",
-    memberEmail: "nguyenvana@example.com",
-    memberPhone: "0901 234 567",
-
-    refundAmount: 500000,
-    reason: "Không sắp xếp được thời gian tập",
-    status: "Pending", // Pending | Approved | Rejected
-    requestDate: "2025-12-01T09:30:00Z",
-
-    packageName: "Gói Gym 3 tháng",
-    packageDuration: "3 tháng",
-    packageSessions: 36,
-    packagePrice: 1500000,
-    startDate: "2025-11-01",
-    paymentMethod: "Stripe - Visa •••• 4242",
-
-    rejectNote: "",
-  },
-  {
-    id: 2,
-    memberName: "Trần Thị B",
-    memberEmail: "tranthib@example.com",
-    memberPhone: "0908 765 432",
-
-    refundAmount: 300000,
-    reason: "Lý do cá nhân (chuyển chỗ ở)",
-    status: "Pending",
-    requestDate: "2025-12-02T10:45:00Z",
-
-    packageName: "Gói Yoga 1 tháng",
-    packageDuration: "1 tháng",
-    packageSessions: 12,
-    packagePrice: 600000,
-    startDate: "2025-11-20",
-    paymentMethod: "Tiền mặt tại quầy",
-
-    rejectNote: "",
-  },
-  {
-    id: 3,
-    memberName: "Lê Văn C",
-    memberEmail: "levanc@example.com",
-    memberPhone: "0912 888 999",
-
-    refundAmount: 800000,
-    reason: "Không hài lòng về dịch vụ",
-    status: "Approved",
-    requestDate: "2025-11-28T14:15:00Z",
-
-    packageName: "Gói PT 10 buổi",
-    packageDuration: "2 tháng",
-    packageSessions: 10,
-    packagePrice: 2000000,
-    startDate: "2025-10-15",
-    paymentMethod: "Stripe - MasterCard •••• 1234",
-
-    rejectNote: "",
-  },
-];
-// ================= END MOCK DATA =================
+import { message } from "antd";
+import api from "../../config/axios"; // chỉnh lại path nếu khác
 
 const formatVNDC = (amount) => {
   if (amount == null) return "—";
   return amount.toLocaleString("vi-VN", {
     style: "currency",
     currency: "VND",
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
   });
 };
 
@@ -114,21 +53,45 @@ const statusColor = (status) => {
       return "success";
     case "Rejected":
       return "danger";
+    case "Cancelled":
+      return "secondary";
     default:
       return "warning"; // Pending
   }
 };
 
+const statusLabelVi = (status) => {
+  switch (status) {
+    case "Pending":
+      return "Chờ xác nhận";
+    case "Approved":
+      return "Chấp nhận";
+    case "Rejected":
+      return "Từ chối";
+    case "Cancelled":
+      return "Đã hủy đơn";
+    default:
+      return status || "Không rõ";
+  }
+};
+
 const RefundManagement = () => {
-  const [refunds, setRefunds] = useState(mockRefundRequests);
+  const [refunds, setRefunds] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Tab lọc: ALL | Pending | Approved | Rejected
+  // Tab lọc: ALL | Pending | Approved | Rejected | Cancelled
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // Ghi chú khi từ chối
-  const [rejectNote, setRejectNote] = useState("");
+  // Ghi chú admin (adminNotes)
+  const [adminNotes, setAdminNotes] = useState("");
+
+  // Payment detail (theo paymentId)
+  const [paymentDetail, setPaymentDetail] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [stripeRefundLoading, setStripeRefundLoading] = useState(false);
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,67 +99,231 @@ const RefundManagement = () => {
 
   const toggleDetail = () => setDetailOpen((prev) => !prev);
 
-  const openDetail = (refund) => {
-    setSelectedRefund(refund);
-    setRejectNote(refund.rejectNote || "");
+  // ====== API: lấy danh sách refund-requests ======
+  const fetchRefundRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/MemberPackage/refund-requests");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setRefunds(
+        data.map((r) => ({
+          id: r.id,
+          memberPackageId: r.memberPackageId,
+          memberId: r.memberId,
+          paymentId: r.paymentId,
+          requestedAmount: r.requestedAmount,
+          reason: r.reason,
+          status: r.status,
+          requestedAt: r.requestedAt,
+          reviewedAt: r.reviewedAt,
+          adminNotes: r.adminNotes,
+          memberName: r.memberName,
+          packageName: r.packageName,
+          reviewerName: r.reviewerName,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching refund-requests:", err);
+      message.error("Không tải được danh sách yêu cầu hoàn tiền.");
+      setRefunds([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ====== API: lấy chi tiết 1 refund ======
+  const fetchRefundDetail = async (id) => {
+    if (!id) return null;
+    try {
+      const res = await api.get(`/MemberPackage/refund-requests/${id}`);
+      const r = res.data;
+      if (!r) return null;
+      return {
+        id: r.id,
+        memberPackageId: r.memberPackageId,
+        memberId: r.memberId,
+        paymentId: r.paymentId,
+        requestedAmount: r.requestedAmount,
+        reason: r.reason,
+        status: r.status,
+        requestedAt: r.requestedAt,
+        reviewedAt: r.reviewedAt,
+        adminNotes: r.adminNotes,
+        memberName: r.memberName,
+        packageName: r.packageName,
+        reviewerName: r.reviewerName,
+      };
+    } catch (err) {
+      console.error("Error fetching refund detail:", err);
+      message.error("Không xem được chi tiết yêu cầu hoàn tiền.");
+      return null;
+    }
+  };
+
+  // ====== API: lấy thông tin thanh toán theo paymentId ======
+  const fetchPaymentDetail = async (paymentId) => {
+    if (!paymentId) {
+      setPaymentDetail(null);
+      return null;
+    }
+    try {
+      setPaymentLoading(true);
+      const res = await api.get(`/Payment/${paymentId}`);
+      const data = res.data;
+      setPaymentDetail(data);
+      return data;
+    } catch (err) {
+      console.error("Error fetching payment detail:", err);
+      message.error("Không lấy được thông tin thanh toán cho đơn hoàn tiền.");
+      setPaymentDetail(null);
+      return null;
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRefundRequests();
+  }, []);
+
+  const openDetail = async (refund) => {
+    // lấy chi tiết đơn hoàn tiền
+    const full = await fetchRefundDetail(refund.id);
+    const data = full || refund;
+    setSelectedRefund(data);
+    setAdminNotes(data.adminNotes || "");
+
+    // lấy thêm thông tin thanh toán theo paymentId
+    if (data.paymentId) {
+      await fetchPaymentDetail(data.paymentId);
+    } else {
+      setPaymentDetail(null);
+    }
+
     setDetailOpen(true);
   };
 
-  const updateRefundStatus = (id, newStatus, note) => {
-    setRefunds((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              status: newStatus,
-              rejectNote:
-                newStatus === "Rejected" ? note || r.rejectNote : r.rejectNote,
-            }
-          : r
-      )
-    );
+  // ====== API: cập nhật status (PUT) ======
+  const updateRefundStatus = async (id, newStatus, notes) => {
+    try {
+      await api.put(`/MemberPackage/refund-requests/${id}/status`, {
+        status: newStatus,
+        adminNotes: notes ?? "",
+      });
 
-    setSelectedRefund((prev) =>
-      prev && prev.id === id
-        ? {
-            ...prev,
-            status: newStatus,
-            rejectNote:
-              newStatus === "Rejected" ? note || prev.rejectNote : prev.rejectNote,
-          }
-        : prev
-    );
+      await fetchRefundRequests();
+
+      const full = await fetchRefundDetail(id);
+      if (full) {
+        setSelectedRefund(full);
+        setAdminNotes(full.adminNotes || "");
+      }
+
+      message.success("Cập nhật trạng thái yêu cầu hoàn tiền thành công.");
+    } catch (err) {
+      console.error("Error updating refund status:", err);
+      const msg =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Cập nhật trạng thái thất bại.";
+      message.error(msg);
+    }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedRefund) return;
-    updateRefundStatus(selectedRefund.id, "Approved", rejectNote);
+    await updateRefundStatus(selectedRefund.id, "Approved", adminNotes);
     setDetailOpen(false);
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedRefund) return;
-    updateRefundStatus(selectedRefund.id, "Rejected", rejectNote);
+
+    if (!adminNotes.trim()) {
+      message.warning(
+        "Vui lòng nhập ghi chú quản trị (adminNotes) khi từ chối yêu cầu."
+      );
+      return;
+    }
+
+    await updateRefundStatus(selectedRefund.id, "Rejected", adminNotes.trim());
     setDetailOpen(false);
+  };
+
+  // ====== Thực hiện hoàn tiền Stripe theo paymentId ======
+  const handleStripeRefund = async () => {
+    if (!selectedRefund || !selectedRefund.paymentId) {
+      message.error("Không tìm thấy thanh toán để hoàn tiền.");
+      return;
+    }
+
+    try {
+      setStripeRefundLoading(true);
+
+      // đảm bảo có paymentDetail mới nhất
+      let payment = paymentDetail;
+      if (!payment) {
+        payment = await fetchPaymentDetail(selectedRefund.paymentId);
+        if (!payment) {
+          return;
+        }
+      }
+
+      const intentId = payment.stripePaymentIntentId;
+      if (!intentId) {
+        message.warning(
+          "Thanh toán này không có Stripe Payment Intent Id. Không thể hoàn tiền Stripe."
+        );
+        return;
+      }
+
+      await api.post(`/Payment/${selectedRefund.paymentId}/refund`, {
+        stripePaymentIntentId: intentId,
+      });
+
+      message.success("Thực hiện hoàn tiền Stripe thành công.");
+
+      // Sau khi hoàn tiền có thể load lại danh sách hoặc detail nếu BE có cập nhật gì thêm
+      await fetchRefundRequests();
+      const full = await fetchRefundDetail(selectedRefund.id);
+      if (full) {
+        setSelectedRefund(full);
+      }
+    } catch (err) {
+      console.error("Error doing Stripe refund:", err);
+      const msg =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Hoàn tiền Stripe thất bại.";
+      message.error(msg);
+    } finally {
+      setStripeRefundLoading(false);
+    }
   };
 
   // Lọc theo tab
   const filteredRefunds = refunds.filter((r) => {
     if (statusFilter === "ALL") return true;
-    return r.status === statusFilter;
+    return (r.status || "").toUpperCase() === statusFilter.toUpperCase();
   });
 
-  // Sắp xếp: ALL -> Pending trước, sau đó theo ngày
+  // Sắp xếp
   const sortedRefunds = [...filteredRefunds].sort((a, b) => {
+    const statusA = (a.status || "").toUpperCase();
+    const statusB = (b.status || "").toUpperCase();
+
     if (statusFilter === "ALL") {
-      const order = { Pending: 0, Approved: 1, Rejected: 2 };
-      const diffStatus = order[a.status] - order[b.status];
+      const order = { PENDING: 0, APPROVED: 1, REJECTED: 2, CANCELLED: 3 };
+      const diffStatus = (order[statusA] ?? 99) - (order[statusB] ?? 99);
       if (diffStatus !== 0) return diffStatus;
     }
-    return new Date(b.requestDate) - new Date(a.requestDate);
+
+    return new Date(b.requestedAt) - new Date(a.requestedAt);
   });
 
-  // Phân trang: tối đa 10 đơn / trang
+  // Phân trang
   const totalPages =
     sortedRefunds.length === 0
       ? 1
@@ -210,7 +337,6 @@ const RefundManagement = () => {
     setCurrentPage(page);
   };
 
-  // Khi đổi tab filter, reset về trang 1
   const handleChangeFilter = (filter) => {
     setStatusFilter(filter);
     setCurrentPage(1);
@@ -229,11 +355,13 @@ const RefundManagement = () => {
 
             <CardBody>
               <p className="text-muted mb-3 text-center">
-                Danh sách các yêu cầu hoàn tiền từ khách hàng. Bạn có thể xem chi tiết từng yêu cầu
-                và lựa chọn <strong>Chấp nhận</strong> hoặc <strong>Từ chối</strong>.
+                Danh sách các yêu cầu hoàn tiền từ hội viên. Bạn có thể xem chi
+                tiết từng yêu cầu và lựa chọn{" "}
+                <strong>Chấp nhận</strong>, <strong>Từ chối</strong> hoặc{" "}
+                <strong>thực hiện hoàn tiền Stripe</strong> khi đủ điều kiện.
               </p>
 
-              {/* Tabs lọc trạng thái - căn giữa */}
+              {/* Tabs lọc trạng thái */}
               <div
                 className="d-flex mb-3 justify-content-center"
                 style={{ gap: "0.5rem", flexWrap: "wrap" }}
@@ -274,15 +402,31 @@ const RefundManagement = () => {
                 >
                   Đã từ chối
                 </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  color={statusFilter === "Cancelled" ? "primary" : "secondary"}
+                  outline={statusFilter !== "Cancelled"}
+                  onClick={() => handleChangeFilter("Cancelled")}
+                >
+                  Đã hủy đơn
+                </Button>
               </div>
+
+              {loading && (
+                <p className="text-center text-muted">
+                  Đang tải danh sách yêu cầu hoàn tiền...
+                </p>
+              )}
 
               <div className="table-responsive">
                 <Table className="align-items-center table-flush" hover>
                   <thead className="thead-light">
                     <tr>
                       <th>#</th>
-                      <th>Khách hàng</th>
-                      <th>Số tiền hoàn</th>
+                      <th>Hội viên</th>
+                      <th>Gói tập</th>
+                      <th>Số tiền yêu cầu hoàn</th>
                       <th>Lý do hoàn</th>
                       <th>Ngày yêu cầu</th>
                       <th>Trạng thái</th>
@@ -290,9 +434,9 @@ const RefundManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {pageRefunds.length === 0 ? (
+                    {!loading && pageRefunds.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="text-center text-muted">
+                        <td colSpan="8" className="text-center text-muted">
                           Không có yêu cầu hoàn tiền nào.
                         </td>
                       </tr>
@@ -301,18 +445,30 @@ const RefundManagement = () => {
                         <tr key={r.id}>
                           <td>{startIndex + index + 1}</td>
                           <td>
-                            <div style={{ fontWeight: 600 }}>{r.memberName}</div>
-                            <div className="text-muted" style={{ fontSize: 12 }}>
-                              {r.memberEmail}
+                            <div style={{ fontWeight: 600 }}>
+                              {r.memberName || "—"}
                             </div>
+                            {r.memberId && (
+                              <div
+                                className="text-muted"
+                                style={{ fontSize: 12 }}
+                              >
+                                Member #{r.memberId}
+                              </div>
+                            )}
                           </td>
-                          <td>{formatVNDC(r.refundAmount)}</td>
+                          <td>
+                            <div>{r.packageName || "—"}</div>
+                          </td>
+                          <td>{formatVNDC(r.requestedAmount)}</td>
                           <td style={{ maxWidth: 260 }}>
                             <span className="text-wrap">{r.reason}</span>
                           </td>
-                          <td>{formatVNDateTime(r.requestDate)}</td>
+                          <td>{formatVNDateTime(r.requestedAt)}</td>
                           <td>
-                            <Badge color={statusColor(r.status)}>{r.status}</Badge>
+                            <Badge color={statusColor(r.status)}>
+                              {statusLabelVi(r.status)}
+                            </Badge>
                           </td>
                           <td className="text-right">
                             <Button
@@ -334,7 +490,7 @@ const RefundManagement = () => {
               {sortedRefunds.length > 0 && (
                 <div className="d-flex justify-content-between align-items-center mt-3">
                   <div className="text-muted" style={{ fontSize: "0.9rem" }}>
-                    Trang {safePage}
+                    Trang {safePage} / {totalPages}
                   </div>
                   <Pagination aria-label="Refund pagination" className="mb-0">
                     <PaginationItem disabled={safePage === 1}>
@@ -344,7 +500,10 @@ const RefundManagement = () => {
                       />
                     </PaginationItem>
                     <PaginationItem disabled={safePage === totalPages}>
-                      <PaginationLink next onClick={() => goToPage(safePage + 1)} />
+                      <PaginationLink
+                        next
+                        onClick={() => goToPage(safePage + 1)}
+                      />
                     </PaginationItem>
                   </Pagination>
                 </div>
@@ -365,30 +524,41 @@ const RefundManagement = () => {
           ) : (
             <>
               {/* Thông tin khách hàng */}
-              <h5 className="mb-3">Thông tin khách hàng</h5>
+              <h5 className="mb-3">Thông tin hội viên</h5>
               <Row>
                 <Col md="6">
                   <p className="mb-1">
-                    <strong>Họ tên:</strong> {selectedRefund.memberName}
+                    <strong>Họ tên:</strong>{" "}
+                    {selectedRefund.memberName || "—"}
                   </p>
                   <p className="mb-1">
-                    <strong>Email:</strong> {selectedRefund.memberEmail}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Số điện thoại:</strong> {selectedRefund.memberPhone}
+                    <strong>Mã hội viên:</strong>{" "}
+                    {selectedRefund.memberId || "—"}
                   </p>
                 </Col>
                 <Col md="6">
                   <p className="mb-1">
                     <strong>Ngày yêu cầu:</strong>{" "}
-                    {formatVNDateTime(selectedRefund.requestDate)}
+                    {formatVNDateTime(selectedRefund.requestedAt)}
                   </p>
                   <p className="mb-1">
                     <strong>Trạng thái:</strong>{" "}
                     <Badge color={statusColor(selectedRefund.status)}>
-                      {selectedRefund.status}
+                      {statusLabelVi(selectedRefund.status)}
                     </Badge>
                   </p>
+                  {selectedRefund.reviewedAt && (
+                    <p className="mb-1">
+                      <strong>Ngày xử lý:</strong>{" "}
+                      {formatVNDateTime(selectedRefund.reviewedAt)}
+                    </p>
+                  )}
+                  {selectedRefund.reviewerName && (
+                    <p className="mb-1">
+                      <strong>Người xử lý:</strong>{" "}
+                      {selectedRefund.reviewerName}
+                    </p>
+                  )}
                 </Col>
               </Row>
 
@@ -397,31 +567,14 @@ const RefundManagement = () => {
               {/* Thông tin gói tập */}
               <h5 className="mb-3">Thông tin gói tập</h5>
               <Row>
-                <Col md="6">
+                <Col md="12">
                   <p className="mb-1">
-                    <strong>Tên gói:</strong> {selectedRefund.packageName}
+                    <strong>Tên gói:</strong>{" "}
+                    {selectedRefund.packageName || "—"}
                   </p>
                   <p className="mb-1">
-                    <strong>Thời gian:</strong>{" "}
-                    {selectedRefund.packageDuration}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Số buổi:</strong>{" "}
-                    {selectedRefund.packageSessions} buổi
-                  </p>
-                </Col>
-                <Col md="6">
-                  <p className="mb-1">
-                    <strong>Giá gói:</strong>{" "}
-                    {formatVNDC(selectedRefund.packagePrice)}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Ngày bắt đầu:</strong>{" "}
-                    {formatVNDate(selectedRefund.startDate)}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Phương thức thanh toán:</strong>{" "}
-                    {selectedRefund.paymentMethod}
+                    <strong>Mã gói (MemberPackageId):</strong>{" "}
+                    {selectedRefund.memberPackageId || "—"}
                   </p>
                 </Col>
               </Row>
@@ -431,34 +584,74 @@ const RefundManagement = () => {
               {/* Thông tin hoàn tiền */}
               <h5 className="mb-3">Thông tin hoàn tiền</h5>
               <p className="mb-1">
-                <strong>Số tiền đề nghị hoàn:</strong>{" "}
-                {formatVNDC(selectedRefund.refundAmount)}
+                <strong>Số tiền yêu cầu hoàn:</strong>{" "}
+                {formatVNDC(selectedRefund.requestedAmount)}
               </p>
               <p className="mb-1">
-                <strong>Lý do hoàn:</strong> {selectedRefund.reason}
+                <strong>Lý do hoàn:</strong> {selectedRefund.reason || "—"}
               </p>
 
-              {/* Nếu đã bị từ chối và có ghi chú -> hiển thị */}
-              {selectedRefund.status === "Rejected" &&
-                selectedRefund.rejectNote && (
+              {/* Thông tin thanh toán (từ Payment) */}
+              <hr />
+              <h5 className="mb-3">Thông tin thanh toán</h5>
+              {paymentLoading ? (
+                <p className="text-muted">Đang tải thông tin thanh toán...</p>
+              ) : paymentDetail ? (
+                <>
                   <p className="mb-1">
-                    <strong>Ghi chú khi từ chối:</strong>{" "}
-                    {selectedRefund.rejectNote}
+                    <strong>Payment ID:</strong>{" "}
+                    {selectedRefund.paymentId || "—"}
                   </p>
+                  <p className="mb-1">
+                    <strong>Stripe Payment Intent Id:</strong>{" "}
+                    {paymentDetail.stripePaymentIntentId || "—"}
+                  </p>
+                  {paymentDetail.paymentMethodName && (
+                    <p className="mb-1">
+                      <strong>Phương thức thanh toán:</strong>{" "}
+                      {paymentDetail.paymentMethodName}
+                    </p>
+                  )}
+                  {typeof paymentDetail.finalAmount === "number" && (
+                    <p className="mb-1">
+                      <strong>Số tiền đã thanh toán:</strong>{" "}
+                      {formatVNDC(paymentDetail.finalAmount)}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted">
+                  Không có thông tin thanh toán cho yêu cầu này.
+                </p>
+              )}
+
+              {/* Ghi chú admin (nếu đã có) */}
+              {selectedRefund.status !== "Pending" &&
+                selectedRefund.adminNotes && (
+                  <div className="mt-3">
+                    <Label className="mb-1">
+                      Ghi chú từ quản trị viên (đã lưu)
+                    </Label>
+                    <div className="border rounded p-2 bg-light">
+                      {selectedRefund.adminNotes}
+                    </div>
+                  </div>
                 )}
 
-              {/* Khi đang Pending -> cho nhập note từ chối */}
+              {/* Khi đang Pending -> cho nhập adminNotes để lưu kèm status mới */}
               {selectedRefund.status === "Pending" && (
                 <div className="mt-3">
-                  <Label for="reject-note">
-                    Ghi chú
+                  <Label htmlFor="admin-notes">
+                    Ghi chú quản trị (tuỳ chọn, nhưng{" "}
+                    <strong>bắt buộc khi từ chối</strong>)
                   </Label>
                   <Input
-                    id="reject-note"
+                    id="admin-notes"
                     type="textarea"
                     rows="3"
-                    value={rejectNote}
-                    onChange={(e) => setRejectNote(e.target.value)}
+                    value={adminNotes}
+                    onChange={(e) => setAdminNotes(e.target.value)}
+                    placeholder="Ví dụ: Không đủ điều kiện hoàn tiền theo chính sách..."
                   />
                 </div>
               )}
@@ -466,6 +659,21 @@ const RefundManagement = () => {
           )}
         </ModalBody>
         <ModalFooter>
+          {/* Thực hiện hoàn tiền Stripe khi đã Approved & có paymentId & có Stripe intent */}
+          {selectedRefund &&
+            selectedRefund.status === "Approved" &&
+            selectedRefund.paymentId && (
+              <Button
+                color="info"
+                onClick={handleStripeRefund}
+                disabled={stripeRefundLoading || paymentLoading}
+              >
+                {stripeRefundLoading
+                  ? "Đang hoàn tiền Stripe..."
+                  : "Thực hiện hoàn tiền Stripe"}
+              </Button>
+            )}
+
           {selectedRefund && selectedRefund.status === "Pending" && (
             <>
               <Button color="success" onClick={handleApprove}>
