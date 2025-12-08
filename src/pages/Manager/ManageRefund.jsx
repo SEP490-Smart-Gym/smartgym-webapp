@@ -602,10 +602,7 @@ const RefundManagement = () => {
                     <strong>Payment ID:</strong>{" "}
                     {selectedRefund.paymentId || "—"}
                   </p>
-                  <p className="mb-1">
-                    <strong>Stripe Payment Intent Id:</strong>{" "}
-                    {paymentDetail.stripePaymentIntentId || "—"}
-                  </p>
+                  {/* Ẩn Stripe Payment Intent Id khỏi UI */}
                   {paymentDetail.paymentMethodName && (
                     <p className="mb-1">
                       <strong>Phương thức thanh toán:</strong>{" "}
