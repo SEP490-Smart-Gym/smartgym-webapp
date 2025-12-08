@@ -2,79 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Spin } from "antd";
 import api from "../../config/axios";
 
-// ================= MOCK DATA =================
-const workoutPlanMock = {
-  id: 1,
-  trainerName: "Nguyễn Văn A",
-  updatedAt: "2025-12-06T09:30:00Z",
-  content: `
-    <hr/>
-    <h5>Thứ 2 – Ngực & Tay sau</h5>
-    <ul>
-      <li>Bench Press: 4 hiệp x 8–10 reps</li>
-      <li>Incline Dumbbell Press: 3 hiệp x 10–12 reps</li>
-      <li>Cable Fly: 3 hiệp x 12–15 reps</li>
-      <li>Triceps Pushdown: 3 hiệp x 10–12 reps</li>
-    </ul>
-
-    <h5>Thứ 4 – Lưng & Tay trước</h5>
-    <ul>
-      <li>Lat Pulldown: 4 hiệp x 8–10 reps</li>
-      <li>Seated Row: 3 hiệp x 10–12 reps</li>
-      <li>Face Pull: 3 hiệp x 12–15 reps</li>
-      <li>Biceps Curl: 3 hiệp x 10–12 reps</li>
-    </ul>
-
-    <h5>Thứ 6 – Chân & Vai</h5>
-    <ul>
-      <li>Squat: 4 hiệp x 8–10 reps</li>
-      <li>Leg Press: 3 hiệp x 10–12 reps</li>
-      <li>Lateral Raise: 3 hiệp x 12–15 reps</li>
-      <li>Shoulder Press: 3 hiệp x 8–10 reps</li>
-    </ul>
-
-    <p><em>Ghi chú: Nghỉ 60–90 giây giữa các hiệp, luôn khởi động kỹ trước buổi tập.</em></p>
-  `,
-};
-
-const mealPlanMock = {
-  id: 1,
-  trainerName: "Nguyễn Văn A",
-  updatedAt: "2025-12-06T09:45:00Z",
-  content: `
-    <h5>Bữa sáng</h5>
-    <ul>
-      <li>Yến mạch 50g + sữa tươi không đường</li>
-      <li>1 quả chuối</li>
-      <li>1 ly nước lọc lớn</li>
-    </ul>
-
-    <h5>Bữa trưa</h5>
-    <ul>
-      <li>150–200g ức gà/ cá</li>
-      <li>100g cơm gạo lứt hoặc khoai lang</li>
-      <li>Rau luộc/ salad (ít sốt)</li>
-    </ul>
-
-    <h5>Bữa xế trước tập</h5>
-    <ul>
-      <li>1 hũ sữa chua không đường</li>
-      <li>Hạnh nhân / hạt điều 10–15 hạt</li>
-    </ul>
-
-    <h5>Bữa tối (sau tập)</h5>
-    <ul>
-      <li>150g cá/ thịt nạc</li>
-      <li>Rau xanh (luộc hoặc xào ít dầu)</li>
-      <li>Có thể thêm 1 quả trứng luộc</li>
-    </ul>
-
-    <p><em>Ghi chú: Uống tối thiểu 2–2.5 lít nước/ngày, hạn chế nước ngọt, đồ chiên nhiều dầu.</em></p>
-  `,
-};
-
-// ================= END MOCK DATA =================
-
 // 👉 Logic gợi ý theo BMI (copy từ ProfileMember)
 const getBmiSuggestions = (bmiValue) => {
   const bmi = parseFloat(bmiValue);
@@ -152,13 +79,57 @@ const getBmiSuggestions = (bmiValue) => {
   };
 };
 
+const formatVNDateTime = (value) => {
+  if (!value) return "—";
+
+  let iso = String(value).trim();
+
+  const hasOffset =
+    /[zZ]$/.test(iso) || /[+\-]\d{2}:\d{2}$/.test(iso);
+
+  if (!hasOffset) {
+    iso += "Z";
+  }
+
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour12: false,
+  });
+};
+
+
+// Format TimeSpan "07:00:00" -> "07:00"
+const formatTimeSpanHHmm = (time) => {
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length >= 2) {
+    const hh = parts[0].padStart(2, "0");
+    const mm = parts[1].padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+  return time;
+};
+
 export default function WorkoutMealPlan() {
-  const [activeTab, setActiveTab] = useState("plan"); // "plan" | "about"
+  const [activeTab, setActiveTab] = useState("workout");
 
+  // Workout / Meal plan từ API
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [workout, setWorkout] = useState(null);
-  const [meal, setMeal] = useState(null);
+  const [workoutPlan, setWorkoutPlan] = useState(null);
+  const [mealPlan, setMealPlan] = useState(null);
 
+  // Expand state Workout
+  const [expandedWorkoutDays, setExpandedWorkoutDays] = useState([]);
+  const [expandedExercises, setExpandedExercises] = useState([]);
+
+  // Expand state Meal
+  const [expandedMealDays, setExpandedMealDays] = useState([]);
+  const [expandedMeals, setExpandedMeals] = useState([]);
+
+  // BMI
   const [loadingBmi, setLoadingBmi] = useState(true);
   const [weight, setWeight] = useState(null);
   const [height, setHeight] = useState(null);
@@ -169,14 +140,68 @@ export default function WorkoutMealPlan() {
     meal: "",
   });
 
-  // mock load plans
+  // Load Workout & Meal plan từ API
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setWorkout(workoutPlanMock);
-      setMeal(mealPlanMock);
-      setLoadingPlans(false);
-    }, 600);
-    return () => clearTimeout(timer);
+    const fetchPlans = async () => {
+      try {
+        setLoadingPlans(true);
+        const [workoutRes, mealRes] = await Promise.allSettled([
+          api.get("/WorkoutPlan/me"),
+          api.get("/MealPlan/me"),
+        ]);
+
+        if (
+          workoutRes.status === "fulfilled" &&
+          Array.isArray(workoutRes.value.data) &&
+          workoutRes.value.data.length > 0
+        ) {
+          const wp = workoutRes.value.data[0];
+          setWorkoutPlan(wp);
+
+          // Expand tất cả ngày + bài tập
+          const dayIdxs = (wp.days || []).map((_, idx) => idx);
+          setExpandedWorkoutDays(dayIdxs);
+          const exKeys = [];
+          (wp.days || []).forEach((d, di) => {
+            (d.exercises || []).forEach((_, ei) => {
+              exKeys.push(`${di}-${ei}`);
+            });
+          });
+          setExpandedExercises(exKeys);
+        } else {
+          setWorkoutPlan(null);
+        }
+
+        if (
+          mealRes.status === "fulfilled" &&
+          Array.isArray(mealRes.value.data) &&
+          mealRes.value.data.length > 0
+        ) {
+          const mp = mealRes.value.data[0];
+          setMealPlan(mp);
+
+          const dayIdxs = (mp.days || []).map((_, idx) => idx);
+          setExpandedMealDays(dayIdxs);
+          const mealKeys = [];
+          (mp.days || []).forEach((d, di) => {
+            (d.meals || []).forEach((_, mi) => {
+              mealKeys.push(`${di}-${mi}`);
+            });
+          });
+          setExpandedMeals(mealKeys);
+        } else {
+          setMealPlan(null);
+        }
+      } catch (err) {
+        console.error("Error fetching WorkoutPlan/me & MealPlan/me:", err);
+        setWorkoutPlan(null);
+        setMealPlan(null);
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
   }, []);
 
   // load BMI data từ /Profile/my-profile
@@ -233,12 +258,35 @@ export default function WorkoutMealPlan() {
       ? "#ff6200ff"
       : "#e53935";
 
-  const formatVNDateTime = (iso) => {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleString("vi-VN");
+  // Toggle helpers
+  const toggleWorkoutDay = (idx) => {
+    setExpandedWorkoutDays((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+    );
   };
+
+  const toggleExercise = (dayIndex, exIndex) => {
+    const key = `${dayIndex}-${exIndex}`;
+    setExpandedExercises((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const toggleMealDay = (idx) => {
+    setExpandedMealDays((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]
+    );
+  };
+
+  const toggleMeal = (dayIndex, mealIndex) => {
+    const key = `${dayIndex}-${mealIndex}`;
+    setExpandedMeals((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const workoutDaysCount = (workoutPlan?.days || []).length || 0;
+  const mealDaysCount = (mealPlan?.days || []).length || 0;
 
   return (
     <div className="container py-4">
@@ -246,17 +294,25 @@ export default function WorkoutMealPlan() {
         Kế hoạch tập luyện & dinh dưỡng
       </h1>
 
-      {activeTab === "plan" && (
+      {activeTab === "workout" && (
         <p className="text-center text-muted mb-4">
-          Đây là kế hoạch do huấn luyện viên cá nhân thiết kế cho bạn.
-          Hãy trao đổi trực tiếp với PT nếu cần điều chỉnh lịch tập hoặc chế độ ăn.
+          Đây là kế hoạch tập luyện do huấn luyện viên cá nhân thiết kế cho bạn.
+          Hãy trao đổi trực tiếp với PT nếu cần điều chỉnh lịch tập.
         </p>
       )}
 
-      {activeTab === "about" && (
+      {activeTab === "meal" && (
         <p className="text-center text-muted mb-4">
-          Các gợi ý được hệ thống tạo tự động dựa trên cân nặng và chiều cao bạn đã lưu.
-          Nếu bạn thay đổi thông tin trong trang hồ sơ, dữ liệu tại đây sẽ được cập nhật ngay lập tức.
+          Đây là kế hoạch dinh dưỡng do huấn luyện viên cá nhân thiết kế cho bạn.
+          Hãy tuân thủ và hỏi lại PT nếu có dị ứng hoặc không phù hợp khẩu vị.
+        </p>
+      )}
+
+      {activeTab === "bmi" && (
+        <p className="text-center text-muted mb-4">
+          Các gợi ý được hệ thống tạo tự động dựa trên cân nặng và chiều cao bạn đã
+          lưu. Nếu bạn thay đổi thông tin trong trang hồ sơ, dữ liệu tại đây sẽ được
+          cập nhật ngay lập tức.
         </p>
       )}
 
@@ -265,127 +321,577 @@ export default function WorkoutMealPlan() {
         <button
           type="button"
           className={`btn btn-sm ${
-            activeTab === "plan"
+            activeTab === "workout"
               ? "btn-primary"
               : "btn-outline-primary text-dark bg-white"
           }`}
-          onClick={() => setActiveTab("plan")}
+          onClick={() => setActiveTab("workout")}
         >
-          Kế hoạch của PT
+          Kế hoạch tập luyện
         </button>
         <button
           type="button"
           className={`btn btn-sm ${
-            activeTab === "about"
+            activeTab === "meal"
               ? "btn-primary"
               : "btn-outline-primary text-dark bg-white"
           }`}
-          onClick={() => setActiveTab("about")}
+          onClick={() => setActiveTab("meal")}
+        >
+          Kế hoạch dinh dưỡng
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${
+            activeTab === "bmi"
+              ? "btn-primary"
+              : "btn-outline-primary text-dark bg-white"
+          }`}
+          onClick={() => setActiveTab("bmi")}
         >
           Gợi ý theo BMI
         </button>
       </div>
 
-      {/* Tab: Kế hoạch của PT (Workout + Meal) */}
-      {activeTab === "plan" && (
+      {/* TAB: WORKOUT PLAN */}
+      {activeTab === "workout" && (
         <>
-          {/* 🎯 Mục tiêu chung */}
           <div
             className="mb-3 p-3 rounded shadow-sm text-center"
             style={{
-              background: "#fff8e1",
-              border: "1px solid #ffe082",
+              background:
+                "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 40%, #ffe8d6 100%)",
+              border: "1px solid #ffd28c",
               fontSize: "0.95rem",
             }}
           >
-            <strong>🎯 Mục tiêu:</strong>{" "}
-            Tăng cơ, giảm mỡ, cải thiện sức bền, kiểm soát mỡ và hỗ trợ sức khỏe lâu dài.
+            <strong>🎯 Mục tiêu chung:</strong>{" "}
+            Tăng cơ, giảm mỡ, cải thiện sức bền, kiểm soát mỡ và hỗ trợ sức khỏe
+            lâu dài.
           </div>
 
           {loadingPlans ? (
             <div className="text-center my-5">
               <Spin size="large" />
             </div>
+          ) : !workoutPlan ? (
+            <div className="alert alert-light border text-center">
+              Chưa có kế hoạch tập luyện từ huấn luyện viên.
+            </div>
           ) : (
-            <div className="row g-3">
-              {/* Card kế hoạch tập luyện */}
-              <div className="col-12 col-lg-6">
-                <div
-                  className="p-3 shadow rounded h-100"
-                  style={{ background: "#fff5f7ff", border: "1px solid #ffd6e0" }}
+            <div
+              className="p-3 shadow rounded"
+              style={{ background: "#fff5f7ff", border: "1px solid #ffd6e0" }}
+            >
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h3 className="fw-bold mb-0" style={{ color: "#c80036" }}>
+                  📌 Kế hoạch tập luyện (Workout Plan)
+                </h3>
+
+                <span
+                  className="badge rounded-pill"
+                  style={{
+                    backgroundColor: "#c80036",
+                    color: "#fff",
+                    fontSize: "0.75rem",
+                  }}
                 >
-                  <h3 className="fw-bold mb-3" style={{ color: "#c80036" }}>
-                    📌 Kế hoạch tập luyện (Workout Plan)
-                  </h3>
+                  {workoutDaysCount > 0
+                    ? `${workoutDaysCount} ngày luyện tập`
+                    : "Chưa có ngày tập"}
+                </span>
+              </div>
 
-                  {!workout ? (
-                    <p className="text-muted mt-3">Chưa có kế hoạch tập luyện.</p>
-                  ) : (
-                    <>
-                      <div className="mb-2 small text-muted">
-                        <div>
-                          <strong>Huấn luyện viên:</strong>{" "}
-                          {workout.trainerName || "—"}
-                        </div>
-                        <div>
-                          <strong>Cập nhật lần cuối:</strong>{" "}
-                          {formatVNDateTime(workout.updatedAt)}
-                        </div>
-                      </div>
-
-                      <div
-                        className="mt-2"
-                        style={{ fontSize: "0.95rem", lineHeight: 1.6 }}
-                        dangerouslySetInnerHTML={{ __html: workout.content }}
-                      />
-                    </>
-                  )}
+              {/* Khung info mô tả / cập nhật */}
+              <div
+                className="mb-3 p-3 rounded"
+                style={{
+                  background: "#fff",
+                  border: "1px dashed #ffc1c7",
+                }}
+              >
+                <div className="row g-3 align-items-start">
+                  <div className="col-12 col-md-8">
+                    <div className="text-uppercase small text-muted fw-semibold mb-1">
+                      📝 Mô tả kế hoạch
+                    </div>
+                    <div style={{ fontSize: "0.95rem" }}>
+                      {workoutPlan.description || "—"}
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <div className="text-uppercase small text-muted fw-semibold mb-1">
+                      ⏰ Cập nhật lần cuối
+                    </div>
+                    <div className="fw-semibold">
+                      {formatVNDateTime(workoutPlan.updatedAt)}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Card kế hoạch dinh dưỡng */}
-              <div className="col-12 col-lg-6">
-                <div
-                  className="p-3 shadow rounded h-100"
-                  style={{ background: "#f3fff4", border: "1px solid #c7f5cf" }}
-                >
-                  <h3 className="fw-bold mb-3" style={{ color: "#1c8f36" }}>
-                    🥗 Kế hoạch dinh dưỡng (Meal Plan)
-                  </h3>
+              <hr className="mt-0" />
 
-                  {!meal ? (
-                    <p className="text-muted mt-3">Chưa có kế hoạch dinh dưỡng.</p>
-                  ) : (
-                    <>
-                      <div className="mb-2 small text-muted">
+              {(workoutPlan.days || []).length === 0 ? (
+                <p className="text-muted">
+                  Chưa có chi tiết ngày tập trong kế hoạch này.
+                </p>
+              ) : (
+                (workoutPlan.days || []).map((day, dayIndex) => {
+                  const isOpen = expandedWorkoutDays.includes(dayIndex);
+                  const exs = day.exercises || [];
+                  return (
+                    <div
+                      key={dayIndex}
+                      className="mb-3 border rounded"
+                      style={{ background: "transparent" }}
+                    >
+                      {/* Header ngày */}
+                      <div
+                        className="d-flex justify-content-between align-items-center px-3 py-2"
+                        style={{
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                          borderRadius: "0.25rem 0.25rem 0 0",
+                          borderBottom: "1px solid rgba(0,0,0,0.05)",
+                        }}
+                        onClick={() => toggleWorkoutDay(dayIndex)}
+                      >
                         <div>
-                          <strong>Huấn luyện viên:</strong>{" "}
-                          {meal.trainerName || "—"}
+                          <strong>Ngày {day.dayNumber || dayIndex + 1}</strong>{" "}
+                          {day.dayName && (
+                            <span className="text-muted">- {day.dayName}</span>
+                          )}
+                          {day.focusArea && (
+                            <span className="text-muted ms-2">
+                              ({day.focusArea})
+                            </span>
+                          )}
                         </div>
-                        <div>
-                          <strong>Cập nhật lần cuối:</strong>{" "}
-                          {formatVNDateTime(meal.updatedAt)}
+                        <div className="d-flex align-items-center">
+                          <span
+                            className="text-muted me-2"
+                            style={{ fontSize: 12 }}
+                          >
+                            {isOpen ? "Thu gọn" : "Xem chi tiết"}
+                          </span>
+                          <span
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: "999px",
+                              backgroundColor: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 16,
+                              lineHeight: 1,
+                            }}
+                          >
+                            {isOpen ? "−" : "+"}
+                          </span>
                         </div>
                       </div>
 
-                      <hr />
+                      {isOpen && (
+                        <div className="p-3">
+                          {/* Thông tin chung ngày tập */}
+                          <div className="row mb-2">
+                            <div className="col-12 col-md-6 mb-2">
+                              <div className="small text-muted mb-1">
+                                Mô tả buổi tập
+                              </div>
+                              <div style={{ fontSize: "0.95rem" }}>
+                                {day.description || "—"}
+                              </div>
+                            </div>
+                            <div className="col-12 col-md-3 mb-2">
+                              <div className="small text-muted mb-1">
+                                Thời lượng
+                              </div>
+                              <div>
+                                {day.durationMinutes
+                                  ? `${day.durationMinutes} phút`
+                                  : "—"}
+                              </div>
+                            </div>
+                            <div className="col-12 col-md-3 mb-2">
+                              <div className="small text-muted mb-1">
+                                Độ khó
+                              </div>
+                              <div>{day.difficulty || "—"}</div>
+                            </div>
+                          </div>
 
-                      <div
-                        className="mt-2"
-                        style={{ fontSize: "0.95rem", lineHeight: 1.6 }}
-                        dangerouslySetInnerHTML={{ __html: meal.content }}
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
+                          {day.notes && (
+                            <div
+                              className="mb-2 p-2 rounded"
+                              style={{
+                                background: "#fff",
+                                borderLeft: "4px solid #c80036",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              <strong>Ghi chú: </strong>
+                              {day.notes}
+                            </div>
+                          )}
+
+                          <h6 className="mt-3 mb-2">
+                            Danh sách bài tập trong ngày
+                          </h6>
+
+                          {exs.length === 0 ? (
+                            <p className="text-muted">
+                              Chưa có bài tập nào cho ngày này.
+                            </p>
+                          ) : (
+                            exs.map((ex, exIndex) => {
+                              const key = `${dayIndex}-${exIndex}`;
+                              const exOpen = expandedExercises.includes(key);
+                              return (
+                                <div
+                                  key={exIndex}
+                                  className="p-2 mb-2 rounded"
+                                  style={{ backgroundColor: "#ffffff" }}
+                                >
+                                  {/* Header bài tập */}
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <div
+                                      className="d-flex align-items-center"
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() =>
+                                        toggleExercise(dayIndex, exIndex)
+                                      }
+                                    >
+                                      <strong className="me-2">
+                                        Bài tập {exIndex + 1}
+                                      </strong>
+                                      {ex.name && (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 12 }}
+                                        >
+                                          - {ex.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span
+                                      className="text-muted"
+                                      style={{
+                                        fontSize: 11,
+                                        cursor: "pointer",
+                                      }}
+                                      onClick={() =>
+                                        toggleExercise(dayIndex, exIndex)
+                                      }
+                                    >
+                                      {exOpen ? "Thu gọn" : "Xem chi tiết"}
+                                    </span>
+                                  </div>
+
+                                  {exOpen && (
+                                    <div style={{ fontSize: "0.95rem" }}>
+                                      <div className="row mb-2">
+                                        <div className="col-12 col-md-6 mb-2">
+                                          <div className="small text-muted mb-1">
+                                            Mô tả
+                                          </div>
+                                          <div>
+                                            {ex.description || "—"}
+                                          </div>
+                                        </div>
+                                        <div className="col-12 col-md-6 mb-2">
+                                          <div className="small text-muted mb-1">
+                                            Thiết bị / Nhóm cơ
+                                          </div>
+                                          <div>
+                                            {ex.equipment || "—"}{" "}
+                                            {ex.muscleGroups && (
+                                              <span className="text-muted">
+                                                {" "}
+                                                - {ex.muscleGroups}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="row mb-2">
+                                        <div className="col-4">
+                                          <div className="small text-muted mb-1">
+                                            Sets
+                                          </div>
+                                          <div>{ex.sets ?? "—"}</div>
+                                        </div>
+                                        <div className="col-4">
+                                          <div className="small text-muted mb-1">
+                                            Reps
+                                          </div>
+                                          <div>{ex.reps ?? "—"}</div>
+                                        </div>
+                                        <div className="col-4">
+                                          <div className="small text-muted mb-1">
+                                            Nghỉ (giây)
+                                          </div>
+                                          <div>{ex.restSeconds ?? "—"}</div>
+                                        </div>
+                                      </div>
+
+                                      {ex.instructions && (
+                                        <div
+                                          className="mt-1 p-2 rounded"
+                                          style={{
+                                            background: "#faf5ff",
+                                            borderLeft:
+                                              "4px solid #7c3aed",
+                                            fontSize: "0.9rem",
+                                          }}
+                                        >
+                                          <strong>Lưu ý kỹ thuật: </strong>
+                                          {ex.instructions}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </>
       )}
 
-      {/* Tab: Gợi ý theo BMI */}
-      {activeTab === "about" && (
+      {/* TAB: MEAL PLAN */}
+      {activeTab === "meal" && (
+        <>
+          {loadingPlans ? (
+            <div className="text-center my-5">
+              <Spin size="large" />
+            </div>
+          ) : !mealPlan ? (
+            <div className="alert alert-light border text-center">
+              Chưa có kế hoạch dinh dưỡng từ huấn luyện viên.
+            </div>
+          ) : (
+            <div
+              className="p-3 shadow rounded"
+              style={{ background: "#f3fff4", border: "1px solid #c7f5cf" }}
+            >
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h3 className="fw-bold mb-0" style={{ color: "#1c8f36" }}>
+                  🥗 Kế hoạch dinh dưỡng (Meal Plan)
+                </h3>
+
+                <span
+                  className="badge rounded-pill"
+                  style={{
+                    backgroundColor: "#1c8f36",
+                    color: "#fff",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {mealDaysCount > 0
+                    ? `${mealDaysCount} ngày ăn uống`
+                    : "Chưa có ngày ăn"}
+                </span>
+              </div>
+
+              {/* Khung info mô tả / cập nhật */}
+              <div
+                className="mb-3 p-3 rounded"
+                style={{
+                  background: "#ffffff",
+                  border: "1px dashed #a6e8b0",
+                }}
+              >
+                <div className="row g-3 align-items-start">
+                  <div className="col-12 col-md-8">
+                    <div className="text-uppercase small text-muted fw-semibold mb-1">
+                      📝 Mô tả kế hoạch
+                    </div>
+                    <div style={{ fontSize: "0.95rem" }}>
+                      {mealPlan.description || "—"}
+                    </div>
+                  </div>
+                  <div className="col-12 col-md-4">
+                    <div className="text-uppercase small text-muted fw-semibold mb-1">
+                      ⏰ Cập nhật lần cuối
+                    </div>
+                    <div className="fw-semibold">
+                      {formatVNDateTime(mealPlan.updatedAt)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="mt-0" />
+
+              {(mealPlan.days || []).length === 0 ? (
+                <p className="text-muted">
+                  Chưa có chi tiết ngày ăn trong kế hoạch này.
+                </p>
+              ) : (
+                (mealPlan.days || []).map((day, dayIndex) => {
+                  const isOpen = expandedMealDays.includes(dayIndex);
+                  const meals = day.meals || [];
+                  return (
+                    <div
+                      key={dayIndex}
+                      className="mb-3 border rounded"
+                      style={{ background: "transparent" }}
+                    >
+                      {/* Header ngày ăn */}
+                      <div
+                        className="d-flex justify-content-between align-items-center px-3 py-2"
+                        style={{
+                          cursor: "pointer",
+                          backgroundColor: "transparent",
+                          borderRadius: "0.25rem 0.25rem 0 0",
+                          borderBottom: "1px solid rgba(0,0,0,0.05)",
+                        }}
+                        onClick={() => toggleMealDay(dayIndex)}
+                      >
+                        <div>
+                          <strong>Ngày {day.dayNumber || dayIndex + 1}</strong>{" "}
+                          {day.dayName && (
+                            <span className="text-muted">- {day.dayName}</span>
+                          )}
+                        </div>
+                        <div className="d-flex align-items-center">
+                          <span
+                            className="text-muted me-2"
+                            style={{ fontSize: 12 }}
+                          >
+                            {isOpen ? "Thu gọn" : "Xem chi tiết"}
+                          </span>
+                          <span
+                            style={{
+                              width: 24,
+                              height: 24,
+                              borderRadius: "999px",
+                              backgroundColor: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 16,
+                              lineHeight: 1,
+                            }}
+                          >
+                            {isOpen ? "−" : "+"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isOpen && (
+                        <div className="p-3">
+                          {meals.length === 0 ? (
+                            <p className="text-muted">
+                              Chưa có bữa ăn nào cho ngày này.
+                            </p>
+                          ) : (
+                            meals.map((m, mealIndex) => {
+                              const key = `${dayIndex}-${mealIndex}`;
+                              const mOpen = expandedMeals.includes(key);
+                              return (
+                                <div
+                                  key={mealIndex}
+                                  className="p-2 mb-2 rounded"
+                                  style={{ backgroundColor: "#ffffff" }}
+                                >
+                                  {/* Header bữa ăn */}
+                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <div
+                                      className="d-flex align-items-center"
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() =>
+                                        toggleMeal(dayIndex, mealIndex)
+                                      }
+                                    >
+                                      <strong className="me-2">
+                                        Bữa {mealIndex + 1}
+                                      </strong>
+                                      {m.mealType && (
+                                        <span
+                                          className="text-muted me-1"
+                                          style={{ fontSize: 12 }}
+                                        >
+                                          ({m.mealType})
+                                        </span>
+                                      )}
+                                      {m.name && (
+                                        <span
+                                          className="text-muted"
+                                          style={{ fontSize: 12 }}
+                                        >
+                                          - {m.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="d-flex align-items-center">
+                                      {m.mealTime && (
+                                        <span
+                                          className="text-muted me-3"
+                                          style={{ fontSize: 12 }}
+                                        >
+                                          ⏰ {formatTimeSpanHHmm(m.mealTime)}
+                                        </span>
+                                      )}
+                                      <span
+                                        className="text-muted"
+                                        style={{
+                                          fontSize: 11,
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={() =>
+                                          toggleMeal(dayIndex, mealIndex)
+                                        }
+                                      >
+                                        {mOpen ? "Thu gọn" : "Xem chi tiết"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {mOpen && (
+                                    <div style={{ fontSize: "0.95rem" }}>
+                                      <div className="mb-2">
+                                        <div className="small text-muted mb-1">
+                                          Mô tả món ăn
+                                        </div>
+                                        <div>{m.description || "—"}</div>
+                                      </div>
+                                      <div>
+                                        <div className="small text-muted mb-1">
+                                          Hướng dẫn chế biến / lưu ý
+                                        </div>
+                                        <div>{m.instructions || "—"}</div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB: GỢI Ý BMI */}
+      {activeTab === "bmi" && (
         <div className="mt-2">
           <div
             className="p-4 shadow rounded"
