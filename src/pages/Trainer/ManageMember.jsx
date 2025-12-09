@@ -296,11 +296,11 @@ const TrainerMemberList = () => {
       setExpandedDays(allDayIdx);
       setExpandedExercises(allExKeys);
     } catch (err) {
-      console.error("Error loading workout plan:", err);
+      console.error("Error loading Kế hoạch tập luyện:", err);
       if (err?.response?.status === 404) {
         resetWorkoutState();
       } else {
-        message.error("Không tải được Workout Plan của hội viên này.");
+        message.error("Không tải được Kế hoạch tập luyện của hội viên này.");
         resetWorkoutState();
       }
     } finally {
@@ -672,13 +672,13 @@ const TrainerMemberList = () => {
         const res = await api.post("/WorkoutPlan", payload);
         const data = res.data;
         setWorkoutPlanId(data?.planId ?? data?.id ?? null);
-        message.success("Đã tạo mới Workout Plan.");
+        message.success("Đã tạo mới Kế hoạch tập luyện.");
       } else {
         await api.put(`/WorkoutPlan/${workoutPlanId}`, {
           description: payload.description,
           days: payload.days,
         });
-        message.success("Đã cập nhật Workout Plan.");
+        message.success("Đã cập nhật Kế hoạch tập luyện.");
       }
     } catch (err) {
       console.error("Error saving workout plan:", err);
@@ -686,7 +686,7 @@ const TrainerMemberList = () => {
         err?.response?.data?.title ||
         err?.response?.data?.message ||
         err?.message ||
-        "Lưu Workout Plan thất bại.";
+        "Lưu Kế hoạch tập luyện thất bại.";
       message.error(msg);
     } finally {
       setWorkoutSaving(false);
@@ -727,13 +727,13 @@ const TrainerMemberList = () => {
         const res = await api.post("/MealPlan", payload);
         const data = res.data;
         setMealPlanId(data?.planId ?? data?.id ?? null);
-        message.success("Đã tạo mới Meal Plan.");
+        message.success("Đã tạo mới Kế hoạch dinh dưỡng.");
       } else {
         await api.put(`/MealPlan/${mealPlanId}`, {
           description: payload.description,
           days: payload.days,
         });
-        message.success("Đã cập nhật Meal Plan.");
+        message.success("Đã cập nhật Kế hoạch dinh dưỡng.");
       }
     } catch (err) {
       console.error("Error saving meal plan:", err);
@@ -743,7 +743,7 @@ const TrainerMemberList = () => {
         raw?.title ||
         raw?.message ||
         err?.message ||
-        "Lưu Meal Plan thất bại.";
+        "Lưu Kế hoạch dinh dưỡng thất bại.";
       message.error(msg);
     } finally {
       setMealSaving(false);
@@ -875,10 +875,10 @@ const TrainerMemberList = () => {
                     <thead className="thead-light">
                       <tr>
                         <th style={{ width: 60 }}>#</th>
-                        <th>Hội viên</th>
-                        <th>Mục tiêu</th>
-                        <th>Tình trạng sức khỏe</th>
-                        <th className="text-right">Thao tác</th>
+                        <th>👤 Hội viên</th>
+                        <th>🎯 Mục tiêu</th>
+                        <th>🩺 Tình trạng sức khỏe</th>
+                        <th className="text-right"> </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1115,7 +1115,7 @@ const TrainerMemberList = () => {
                   }}
                   onClick={() => setActiveModalTab("meal")}
                 >
-                  Meal Plan
+                  Kế hoạch dinh dưỡng
                 </Button>
                 <Button
                   size="sm"
@@ -1133,7 +1133,7 @@ const TrainerMemberList = () => {
                   }}
                   onClick={() => setActiveModalTab("workout")}
                 >
-                  Workout Plan
+                  Kế hoạch tập luyện
                 </Button>
               </div>
 
@@ -1260,7 +1260,7 @@ const TrainerMemberList = () => {
                   <>
                     {mealLoading ? (
                       <div className="text-center my-3 text-muted">
-                        Đang tải Meal Plan...
+                        Đang tải Kế hoạch dinh dưỡng..
                       </div>
                     ) : (
                       <>
@@ -1565,7 +1565,7 @@ const TrainerMemberList = () => {
 
                                           <FormGroup className="mb-0">
                                             <Label style={{ fontSize: 12 }}>
-                                              Hướng dẫn chế biến / lưu ý
+                                              Hướng dẫn chế biến / Lưu ý
                                             </Label>
                                             <Input
                                               type="textarea"
@@ -1611,8 +1611,8 @@ const TrainerMemberList = () => {
                             style={{ borderRadius: 999, paddingInline: 16 }}
                           >
                             {mealSaving
-                              ? "Đang lưu Meal Plan..."
-                              : "Lưu Meal Plan"}
+                              ? "Đang lưu Kế hoạch dinh dưỡng..."
+                              : "Lưu Kế hoạch dinh dưỡng"}
                           </Button>
                         </div>
                       </>
@@ -1625,13 +1625,13 @@ const TrainerMemberList = () => {
                   <>
                     {workoutLoading ? (
                       <div className="text-center my-3 text-muted">
-                        Đang tải Workout Plan...
+                        Đang tải Kế hoạch tập luyện...
                       </div>
                     ) : (
                       <>
                         <FormGroup className="mb-3">
                           <Label style={{ fontWeight: 600, fontSize: 13 }}>
-                            📝 Mô tả tổng quan Workout Plan
+                            📝 Mô tả tổng quan Kế hoạch tập luyện
                           </Label>
                           <Input
                             type="textarea"
@@ -2126,8 +2126,8 @@ const TrainerMemberList = () => {
                             style={{ borderRadius: 999, paddingInline: 16 }}
                           >
                             {workoutSaving
-                              ? "Đang lưu Workout Plan..."
-                              : "Lưu Workout Plan"}
+                              ? "Đang lưu Kế hoạch tập luyện..."
+                              : "Lưu Kế hoạch tập luyện"}
                           </Button>
                         </div>
                       </>
