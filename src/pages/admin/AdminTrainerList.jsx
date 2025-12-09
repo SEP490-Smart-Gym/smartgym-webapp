@@ -24,6 +24,29 @@ const GENDER_OPTIONS = [
   { label: "Khác", value: "Other" },
 ];
 
+const MIN_AGE = 18;
+
+// Không cho chọn ngày sinh < 18 tuổi hoặc trong tương lai
+const disabledBirthDate = (current) => {
+  if (!current) return false;
+  // lớn hơn hôm nay - 18 năm => dưới 18 tuổi => disable
+  return current > dayjs().subtract(MIN_AGE, "year").endOf("day");
+};
+
+// Validator: nếu có chọn ngày thì phải >= 18 tuổi
+const ageValidatorRule = {
+  validator: (_, value) => {
+    if (!value) return Promise.resolve(); // cho phép bỏ trống
+    const age = dayjs().diff(value, "year");
+    if (age < MIN_AGE) {
+      return Promise.reject(
+        new Error(`Huấn luyện viên phải ít nhất ${MIN_AGE} tuổi`)
+      );
+    }
+    return Promise.resolve();
+  },
+};
+
 export default function AdminTrainerList() {
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,37 +64,41 @@ export default function AdminTrainerList() {
     ).join("");
   };
 
-  // Fetch trainers (filter roleId === 5). Adjust if your API has a dedicated endpoint.
+  // Fetch trainers
   const fetchTrainers = async () => {
     setLoading(true);
     try {
       const res = await api.get("/Admin/trainers");
-      // chấp nhận response là array hoặc object có items/data
-      const raw = Array.isArray(res.data) ? res.data : res.data.items || res.data.data || [];
+      const raw = Array.isArray(res.data)
+        ? res.data
+        : res.data.items || res.data.data || [];
 
       const list = (Array.isArray(raw) ? raw : []).map((u) => ({
-        // dùng trainerId làm id chính
         id: u.trainerId ?? u.id ?? u.userId ?? null,
         firstName: u.firstName ?? "",
         lastName: u.lastName ?? "",
-        // tên hiển thị kết hợp first + last, fallback các trường khác nếu có
         name:
-          (`${u.firstName ?? ""}${u.firstName && u.lastName ? " " : ""}${u.lastName ?? ""}`).trim() ||
+          (
+            `${u.firstName ?? ""}${
+              u.firstName && u.lastName ? " " : ""
+            }${u.lastName ?? ""}`
+          ).trim() ||
           u.fullName ||
           u.name ||
           "",
-        // chuyên môn / rating / tổng review / sẵn sàng nhận khách
         specialization: u.specialization ?? "",
-        trainerRating: typeof u.trainerRating === "number" ? u.trainerRating : null,
-        totalReviews: typeof u.totalReviews === "number" ? u.totalReviews : null,
+        trainerRating:
+          typeof u.trainerRating === "number" ? u.trainerRating : null,
+        totalReviews:
+          typeof u.totalReviews === "number" ? u.totalReviews : null,
         isAvailableForNewClients: !!u.isAvailableForNewClients,
         certificates: Array.isArray(u.certificates) ? u.certificates : [],
-        // giữ thêm một vài trường liên hệ nếu backend trả về (không bắt buộc)
         email: u.email ?? "",
         phoneNumber: u.phoneNumber ?? u.phone ?? "",
         address: u.address ?? "",
         dateOfBirth: u.dateOfBirth ?? null,
-        raw: u, // lưu nguyên object gốc để dễ debug / delete / edit
+        gender: u.gender || "Male", // ➕ thêm gender để dùng trong edit
+        raw: u,
       }));
 
       setTrainers(list);
@@ -83,13 +110,12 @@ export default function AdminTrainerList() {
     }
   };
 
-
   useEffect(() => {
     fetchTrainers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // CREATE trainer (use /Admin/create-trainer)
+  // CREATE trainer
   const handleAdd = async (values) => {
     const autoPassword = generatePassword();
 
@@ -101,21 +127,26 @@ export default function AdminTrainerList() {
       phoneNumber: values.phoneNumber || "",
       gender: values.gender || "Male",
       address: values.address || "",
-      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : new Date().toISOString(),
+      dateOfBirth: values.dateOfBirth
+        ? dayjs(values.dateOfBirth).toISOString()
+        : new Date().toISOString(),
       specialization: values.specialization || "",
       trainerBio: values.trainerBio || "",
       isAvailableForNewClients: !!values.isAvailableForNewClients,
       certificates:
         values.certificates && Array.isArray(values.certificates)
           ? values.certificates.map((c) => ({
-            certificateName: c.certificateName || "",
-            certificateDetail: c.certificateDetail || "",
-          }))
+              certificateName: c.certificateName || "",
+              certificateDetail: c.certificateDetail || "",
+            }))
           : [],
     };
 
     try {
-      message.loading({ content: "Đang tạo tài khoản...", key: "createTrainer" });
+      message.loading({
+        content: "Đang tạo tài khoản...",
+        key: "createTrainer",
+      });
       await api.post("/Admin/create-trainer", body);
 
       Modal.success({
@@ -134,26 +165,27 @@ export default function AdminTrainerList() {
       await fetchTrainers();
     } catch (err) {
       console.error("create trainer error", err);
-      const msg = err?.response?.data?.message || err?.response?.data || "Tạo HLV thất bại";
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        "Tạo HLV thất bại";
       message.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
     } finally {
       message.destroy("createTrainer");
     }
   };
 
-  // DELETE trainer (attempt appropriate endpoint; adjust if your backend path differs)
+  // DELETE trainer
   const handleDelete = async (record) => {
     if (!window.confirm("Bạn có chắc muốn xoá HLV này?")) return;
     try {
       const id = record?.id || record?.raw?.userId;
       if (!id) {
-        // fallback: remove local
         setTrainers((p) => p.filter((t) => t !== record));
         message.success("Đã xóa (local)");
         return;
       }
 
-      // try delete trainer-specific endpoint first, fallback to /Admin/user/{id}
       try {
         await api.delete(`/Admin/user/${id}`);
       } catch (err) {
@@ -168,7 +200,7 @@ export default function AdminTrainerList() {
     }
   };
 
-  // OPEN edit modal (fill editForm). We'll try to PUT to /Admin/trainer/{id} or /Admin/user/{id}
+  // OPEN edit modal
   const openEdit = (record) => {
     setEditing(record);
     editForm.setFieldsValue({
@@ -176,13 +208,16 @@ export default function AdminTrainerList() {
       lastName: record.lastName,
       email: record.email,
       phoneNumber: record.phoneNumber,
-      gender: record.gender,
+      gender: record.gender || "Male",
       address: record.address,
       dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
       specialization: record.specialization,
       trainerBio: record.trainerBio,
       isAvailableForNewClients: record.isAvailableForNewClients,
-      certificates: record.certificates && record.certificates.length ? record.certificates : [{ certificateName: "", certificateDetail: "" }],
+      certificates:
+        record.certificates && record.certificates.length
+          ? record.certificates
+          : [{ certificateName: "", certificateDetail: "" }],
     });
     setEditOpen(true);
   };
@@ -197,7 +232,9 @@ export default function AdminTrainerList() {
       phoneNumber: values.phoneNumber,
       gender: values.gender,
       address: values.address,
-      dateOfBirth: values.dateOfBirth ? dayjs(values.dateOfBirth).toISOString() : null,
+      dateOfBirth: values.dateOfBirth
+        ? dayjs(values.dateOfBirth).toISOString()
+        : null,
       specialization: values.specialization,
       trainerBio: values.trainerBio,
       isAvailableForNewClients: !!values.isAvailableForNewClients,
@@ -208,7 +245,6 @@ export default function AdminTrainerList() {
     };
 
     try {
-      // try trainer-specific update, fallback to user update
       try {
         await api.put(`/Admin/trainer/${id}`, body);
       } catch (err) {
@@ -222,17 +258,21 @@ export default function AdminTrainerList() {
       await fetchTrainers();
     } catch (err) {
       console.error("update trainer error", err);
-      const msg = err?.response?.data?.message || err?.response?.data || "Cập nhật thất bại";
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        "Cập nhật thất bại";
       message.error(Array.isArray(msg) ? msg.join(", ") : String(msg));
     }
   };
+
   const viewCertificates = (record) => {
     if (!record.certificates || record.certificates.length === 0) {
       return Modal.info({
         title: "Chứng chỉ",
         content: "Huấn luyện viên này chưa có chứng chỉ nào.",
         okText: "Đóng",
-        getContainer: () => document.body
+        getContainer: () => document.body,
       });
     }
 
@@ -252,7 +292,7 @@ export default function AdminTrainerList() {
         </div>
       ),
       okText: "Đóng",
-      getContainer: () => document.body
+      getContainer: () => document.body,
     });
   };
 
@@ -266,7 +306,12 @@ export default function AdminTrainerList() {
         <img
           src={src || "/img/useravt.jpg"}
           alt={r.name || "avatar"}
-          style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover" }}
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            objectFit: "cover",
+          }}
           onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
         />
       ),
@@ -279,12 +324,17 @@ export default function AdminTrainerList() {
       render: (_, r) => {
         const first = r.firstName || "";
         const last = r.lastName || "";
-        return (first || last) ? `${first} ${last}`.trim() : (r.name || "—");
+        return first || last ? `${first} ${last}`.trim() : r.name || "—";
       },
     },
     { title: "Email", dataIndex: "email", key: "email", width: 220 },
     { title: "SĐT", dataIndex: "phoneNumber", key: "phoneNumber", width: 140 },
-    { title: "Chuyên môn", dataIndex: "specialization", key: "specialization", width: 200 },
+    {
+      title: "Chuyên môn",
+      dataIndex: "specialization",
+      key: "specialization",
+      width: 200,
+    },
     {
       title: "Sẵn sàng nhận khách mới",
       dataIndex: "isAvailableForNewClients",
@@ -310,8 +360,12 @@ export default function AdminTrainerList() {
       width: 180,
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => openEdit(record)}>Sửa</Button>
-          <Button size="small" danger onClick={() => handleDelete(record)}>Xóa</Button>
+          <Button size="small" onClick={() => openEdit(record)}>
+            Sửa
+          </Button>
+          <Button size="small" danger onClick={() => handleDelete(record)}>
+            Xóa
+          </Button>
         </Space>
       ),
     },
@@ -327,7 +381,7 @@ export default function AdminTrainerList() {
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý Huấn luyện viên</h2>
 
-          {/* Form thêm (antd) */}
+          {/* Form thêm */}
           <div className="card shadow-sm mb-4">
             <div className="card-body">
               <h5 className="mb-3">Thêm HLV mới</h5>
@@ -340,30 +394,50 @@ export default function AdminTrainerList() {
                   gender: "Male",
                   salary: 0,
                   isAvailableForNewClients: true,
-                  certificates: [{ certificateName: "", certificateDetail: "" }],
+                  certificates: [
+                    { certificateName: "", certificateDetail: "" },
+                  ],
                 }}
               >
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <Form.Item name="lastName" rules={[{ required: true, message: "Nhập họ" }]}>
+                    <Form.Item
+                      name="lastName"
+                      rules={[{ required: true, message: "Nhập họ" }]}
+                    >
                       <Input placeholder="Họ" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item name="firstName" rules={[{ required: true, message: "Nhập tên" }]}>
+                    <Form.Item
+                      name="firstName"
+                      rules={[{ required: true, message: "Nhập tên" }]}
+                    >
                       <Input placeholder="Tên" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item name="email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
+                    <Form.Item
+                      name="email"
+                      rules={[
+                        {
+                          required: true,
+                          type: "email",
+                          message: "Email không hợp lệ",
+                        },
+                      ]}
+                    >
                       <Input placeholder="Email" />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item name="phoneNumber" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
+                    <Form.Item
+                      name="phoneNumber"
+                      rules={[{ required: true, message: "Nhập số điện thoại" }]}
+                    >
                       <Input placeholder="Số điện thoại" />
                     </Form.Item>
                   </div>
@@ -375,14 +449,28 @@ export default function AdminTrainerList() {
                   </div>
 
                   <div className="col-md-4">
-                    <Form.Item name="dateOfBirth">
-                      <DatePicker style={{ width: "100%" }} placeholder="Ngày sinh" />
+                    <Form.Item
+                      name="dateOfBirth"
+                      rules={[ageValidatorRule]}
+                    >
+                      <DatePicker
+                        style={{ width: "100%" }}
+                        placeholder="Ngày sinh"
+                        disabledDate={disabledBirthDate}
+                        // mở panel sẵn ở năm (today - 18)
+                        defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
+                      />
                     </Form.Item>
                   </div>
 
                   {/* <div className="col-md-4">
                     <Form.Item name="salary">
-                      <InputNumber style={{ width: "100%" }} min={0} formatter={(v) => (v ? `${v}` : v)} placeholder="Lương" />
+                      <InputNumber
+                        style={{ width: "100%" }}
+                        min={0}
+                        formatter={(v) => (v ? `${v}` : v)}
+                        placeholder="Lương"
+                      />
                     </Form.Item>
                   </div> */}
 
@@ -399,35 +487,49 @@ export default function AdminTrainerList() {
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item name="isAvailableForNewClients" valuePropName="checked">
-                      <Space>
-                        <span>Sẵn sàng nhận khách mới</span>
-                        <Form.Item name="isAvailableForNewClients" valuePropName="checked" noStyle>
-                          <Switch />
-                        </Form.Item>
-                      </Space>
+                    <Form.Item
+                      name="isAvailableForNewClients"
+                      label="Sẵn sàng nhận khách mới"
+                      valuePropName="checked"
+                    >
+                      <Switch />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-12">
                     <Form.Item name="trainerBio">
-                      <Input.TextArea placeholder="Mô tả / giới thiệu" rows={3} />
+                      <Input.TextArea
+                        placeholder="Mô tả / giới thiệu"
+                        rows={3}
+                      />
                     </Form.Item>
                   </div>
 
-                  {/* Certificates as Form.List */}
+                  {/* Certificates */}
                   <div className="col-md-12">
                     <Form.List name="certificates">
                       {(fields, { add, remove }) => (
                         <div>
                           <label className="form-label">Certificates</label>
                           {fields.map((field) => (
-                            <Space key={field.key} align="start" style={{ display: "flex", marginBottom: 8 }}>
+                            <Space
+                              key={field.key}
+                              align="start"
+                              style={{
+                                display: "flex",
+                                marginBottom: 8,
+                              }}
+                            >
                               <Form.Item
                                 {...field}
                                 name={[field.name, "certificateName"]}
                                 fieldKey={[field.fieldKey, "certificateName"]}
-                                rules={[{ required: true, message: "Tên certificate required" }]}
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Tên certificate required",
+                                  },
+                                ]}
                               >
                                 <Input placeholder="Tên chứng chỉ" />
                               </Form.Item>
@@ -436,17 +538,31 @@ export default function AdminTrainerList() {
                                 {...field}
                                 name={[field.name, "certificateDetail"]}
                                 fieldKey={[field.fieldKey, "certificateDetail"]}
-                                rules={[{ required: true, message: "Chi tiết required" }]}
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: "Chi tiết required",
+                                  },
+                                ]}
                               >
                                 <Input placeholder="Chi tiết" />
                               </Form.Item>
 
-                              <Button danger onClick={() => remove(field.name)}>Xóa</Button>
+                              <Button
+                                danger
+                                onClick={() => remove(field.name)}
+                              >
+                                Xóa
+                              </Button>
                             </Space>
                           ))}
 
                           <Form.Item>
-                            <Button type="dashed" onClick={() => add()} block>
+                            <Button
+                              type="dashed"
+                              onClick={() => add()}
+                              block
+                            >
                               Thêm chứng chỉ
                             </Button>
                           </Form.Item>
@@ -472,7 +588,9 @@ export default function AdminTrainerList() {
             <div className="card-body">
               <h5 className="mb-3">Danh sách HLV</h5>
               {loading ? (
-                <div className="text-center py-5"><Spin /></div>
+                <div className="text-center py-5">
+                  <Spin />
+                </div>
               ) : (
                 <Table
                   rowKey="id"
@@ -501,8 +619,17 @@ export default function AdminTrainerList() {
         cancelText="Huỷ"
         destroyOnClose
       >
-        <Form form={editForm} layout="vertical" onFinish={saveEdit} preserve={false}>
-          <Form.Item name="firstName" label="Tên" rules={[{ required: true }]}>
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={saveEdit}
+          preserve={false}
+        >
+          <Form.Item
+            name="firstName"
+            label="Tên"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
 
@@ -510,7 +637,11 @@ export default function AdminTrainerList() {
             <Input />
           </Form.Item>
 
-          <Form.Item name="email" label="Email" rules={[{ type: "email" }]}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ type: "email" }]}
+          >
             <Input />
           </Form.Item>
 
@@ -522,8 +653,17 @@ export default function AdminTrainerList() {
             <Select options={GENDER_OPTIONS} />
           </Form.Item>
 
-          <Form.Item name="dateOfBirth" label="Ngày sinh">
-            <DatePicker style={{ width: "100%" }} />
+          <Form.Item
+            name="dateOfBirth"
+            label="Ngày sinh"
+            rules={[ageValidatorRule]}
+          >
+            <DatePicker
+              style={{ width: "100%" }}
+              disabledDate={disabledBirthDate}
+              // nếu chưa có DOB thì panel mở ở năm (today - 18)
+              defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
+            />
           </Form.Item>
 
           <Form.Item name="specialization" label="Chuyên môn">
@@ -538,7 +678,11 @@ export default function AdminTrainerList() {
             <InputNumber style={{ width: "100%" }} min={0} />
           </Form.Item>
 
-          <Form.Item name="isAvailableForNewClients" label="Sẵn sàng nhận khách mới" valuePropName="checked">
+          <Form.Item
+            name="isAvailableForNewClients"
+            label="Sẵn sàng nhận khách mới"
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
 
@@ -546,12 +690,21 @@ export default function AdminTrainerList() {
             {(fields, { add, remove }) => (
               <div>
                 {fields.map((field) => (
-                  <Space key={field.key} align="start" style={{ display: "flex", marginBottom: 8 }}>
+                  <Space
+                    key={field.key}
+                    align="start"
+                    style={{ display: "flex", marginBottom: 8 }}
+                  >
                     <Form.Item
                       {...field}
                       name={[field.name, "certificateName"]}
                       fieldKey={[field.fieldKey, "certificateName"]}
-                      rules={[{ required: true, message: "Tên certificate required" }]}
+                      rules={[
+                        {
+                          required: true,
+                          message: "Tên certificate required",
+                        },
+                      ]}
                     >
                       <Input placeholder="Tên chứng chỉ" />
                     </Form.Item>
@@ -560,12 +713,19 @@ export default function AdminTrainerList() {
                       {...field}
                       name={[field.name, "certificateDetail"]}
                       fieldKey={[field.fieldKey, "certificateDetail"]}
-                      rules={[{ required: true, message: "Chi tiết required" }]}
+                      rules={[
+                        {
+                          required: true,
+                          message: "Chi tiết required",
+                        },
+                      ]}
                     >
                       <Input placeholder="Chi tiết" />
                     </Form.Item>
 
-                    <Button danger onClick={() => remove(field.name)}>Xóa</Button>
+                    <Button danger onClick={() => remove(field.name)}>
+                      Xóa
+                    </Button>
                   </Space>
                 ))}
 

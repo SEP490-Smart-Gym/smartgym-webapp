@@ -31,8 +31,7 @@ function toHHmmFromApiTime(apiTime) {
 function mapSessionStatus(session) {
   const raw = (session.status || "").toLowerCase().trim();
   if (raw === "scheduled" || raw === "booked") return "not yet";
-  if (raw === "completed" || raw === "present" || raw === "done")
-    return "present";
+  if (raw === "completed" || raw === "present" || raw === "done") return "present";
   if (
     raw === "cancelled" ||
     raw === "canceled" ||
@@ -177,10 +176,6 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [vnDate, setVnDate] = useState(formatTodayVN());
 
-  const [trainers, setTrainers] = useState([]); // {id, name}
-  const [trainersLoading, setTrainersLoading] = useState(false);
-  const [trainersError, setTrainersError] = useState("");
-
   const [allSlots, setAllSlots] = useState([]); // {id, label, start, end}
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
@@ -188,25 +183,18 @@ export default function Calendar() {
   const [memberPackageId, setMemberPackageId] = useState(null);
   const [packageError, setPackageError] = useState("");
 
-  // gói có cho chọn PT hay không
-  const [allowSelectTrainer, setAllowSelectTrainer] = useState(true);
-
   const [disabledSlots, setDisabledSlots] = useState(new Set());
   const [selectedSlotId, setSelectedSlotId] = useState("");
 
-  const [selectedTrainerId, setSelectedTrainerId] = useState("");
-
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // ==== GỌI API trainer, timeslot, active package ====
+  // ==== GỌI API timeslot + gói đang active ====
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      setTrainersLoading(true);
       setSlotsLoading(true);
       setPackageError("");
-      setTrainersError("");
       setSlotsError("");
 
       // 1) TimeSlot
@@ -241,63 +229,20 @@ export default function Calendar() {
         if (!cancelled) setSlotsLoading(false);
       }
 
-      // 2) Trainers (member/trainer)
-      try {
-        const trainerRes = await api.get("/member/trainers");
-        if (!cancelled) {
-          const trainerData = Array.isArray(trainerRes.data)
-            ? trainerRes.data
-            : [];
-          const mappedTrainers = trainerData
-            .filter((t) => t.isAvailableForNewClients !== false)
-            .map((t) => ({
-              id: t.trainerId,
-              // HỌ trước, TÊN sau
-              name:
-                `${(t.lastName || "").trim()} ${(t.firstName || "").trim()}`.trim() ||
-                "Trainer",
-            }));
-
-          setTrainers(mappedTrainers);
-          if (mappedTrainers.length > 0) {
-            setSelectedTrainerId(String(mappedTrainers[0].id));
-          }
-        }
-      } catch (err) {
-        console.error("Error loading trainers:", err);
-        if (!cancelled) {
-          if (err?.response?.status === 401) {
-            setTrainersError(
-              "Bạn cần đăng nhập để xem danh sách huấn luyện viên."
-            );
-          } else {
-            setTrainersError("Không tải được danh sách Trainer.");
-          }
-        }
-      } finally {
-        if (!cancelled) setTrainersLoading(false);
-      }
-
-      // 3) Active member package
+      // 2) Active member package
       try {
         const pkgRes = await api.get("/MemberPackage/my-active-package");
         if (!cancelled) {
           const pkg = pkgRes.data;
           if (pkg && pkg.id) {
             setMemberPackageId(pkg.id);
-
-            // 🟦 Check có PT: trainerId null / number
-            const hasTrainer = pkg.trainerId != null;
-            setAllowSelectTrainer(hasTrainer);
           } else {
             setPackageError("Không tìm thấy gói tập đang hoạt động.");
-            setAllowSelectTrainer(false);
           }
         }
       } catch (err) {
         console.error("Error loading active package:", err);
         if (!cancelled) {
-          setAllowSelectTrainer(false);
           if (err?.response?.status === 401) {
             setPackageError(
               "Bạn cần đăng nhập để sử dụng lịch đặt buổi tập."
@@ -339,12 +284,29 @@ export default function Calendar() {
     return disabled;
   }
 
-  // 👉 HỦY LỊCH: gọi API /api/TrainingSession/{id}/cancel
+  // 👉 HỦY LỊCH: gọi API /TrainingSession/{id}/cancel
   const handleCancelEvent = async (event) => {
     if (!event) return;
 
     if (!event.id) {
       message.error("Không tìm thấy ID buổi tập để hủy.");
+      return;
+    }
+
+    // ✅ CHỈ ĐƯỢC HỦY TRƯỚC 24 GIỜ
+    const startRaw = event.start || event.date;
+    const startTime =
+      startRaw instanceof Date ? startRaw : new Date(startRaw);
+    if (isNaN(startTime.getTime())) {
+      message.error("Không xác định được thời gian buổi tập.");
+      return;
+    }
+
+    const now = new Date();
+    const diffHours = (startTime - now) / (1000 * 60 * 60);
+
+    if (diffHours < 24) {
+      message.warning("Bạn chỉ có thể hủy lịch trước ít nhất 24 giờ.");
       return;
     }
 
@@ -627,17 +589,15 @@ export default function Calendar() {
           if (!dayCell.length || dayCell.hasEvent) return;
           const time = event.start.toTimeString();
           const status = (event.status || "").toLowerCase();
-          const $chip = $(
-            `
+          const $chip = $(`
             <div class="event-chip status-${status.replace(/\s+/g, "-")}" data-index="${index}" title="${event.title}">
               <div class="event-chip-title">${event.title}</div>
               <div class="event-chip-time">${time}${
-              event.end ? " - " + event.end.toTimeString() : ""
-            }</div>
+                event.end ? " - " + event.end.toTimeString() : ""
+              }</div>
               <div class="event-chip-badge">${status}</div>
             </div>
-          `
-          );
+          `);
           dayCell.addClass("has-event").append($chip);
         }
 
@@ -734,7 +694,7 @@ export default function Calendar() {
         document
       );
 
-      // Handler mở modal chi tiết event – dùng lại mỗi lần vẽ
+      // Handler mở modal chi tiết event
       const handleOpenEvent = (ev) => {
         setSelectedEvent({
           id: ev.id,
@@ -765,10 +725,14 @@ export default function Calendar() {
         onOpenEvent: handleOpenEvent,
       });
 
-      // 🔥 TẢI LỊCH TẬP TỪ API /TrainingSession
+      // 🔥 TẢI LỊCH TẬP TỪ API /TrainingSession – CHỈ LẤY STATUS = "Scheduled"
       try {
         const res = await api.get("/TrainingSession");
-        const sessions = Array.isArray(res.data) ? res.data : [];
+        const rawSessions = Array.isArray(res.data) ? res.data : [];
+
+        const sessions = rawSessions.filter(
+          (s) => (s.status || "").toLowerCase().trim() === "scheduled"
+        );
 
         const mappedEvents = sessions.map((s) => {
           const isoDate = (s.sessionDate || "").slice(0, 10);
@@ -779,7 +743,7 @@ export default function Calendar() {
               ? `${startLabel}-${endLabel}`
               : startLabel || "";
 
-          // title = trainerName, nếu không có trainer thì ""
+          // title = trainerName nếu backend có trả
           const title = s.trainerName || "";
 
           return {
@@ -802,6 +766,22 @@ export default function Calendar() {
       }
     })();
   }, []);
+
+  // ✅ TÍNH CÓ ĐƯỢC HỦY HAY KHÔNG (DÙNG CHO GIAO DIỆN)
+  const canCancelSelectedEvent = (() => {
+    if (!selectedEvent) return false;
+    if ((selectedEvent.status || "").toLowerCase() !== "not yet") return false;
+
+    const startRaw = selectedEvent.start || selectedEvent.date;
+    const startTime =
+      startRaw instanceof Date ? startRaw : new Date(startRaw);
+    if (isNaN(startTime.getTime())) return false;
+
+    const now = new Date();
+    const diffHours = (startTime - now) / (1000 * 60 * 60);
+
+    return diffHours >= 24;
+  })();
 
   return (
     <div className="container mt-5 mb-5">
@@ -912,12 +892,16 @@ export default function Calendar() {
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
           Lịch
         </h1>
-        <button className="btn btn-booking" data-bs-toggle="modal" data-bs-target="#bookingModal">
+        <button
+          className="btn btn-booking"
+          data-bs-toggle="modal"
+          data-bs-target="#bookingModal"
+        >
           <span>Đặt lịch tập</span>
         </button>
       </div>
 
-      {/* MODAL: CHỌN TRAINER + TIMESLOT + DATE */}
+      {/* MODAL: Đặt lịch tập – KHÔNG CHỌN TRAINER */}
       <div
         className="modal fade"
         id="bookingModal"
@@ -957,21 +941,6 @@ export default function Calendar() {
                 return;
               }
 
-              // Trainer (chỉ khi gói có PT)
-              let trainerId = null;
-              let trainerName = "Trainer";
-              if (allowSelectTrainer) {
-                trainerId = fd.get("trainer");
-                if (!trainerId) {
-                  message.error("Vui lòng chọn Trainer.");
-                  return;
-                }
-                trainerName =
-                  trainers.find(
-                    (t) => String(t.id) === String(trainerId)
-                  )?.name || "Trainer";
-              }
-
               const slotId = selectedSlotId;
               if (!slotId || disabledSlots.has(String(slotId))) {
                 message.error("Khung giờ không hợp lệ.");
@@ -1009,37 +978,21 @@ export default function Calendar() {
 
               const timeLabel = `${start}-${end}`;
 
-              // check trùng lịch trainer nếu gói có PT
-              if (allowSelectTrainer) {
-                const conflict = dataRef.current.find(
-                  (ev) =>
-                    ev.date === isoDate &&
-                    ev.time === timeLabel &&
-                    ev.title.includes(trainerName)
-                );
-                if (conflict) {
-                  message.error(
-                    "Trainer hiện đang có lịch, vui lòng chọn Trainer khác."
-                  );
-                  return;
-                }
-              }
-
               try {
+                // payload KHÔNG có trainerId nữa
                 const payload = {
                   sessionDate: isoDate,
                   timeSlotId: timeSlotId,
                   memberPackageId: memberPackageId,
                   notes: "",
                 };
-                if (allowSelectTrainer && trainerId) {
-                  payload.trainerId = Number(trainerId);
-                }
+                console.log("Booking payload:", payload);
 
                 const res = await api.post("/TrainingSession/book", payload);
                 const created = res.data;
 
-                const title = allowSelectTrainer ? trainerName : "";
+                const title = created?.trainerName || "";
+
                 dataRef.current.push({
                   id: created?.id,
                   date: isoDate,
@@ -1088,7 +1041,6 @@ export default function Calendar() {
                     "Bạn đã sử dụng hết số buổi trong gói này. Vui lòng gia hạn hoặc mua gói mới trước khi đặt thêm lịch."
                   );
                 } else if (apiMsg) {
-                  // Nếu backend trả message khác thì show trực tiếp (hoặc bạn có thể map ra tiếng Việt)
                   message.error(apiMsg);
                 } else {
                   message.error("Có lỗi khi đặt lịch. Vui lòng thử lại sau.");
@@ -1107,36 +1059,7 @@ export default function Calendar() {
             </div>
 
             <div className="modal-body">
-              {/* Trainer select – chỉ hiện khi gói có PT */}
-              {allowSelectTrainer ? (
-                <div className="mb-3">
-                  <label className="form-label">HLV</label>
-                  {trainersLoading && (
-                    <div className="form-text text-muted">
-                      Đang tải danh sách Trainer...
-                    </div>
-                  )}
-                  {trainersError && (
-                    <div className="form-text text-danger">
-                      {trainersError}
-                    </div>
-                  )}
-                  <select
-                    name="trainer"
-                    className="form-select"
-                    required
-                    value={selectedTrainerId}
-                    onChange={(e) => setSelectedTrainerId(e.target.value)}
-                    disabled={trainersLoading || !trainers.length}
-                  >
-                    {trainers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+              {/* KHÔNG còn select Trainer */}
 
               {/* Date dd/mm/yyyy */}
               <div className="mb-3">
@@ -1236,7 +1159,6 @@ export default function Calendar() {
                   !selectedSlotId ||
                   disabledSlots.has(String(selectedSlotId)) ||
                   dayAlreadyBooked(selectedDate) ||
-                  (allowSelectTrainer && !trainers.length) ||
                   !allSlots.length ||
                   !memberPackageId
                 }
@@ -1302,6 +1224,11 @@ export default function Calendar() {
                       {selectedEvent.status}
                     </span>
                   </div>
+                  {!canCancelSelectedEvent && (
+                    <div className="text-muted small">
+                      Lưu ý: Chỉ có thể hủy lịch trước giờ tập ít nhất 24 giờ.
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-muted">
@@ -1310,18 +1237,15 @@ export default function Calendar() {
               )}
             </div>
             <div className="modal-footer">
-              {selectedEvent &&
-                selectedEvent.status?.toLowerCase() === "not yet" &&
-                new Date(selectedEvent.start || selectedEvent.date) >
-                  new Date() && (
-                  <button
-                    type="button"
-                    className="btn btn-danger me-auto"
-                    onClick={() => handleCancelEvent(selectedEvent)}
-                  >
-                    Hủy lịch
-                  </button>
-                )}
+              {canCancelSelectedEvent && (
+                <button
+                  type="button"
+                  className="btn btn-danger me-auto"
+                  onClick={() => handleCancelEvent(selectedEvent)}
+                >
+                  Hủy lịch
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-light"
@@ -1355,7 +1279,7 @@ export default function Calendar() {
               thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
               first = new Date(thedate);
               last = new Date(thedate);
-              last.setDate(last.getDate()+6);
+              last.setDate(thedate.getDate()+6);
             } else if (mode === 'day') {
               thedate = new Date(date);
               first = new Date(thedate);

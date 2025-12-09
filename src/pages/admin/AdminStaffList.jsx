@@ -362,9 +362,7 @@ export default function AdminStaffList() {
                   <div className="col-md-3">
                     <Form.Item
                       name="phoneNumber"
-                      rules={[
-                        { required: true, message: "Nhập số điện thoại" },
-                      ]}
+                      rules={[{ required: true, message: "Nhập số điện thoại" }]}
                     >
                       <Input placeholder="Số điện thoại" />
                     </Form.Item>
@@ -378,6 +376,8 @@ export default function AdminStaffList() {
                         style={{ width: "100%" }}
                         placeholder="Ngày sinh"
                         disabledDate={disabledBirthDate}
+                        // 👇 Khi mở lịch, nhảy sẵn về năm (hôm nay - 18)
+                        defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
                       />
                     </Form.Item>
                   </div>
@@ -482,6 +482,8 @@ export default function AdminStaffList() {
             <DatePicker
               style={{ width: "100%" }}
               disabledDate={disabledBirthDate}
+              // 👇 Nếu chưa có DOB thì panel cũng mở ở năm (hôm nay - 18)
+              defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
             />
           </Form.Item>
 

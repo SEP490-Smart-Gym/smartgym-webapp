@@ -21,9 +21,6 @@ import ProfileStaff from "../pages/Staff/Profile.jsx";
 import ProfileTrainer from "../pages/Trainer/Profile.jsx";
 import ProfileAdmin from "../pages/admin/ProfileAdmin.jsx";
 
-import ManageSchedule from "../pages/Manager/Schedule.jsx";
-import StaffSchedule from "../pages/Staff/Schedule.jsx";
-import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 
 // Member pages
 import TrainerDetail from "../pages/Member/TrainerDetail.jsx";
@@ -36,6 +33,12 @@ import TrainerSchedule from "../pages/Member/Schedule.jsx";
 import Payment from "../pages/Member/Payment.jsx";
 import MemberVoucherList from "../pages/Member/Voucher.jsx";
 import PaymentHistory from "../pages/Member/MyPayment.jsx";
+import PaymentPage from "../pages/Member/PaymentCont.jsx";
+import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
+import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
+import ChatPage from "../pages/Member/ChatPage.jsx";
+import ChatConversation from "../pages/Member/ChatConversation.jsx";
+import RewardGifts from "../pages/Member/RewardGifts.jsx";
 
 // Admin pages
 import AdminPackages from "../pages/admin/AdminPackages.jsx";
@@ -45,19 +48,30 @@ import AdminMemberList from "../pages/admin/AdminMemberList.jsx";
 import AdminStaffList from "../pages/admin/AdminStaffList.jsx";
 import StaffEquipmentList from "../pages/Staff/StaffEquipmentList.jsx";
 import TimeSlot from "../pages/admin/SettingTimeSlot.jsx";
-
-// Guard
-import ProtectedRoute from "./ProtectedRoute.jsx";
 import AdminVoucher from "../pages/admin/AdminVoucher.jsx";
 import AdminManagerList from "../pages/admin/AdminManagerList.jsx";
+import AdminPromotionGifts from "../pages/admin/ManagePromotion.jsx";
+
+// Staff
+import ProtectedRoute from "./ProtectedRoute.jsx";
+import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
+import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import StaffSchedule from "../pages/Staff/Schedule.jsx";
+import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
+import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
+import StaffChatList from "../pages/Staff/StaffChatList.jsx"; 
+
+//Manager pages
+import RefundManagement from "../pages/Manager/ManageRefund.jsx";
+import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
 import EquipmentRepairPending from "../pages/Manager/EquipmentRepairPending.jsx";
 import ManagerAllRepairReports from "../pages/Manager/ManagerAllRepairReports.jsx";
-import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
-import ManagerCreateMaintenanceSchedule from "../pages/Manager/ManagerCreateMaintenanceSchedule.jsx";
-import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
-import ChatPage from "../pages/Member/ChatPage.jsx";
-import ChatConversation from "../pages/Member/ChatConversation.jsx";
-import ChatBot from "../pages/Member/ChatBox.jsx";
+import ManageSchedule from "../pages/Manager/Schedule.jsx";
+
+//Trainer
+import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
+import ManageMember from "../pages/Trainer/ManageMember.jsx";
+import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 
 function Layout() {
@@ -125,26 +139,26 @@ export default function AppRoutes() {
 
         {/* ===== Member protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Member"]} />}>
-          {/* Dùng đường dẫn tuyệt đối với prefix /member/... */}
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
-          <Route path="/chatbot/:id" element={<ChatBot />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/chat/:conversationId" element={<ChatConversation />} />
-          {/* Nếu muốn lớp học riêng cho member: */}
-          {/* <Route path="/member/classes" element={<Classes />} /> */}
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
+          <Route path="/member/payment/:id" element={<PaymentPage />} />          
+          <Route path="/member/points-history" element={<ExtraPoint />} />
+          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />    
+          <Route path="/member/reward-gifts" element={<RewardGifts />} />
         </Route>
 
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
-          {/* Trang profile trainer riêng */}
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
           <Route path="/trainer/chatlist" element={<TrainerChatList />} />
-          {/* Nếu muốn schedule riêng cho trainer: */}
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
+          <Route path="/trainer/member-list" element={<ManageMember />} />
+          <Route path="/trainer/chat/:id" element={<ChatBoxTrainer />} />
         </Route>
 
         {/* ===== Staff protected ===== */}
@@ -156,7 +170,9 @@ export default function AppRoutes() {
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
-
+          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />          
+          <Route path="/staff/chatlist" element={<StaffChatList />} />
+          <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
         </Route>
 
         {/* ===== Admin protected ===== */}
@@ -171,6 +187,7 @@ export default function AppRoutes() {
           <Route path="/admin/managers" element={<AdminManagerList />} />
           <Route path="/admin/vouchers" element={<AdminVoucher />} />
           <Route path="/admin/timeslot" element={<TimeSlot />} />
+          <Route path="/admin/promotion-gifts" element={<AdminPromotionGifts />} />
         </Route>
 
         {/* ===== Manager protected ===== */}
@@ -181,6 +198,7 @@ export default function AppRoutes() {
           <Route path="/manager/equipment-create-maintain" element={<ManagerCreateMaintenanceSchedule />} />
           <Route path="/profile/manager" element={<ProfileManager />} />
           <Route path="/manager/schedule" element={<ManageSchedule />} />
+          <Route path="/manager/manager-refund" element={<RefundManagement />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}

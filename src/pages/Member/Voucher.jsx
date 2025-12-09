@@ -1,4 +1,3 @@
-// src/pages/MemberVoucherList.jsx
 import React, { useEffect, useState } from "react";
 import { Button, Modal, message, Tag } from "antd";
 import dayjs from "dayjs";
@@ -150,132 +149,148 @@ export default function MemberVoucherList() {
   };
 
   return (
-    <div className="container py-4">
-      <style>{styles}</style>
+    <div className="min-h-screen bg-gradient-to-br from-red-100 to-yellow-100 flex items-center justify-center p-4">
+      <div className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "url('https://enhome.vn/wp-content/uploads/2023/11/thiet-ke-phong-gym-42.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundColor: "rgba(2, 0, 68, 0.75)",
+            backgroundBlendMode: "multiply",
+            minHeight: "100%",
+            paddingTop: "50px",
+            paddingBottom: "50px",
+            zIndex: 1,
+          }}>
 
-      <div className="row mb-3 text-center">
-        <div className="col-12">
-          <h3 className="mb-0 fw-bold">Voucher của bạn</h3>
-        </div>
-      </div>
+        <style>{styles}</style>
 
-      {loading && (
-        <div className="row justify-content-center mb-3">
-          <div className="col-12 col-xl-10">
-            <div className="alert alert-info text-center mb-0">
-              Đang tải danh sách voucher...
-            </div>
+        <div className="row mb-3 text-center">
+          <div className="col-12">
+            <h3 className="mb-0 fw-bold" 
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}>Voucher của bạn</h3>
           </div>
         </div>
-      )}
 
-      {!loading && list.length === 0 && (
-        <div className="row justify-content-center">
-          <div className="col-12 col-xl-10">
-            <div
-              className="alert alert-light border text-center"
-              role="alert"
-            >
-              Hiện tại bạn chưa có voucher khả dụng.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Danh sách voucher – style giống PaymentHistory: mỗi voucher 1 card */}
-      {list.map((v) => {
-        const shortText = formatDiscountShort(v);
-
-        return (
-          <div className="row justify-content-center mb-3" key={v.id ?? v.code}>
+        {loading && (
+          <div className="row justify-content-center mb-3">
             <div className="col-12 col-xl-10">
-              <div className="card shadow-0 border rounded-3 card-shadow">
-                <div className="card-body">
-                  <div className="row g-3 align-items-center">
-                    {/* Cột trái: Mã voucher */}
-                    <div className="col-12 col-md-4">
-                      <div className="text-muted small mb-1">Mã voucher</div>
-                      <div className="h6 mb-0">
-                        <strong>{v.code}</strong>
+              <div className="alert alert-info text-center mb-0">
+                Đang tải danh sách voucher...
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && list.length === 0 && (
+          <div className="row justify-content-center">
+            <div className="col-12 col-xl-10">
+              <div
+                className="alert alert-light border text-center"
+                role="alert"
+              >
+                Hiện tại bạn chưa có voucher khả dụng.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Danh sách voucher – style giống PaymentHistory: mỗi voucher 1 card */}
+        {list.map((v) => {
+          const shortText = formatDiscountShort(v);
+
+          return (
+            <div className="row justify-content-center mb-3" key={v.id ?? v.code}>
+              <div className="col-12 col-xl-10">
+                <div className="card shadow-0 border rounded-3 card-shadow">
+                  <div className="card-body">
+                    <div className="row g-3 align-items-center">
+                      {/* Cột trái: Mã voucher */}
+                      <div className="col-12 col-md-4">
+                        <div className="text-muted small mb-1">Mã voucher</div>
+                        <div className="h6 mb-0">
+                          <strong>{v.code}</strong>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Cột giữa: Giảm bao nhiêu (căn giữa) */}
-                    <div className="col-12 col-md-4 d-flex justify-content-center">
-                      <Tag color="blue" style={{ fontSize: "0.9rem" }}>
-                        {shortText}
-                      </Tag>
-                    </div>
+                      {/* Cột giữa: Giảm bao nhiêu (căn giữa) */}
+                      <div className="col-12 col-md-4 d-flex justify-content-center">
+                        <Tag color="blue" style={{ fontSize: "0.9rem" }}>
+                          {shortText}
+                        </Tag>
+                      </div>
 
-                    {/* Cột phải: Nút xem chi tiết */}
-                    <div className="col-12 col-md-4 d-flex justify-content-md-end justify-content-center">
-                      <Button
-                        size="small"
-                        type="primary"
-                        onClick={() => openDetail(v)}
-                      >
-                        Xem chi tiết
-                      </Button>
+                      {/* Cột phải: Nút xem chi tiết */}
+                      <div className="col-12 col-md-4 d-flex justify-content-md-end justify-content-center">
+                        <Button
+                          size="small"
+                          type="primary"
+                          onClick={() => openDetail(v)}
+                        >
+                          Xem chi tiết
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
 
-      {/* Modal chi tiết voucher – đã design lại đẹp hơn */}
-      <Modal
-        title={null}
-        open={isDetailOpen}
-        onCancel={() => setIsDetailOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsDetailOpen(false)}>
-            Đóng
-          </Button>,
-        ]}
-        centered
-      >
-        {selected && (
-          <div className="voucher-modal">
-            {/* Hero block */}
-            <div className="voucher-hero">
-              <div className="voucher-hero-code">{selected.code}</div>
-              <div className="voucher-hero-discount">
-                {formatDiscountShort(selected)}
-              </div>
-              <div className="voucher-hero-expiry">
-                {formatExpiryInfo(selected)}
-              </div>
-            </div>
-
-            {/* Mô tả */}
-            <div className="voucher-description">
-              <strong>Mô tả:</strong>{" "}
-              {selected.description || "Không có mô tả"}
-            </div>
-
-            {/* Grid thông tin chi tiết */}
-            <div className="voucher-detail-grid">
-              {/* <div className="voucher-detail-label">Giảm bao nhiêu</div>
-              <div className="voucher-detail-value">
-                {formatDiscountShort(selected)}
-              </div> */}
-
-              <div className="voucher-detail-label">Đơn tối thiểu</div>
-              <div className="voucher-detail-value">
-                {formatMinOrder(selected)}
+        {/* Modal chi tiết voucher – đã design lại đẹp hơn */}
+        <Modal
+          title={null}
+          open={isDetailOpen}
+          onCancel={() => setIsDetailOpen(false)}
+          footer={[
+            <Button key="close" onClick={() => setIsDetailOpen(false)}>
+              Đóng
+            </Button>,
+          ]}
+          centered
+        >
+          {selected && (
+            <div className="voucher-modal">
+              {/* Hero block */}
+              <div className="voucher-hero">
+                <div className="voucher-hero-code">{selected.code}</div>
+                <div className="voucher-hero-discount">
+                  {formatDiscountShort(selected)}
+                </div>
+                <div className="voucher-hero-expiry">
+                  {formatExpiryInfo(selected)}
+                </div>
               </div>
 
-              {/* <div className="voucher-detail-label">Ngày hết hạn</div>
-              <div className="voucher-detail-value">
-                {formatExpiryInfo(selected)}
-              </div> */}
+              {/* Mô tả */}
+              <div className="voucher-description">
+                <strong>Mô tả:</strong>{" "}
+                {selected.description || "Không có mô tả"}
+              </div>
+
+              {/* Grid thông tin chi tiết */}
+              <div className="voucher-detail-grid">
+                {/* <div className="voucher-detail-label">Giảm bao nhiêu</div>
+                <div className="voucher-detail-value">
+                  {formatDiscountShort(selected)}
+                </div> */}
+
+                <div className="voucher-detail-label">Đơn tối thiểu</div>
+                <div className="voucher-detail-value">
+                  {formatMinOrder(selected)}
+                </div>
+
+                {/* <div className="voucher-detail-label">Ngày hết hạn</div>
+                <div className="voucher-detail-value">
+                  {formatExpiryInfo(selected)}
+                </div> */}
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </Modal>
+      </div>
     </div>
   );
 }

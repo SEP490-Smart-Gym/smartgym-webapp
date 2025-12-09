@@ -17,13 +17,10 @@ import { AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
 import Header from "../components/Header.jsx";
 import api from "../config/axios";
 
-// ❌ BỎ mock trainers
-// export const trainers = [...]
-
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState([]);
-  const [trainers, setTrainers] = useState([]); // ✅ trainers từ API
+  const [trainers, setTrainers] = useState([]);
 
   useEffect(() => {
     AOS.init({ once: true, duration: 600 });
@@ -72,7 +69,7 @@ export default function Home() {
         const normalized = list.map((t) => ({
           id: t.trainerId,
           name: `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim(),
-          profession: t.specialization || "Personal Trainer",
+          profession: t.specialization || "Huấn luyện viên cá nhân 1:1",
           rating: t.trainerRating ?? 0,
           reviews: t.totalReviews ?? 0,
           isAvailable: t.isAvailableForNewClients ?? true,
@@ -90,17 +87,49 @@ export default function Home() {
   }, []);
 
   const featureSlides = [
-    { img: "/img/feature-1.jpg", title: "Work Your Butt Off" },
-    { img: "/img/feature-2.jpg", title: "Get In The groove" },
-    { img: "/img/feature-3.jpg", title: "It's more Than A Game" },
-    { img: "/img/feature-4.jpg", title: "Get Fit Don't Quit" },
+    {
+      img: "/img/feature-1.jpg",
+      title: "Không gian tập luyện hiện đại, tập trung",
+      desc: "Thiết kế theo phong cách private – hạn chế ồn ào, phù hợp cho người muốn tập nghiêm túc, có hoặc không có PT.",
+    },
+    {
+      img: "/img/feature-2.jpg",
+      title: "PT 1:1 cá nhân hoá lộ trình",
+      desc: "Huấn luyện viên theo sát từng buổi tập, chỉnh form, theo dõi tiến độ và tối ưu chương trình theo mục tiêu của bạn.",
+    },
+    {
+      img: "/img/feature-3.jpg",
+      title: "Tự tập linh hoạt, không bị làm phiền",
+      desc: "Tự do lựa chọn khung giờ, thiết bị đa dạng, đội ngũ hỗ trợ kỹ thuật luôn sẵn sàng khi bạn cần.",
+    },
+    {
+      img: "/img/feature-4.jpg",
+      title: "Quản lý kết quả tập luyện rõ ràng",
+      desc: "Theo dõi quá trình thay đổi hình thể, mức tạ, số buổi tập và hiệu quả thực tế theo từng giai đoạn.",
+    },
   ];
 
   const blogSlides = [
-    { img: "/img/feature-4.jpg", title: "Full Body Home Workout" },
-    { img: "/img/feature-3.jpg", title: "31-Day Fitness Calendar" },
-    { img: "/img/feature-2.jpg", title: "At Home Ab Workout" },
-    { img: "/img/feature-1.jpg", title: "Full Body Home Workout" },
+    {
+      img: "/img/feature-4.jpg",
+      title: "Tập với PT 1:1 – phù hợp với ai?",
+      desc: "Lợi ích của huấn luyện viên cá nhân cho người mới bắt đầu, người bận rộn và người muốn thay đổi hình thể rõ rệt.",
+    },
+    {
+      img: "/img/feature-3.jpg",
+      title: "Tự tập vẫn hiệu quả nếu biết cách",
+      desc: "3 nguyên tắc vàng để tự tập an toàn, tránh chấn thương và vẫn đạt kết quả tốt trong thời gian ngắn.",
+    },
+    {
+      img: "/img/feature-2.jpg",
+      title: "Lịch tập mẫu cho người mới 4 buổi/tuần",
+      desc: "Gợi ý lịch tập khoa học, phù hợp người mới đi làm – bận rộn nhưng vẫn muốn cải thiện sức khoẻ & vóc dáng.",
+    },
+    {
+      img: "/img/feature-1.jpg",
+      title: "Dinh dưỡng cơ bản cho người tập gym",
+      desc: "Không cần ăn kiêng cực đoan – chỉ cần hiểu đúng về đạm, tinh bột và chất béo là đã khác biệt rất nhiều.",
+    },
   ];
 
   const testimonials = [
@@ -108,6 +137,9 @@ export default function Home() {
     { img: "/img/testimonial-2.jpg" },
     { img: "/img/testimonial-3.jpg" },
   ];
+
+  const formatPrice = (n) =>
+    Number(n || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
   return (
     <>
@@ -128,24 +160,29 @@ export default function Home() {
           </div>
         )}
 
-        {/* ✅ Header tách riêng */}
+        {/* ✅ Header */}
         <Header />
 
-        {/* About */}
+        {/* ABOUT – GIỚI THIỆU */}
         <div id="about-section" className="container-fluid about pt-5">
           <div className="container pt-5">
             <div className="row g-5">
               <div className="col-xl-6" data-aos="fade-right">
                 <div className="about-content h-100">
-                  <h4 className="text-primary">About Fitness Center</h4>
+                  <h4 className="text-primary">Về SmartGym</h4>
                   <h1 className="display-4 text-white mb-4">
-                    We are the best at fulfilling your potential and achieving
-                    your goals.
+                    Gym chuyên PT 1:1 & tự tập – tập trung vào kết quả của bạn.
                   </h1>
-                  <p className="mb-4">
-                    Lorem ipsum dolor, sit amet consectetur adipisicing elit. In
-                    impedit accusantium autem quaerat natus nesciunt veritatis
-                    fugiat dolor eaque fuga.
+                  <p className="mb-4" style={{ color: "#9d9c9cff"}}>
+                    SmartGym được thiết kế dành cho những người muốn tập luyện
+                    một cách nghiêm túc, khoa học và có định hướng rõ ràng:
+                    <br />
+                    • Bạn có thể tự tập với hệ thống máy móc hiện đại. <br />
+                    • Hoặc chọn đồng hành cùng huấn luyện viên cá nhân 1:1 để
+                    được thiết kế lộ trình riêng.
+                    <br />
+                    Không lớp đông người, không ồn ào – chỉ bạn, mục tiêu và sự
+                    tiến bộ mỗi ngày.
                   </p>
 
                   {/* Tabs Bootstrap */}
@@ -158,7 +195,7 @@ export default function Home() {
                           data-bs-toggle="pill"
                           href="#home-tab-1"
                         >
-                          <span style={{ width: 150 }}>Our Mission</span>
+                          <span style={{ width: 150 }}>Sứ mệnh</span>
                         </a>
                       </li>
                       <li className="nav-item mb-3">
@@ -168,7 +205,7 @@ export default function Home() {
                           data-bs-toggle="pill"
                           href="#home-tab-2"
                         >
-                          <span style={{ width: 150 }}>Our Vision</span>
+                          <span style={{ width: 150 }}>Tầm nhìn</span>
                         </a>
                       </li>
                       <li className="nav-item mb-3">
@@ -178,7 +215,7 @@ export default function Home() {
                           data-bs-toggle="pill"
                           href="#home-tab-3"
                         >
-                          <span style={{ width: 150 }}>Our Goal</span>
+                          <span style={{ width: 150 }}>Giá trị cốt lõi</span>
                         </a>
                       </li>
                     </ul>
@@ -190,27 +227,33 @@ export default function Home() {
                       >
                         <div className="d-flex align-items-center border-top border-bottom py-4">
                           <span className="fas fa-rocket text-white fa-4x me-4"></span>
-                          <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and
-                            typesetting industry...
+                          <p className="mb-0" style={{ color: "#9d9c9cff"}}>
+                            Mang đến môi trường tập luyện chuyên nghiệp, nơi mỗi
+                            buổi tập đều có mục tiêu rõ ràng, phù hợp thể trạng
+                            và lịch sinh hoạt của từng hội viên – dù là tự tập
+                            hay tập cùng PT 1:1.
                           </p>
                         </div>
                       </div>
                       <div id="home-tab-2" className="tab-pane fade show p-0">
                         <div className="d-flex align-items-center border-top border-bottom py-4">
-                          <span className="fas fa-rocket text-white fa-4x me-4"></span>
+                          <span className="fas fa-bullseye text-white fa-4x me-4"></span>
                           <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and
-                            typesetting industry...
+                            Trở thành lựa chọn hàng đầu cho mô hình gym tập
+                            trung – chuyên về PT 1:1, với dịch vụ minh bạch, môi
+                            trường văn minh, kết quả tập luyện đo lường được và
+                            trải nghiệm hội viên được đặt ở trung tâm.
                           </p>
                         </div>
                       </div>
                       <div id="home-tab-3" className="tab-pane fade show p-0">
                         <div className="d-flex align-items-center border-top border-bottom py-4">
-                          <span className="fas fa-rocket text-white fa-4x me-4"></span>
+                          <span className="fas fa-heart text-white fa-4x me-4"></span>
                           <p className="mb-0">
-                            Lorem Ipsum is simply dummy text of the printing and
-                            typesetting industry...
+                            Cá nhân hoá – An toàn – Hiệu quả. SmartGym không
+                            chạy theo phong trào, mà tập trung xây dựng lộ trình
+                            bền vững, hạn chế chấn thương và tối ưu kết quả thực
+                            tế của từng người tập.
                           </p>
                         </div>
                       </div>
@@ -219,14 +262,14 @@ export default function Home() {
 
                   <div className="row g-4 align-items-center">
                     <div className="col-sm-6">
-                      <a href="#" className="btn btn-primary py-3 px-5">
-                        <span>Make Appointment</span>
+                      <a href="#package-section" className="btn btn-primary py-3 px-5">
+                        <span>Đăng ký gói tập</span>
                       </a>
                     </div>
                     <div className="col-sm-6">
                       <div className="d-flex flex-shrink-0 ps-4">
                         <a
-                          href="#"
+                          href="tel:+01234567890"
                           className="btn btn-light btn-lg-square position-relative"
                           data-aos="zoom-in"
                           data-aos-delay="300"
@@ -242,10 +285,10 @@ export default function Home() {
                           </div>
                         </a>
                         <div className="d-flex flex-column ms-3">
-                          <span>Call to Our Experts</span>
-                          <a href="tel:+ 0123 456 7890">
+                          <span>Tư vấn miễn phí</span>
+                          <a href="tel:+01234567890">
                             <span className="text-white">
-                              Free: + 0123 456 7890
+                              Hotline: + 0123 456 7890
                             </span>
                           </a>
                         </div>
@@ -263,7 +306,7 @@ export default function Home() {
                       src="/img/about-2.png"
                       className="img-fluid w-100"
                       style={{ objectFit: "cover" }}
-                      alt="About"
+                      alt="SmartGym"
                     />
                   </div>
                 </div>
@@ -272,15 +315,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Fitness Goal */}
+        {/* FITNESS GOAL */}
         <div className="container-fluid goal pt-5">
           <div className="container pt-5">
             <div className="row g-5">
               <div className="col-lg-6" data-aos="fade-right">
                 <div className="goal-content">
-                  <h4 className="text-primary">Fitness Goal</h4>
+                  <h4 className="text-primary">Mục tiêu luyện tập</h4>
                   <h1 className="display-4 mb-4">
-                    Complete your possibilities, Achieve Your Fitness Goals.
+                    Lộ trình tập luyện cá nhân hoá – tập đúng, hiệu quả nhanh.
                   </h1>
 
                   <div className="goal-item d-flex p-4">
@@ -293,10 +336,12 @@ export default function Home() {
                       </div>
                     </div>
                     <div>
-                      <h4>Free Fitness Training</h4>
+                      <h4>Huấn luyện viên kèm 1:1</h4>
                       <p className="text-white mb-0">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing
-                        elit. Tempore est harum
+                        Dành cho những ai muốn thay đổi hình thể rõ ràng:
+                        giảm mỡ, tăng cơ, siết dáng hoặc phục hồi sau thời gian
+                        dài ít vận động. PT theo sát từng buổi, chỉnh form,
+                        nhịp thở và mức tạ phù hợp.
                       </p>
                     </div>
                   </div>
@@ -311,17 +356,19 @@ export default function Home() {
                       </div>
                     </div>
                     <div>
-                      <h4>Cardio and Strength</h4>
+                      <h4>Tự tập khoa học – vẫn đạt kết quả</h4>
                       <p className="text-white mb-0">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing
-                        elit. Tempore est harum
+                        Với hệ thống máy móc đa dạng, không gian rộng rãi, bạn
+                        hoàn toàn có thể tự tập theo lịch cá nhân. Đội ngũ tại
+                        SmartGym luôn sẵn sàng hỗ trợ khi cần giải đáp về kỹ
+                        thuật hoặc cách sử dụng máy.
                       </p>
                     </div>
                   </div>
 
                   <div className="ms-1">
-                    <a href="#" className="btn btn-primary py-3 px-5 ms-2">
-                      <span>Read Details</span>
+                    <a href="#package-section" className="btn btn-primary py-3 px-5 ms-2">
+                      <span>Xem gói tập phù hợp</span>
                     </a>
                   </div>
                 </div>
@@ -333,7 +380,7 @@ export default function Home() {
                     src="/img/fitness-goal-banner.png"
                     className="img-fluid h-100"
                     style={{ objectFit: "cover" }}
-                    alt="Goal"
+                    alt="Fitness Goal"
                   />
                 </div>
               </div>
@@ -341,7 +388,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Features (Swiper) */}
+        {/* FEATURES – LÝ DO CHỌN SMARTGYM */}
         <div
           id="features-section"
           className="container-fluid feature bg-light py-5"
@@ -352,10 +399,14 @@ export default function Home() {
               data-aos="fade-up"
               style={{ maxWidth: 800 }}
             >
-              <h4 className="text-primary"> Why choose us?</h4>
-              <h1 className="display-4 mb-4">Out Our Highlights Below</h1>
+              <h4 className="text-primary">Vì sao nên chọn SmartGym?</h4>
+              <h1 className="display-4 mb-4">
+                Không gian tập luyện nghiêm túc – dịch vụ chuyên nghiệp.
+              </h1>
               <p className="mb-0">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit...
+                SmartGym được xây dựng dành cho những người bận rộn, muốn tối
+                ưu thời gian tập luyện và tập trung vào kết quả thật – không
+                phô trương, không phong trào.
               </p>
             </div>
 
@@ -386,12 +437,9 @@ export default function Home() {
                     </div>
                     <div className="feature-content p-4">
                       <h4 className="mb-3">{f.title}</h4>
-                      <p className="mb-4">
-                        Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                        Aspernatur obcaecati voluptatum,
-                      </p>
-                      <a href="#" className="btn btn-primary py-2 px-4">
-                        <span>Read More</span>
+                      <p className="mb-4">{f.desc}</p>
+                      <a href="#package-section" className="btn btn-primary py-2 px-4">
+                        <span>Tìm hiểu thêm</span>
                       </a>
                     </div>
                   </div>
@@ -401,7 +449,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Package */}
+        {/* PACKAGES – GÓI TẬP */}
         <div
           id="package-section"
           className="container-fluid courses overflow-hidden py-5"
@@ -412,12 +460,14 @@ export default function Home() {
               data-aos="fade-up"
               style={{ maxWidth: 800 }}
             >
-              <h4 className="text-primary">Our Packages</h4>
+              <h4 className="text-primary">Gói tập tại SmartGym</h4>
               <h1 className="display-4 text-white mb-4">
-                Out Our Highlights Below
+                Linh hoạt cho người tự tập & tập với PT 1:1.
               </h1>
               <p className="text-white mb-0">
-                Lorem ipsum dolor, sit amet consectetur adipisicing elit...
+                Chúng tôi không áp đặt một kiểu luyện tập cho tất cả mọi người.
+                Bạn có thể bắt đầu từ gói tự tập cơ bản, sau đó nâng cấp lên
+                gói PT 1:1 khi cần tối ưu kết quả trong thời gian ngắn hơn.
               </p>
             </div>
 
@@ -428,7 +478,7 @@ export default function Home() {
                 const sessions = item.sessionCount ?? item.sessions ?? 0;
                 const hasPT =
                   item.includesPersonalTrainer ?? item.hasPT ?? false;
-                const title = item.packageName ?? item.title ?? "Package";
+                const title = item.packageName ?? item.title ?? "Gói tập";
 
                 return (
                   <div
@@ -457,13 +507,17 @@ export default function Home() {
                           </div>
                           <div className="data-info d-flex flex-column">
                             <div className="courses-date" style={{ fontSize: "1rem" }}>
-                              <p className="mb-1">Thời hạn: {duration} ngày</p>
-                              <p className="mb-0">Số buổi: {sessions} buổi</p>
+                              <p className="mb-1">
+                                Thời hạn: {duration} ngày
+                              </p>
+                              <p className="mb-0">
+                                Số buổi: {sessions} buổi
+                              </p>
                               <p className="mb-0 d-flex align-items-center">
                                 PT:&nbsp;
                                 {hasPT ? (
                                   <>
-                                    Có{" "}
+                                    Có PT 1:1{" "}
                                     <AiOutlineCheck
                                       className="icon-check"
                                       style={{ marginLeft: 4 }}
@@ -471,7 +525,7 @@ export default function Home() {
                                   </>
                                 ) : (
                                   <>
-                                    Không{" "}
+                                    Không kèm PT{" "}
                                     <AiOutlineClose
                                       className="icon-close"
                                       style={{ marginLeft: 4 }}
@@ -498,13 +552,13 @@ export default function Home() {
                           className="mb-4"
                           style={{ letterSpacing: "0.2px", fontSize: "1.3rem" }}
                         >
-                          {Number(item.price || 0).toLocaleString("vi-VN")} ₫
+                          {formatPrice(item.price)} ₫
                         </p>
                         <Link
                           to={`/packages/${item.id}`}
                           className="btn btn-primary py-2 px-4"
                         >
-                          <span>Read More</span>
+                          <span>Chi tiết gói</span>
                         </Link>
                       </div>
                     </div>
@@ -514,14 +568,14 @@ export default function Home() {
 
               <div className="col-12 text-center" data-aos="fade-up">
                 <Link to="/packages" className="btn btn-primary py-3 px-5">
-                  <span>More Courses</span>
+                  <span>Xem tất cả gói tập</span>
                 </Link>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Blog */}
+        {/* BLOG – NỘI DUNG KIẾN THỨC */}
         <div id="blogs-section" className="container-fluid blog py-5">
           <div className="container py-5">
             <div
@@ -529,12 +583,14 @@ export default function Home() {
               data-aos="fade-up"
               style={{ maxWidth: 800 }}
             >
-              <h4 className="text-primary">  Our Blogs</h4>
+              <h4 className="text-primary">Blog & Kiến thức</h4>
               <h1 className="display-4 mb-4">
-                Check out our latest stories
+                Chia sẻ từ trải nghiệm thực tế & chuyên môn.
               </h1>
               <p className="mb-0">
-                Lorem ipsum dolor, sit amet consectetur adipisicing elit...
+                Nội dung được xây dựng cho người mới bắt đầu, người bận rộn và
+                những ai muốn hiểu đúng về tập luyện & dinh dưỡng – không phức
+                tạp, không lý thuyết suông.
               </p>
             </div>
 
@@ -546,7 +602,10 @@ export default function Home() {
               pagination={{ clickable: true }}
               spaceBetween={16}
               slidesPerView={1}
-              breakpoints={{ 992: { slidesPerView: 2 }, 1400: { slidesPerView: 3 } }}
+              breakpoints={{
+                992: { slidesPerView: 2 },
+                1400: { slidesPerView: 3 },
+              }}
             >
               {blogSlides.map((b, i) => (
                 <SwiperSlide key={i}>
@@ -560,7 +619,7 @@ export default function Home() {
                       <div className="blog-comment d-flex justify-content-between py-2 px-3 mb-4">
                         <div className="small">
                           <span className="fa fa-user text-primary me-2"></span>{" "}
-                          Martin.C
+                          SmartGym Team
                         </div>
                         <div className="small">
                           <span className="fa fa-calendar text-primary me-2"></span>{" "}
@@ -570,12 +629,9 @@ export default function Home() {
                       <a href="#" className="h4 d-inline-block mb-3">
                         {b.title}
                       </a>
-                      <p className="mb-3">
-                        Lorem, ipsum dolor sit amet consectetur adipisicing
-                        elit. Eius libero soluta impedit eligendi?
-                      </p>
+                      <p className="mb-3">{b.desc}</p>
                       <a href="#" className="btn btn-dark py-2 px-4 ms-2">
-                        <span className="me-2">Read More</span>{" "}
+                        <span className="me-2">Xem chi tiết</span>{" "}
                         <i className="fa fa-arrow-right"></i>
                       </a>
                     </div>
@@ -586,17 +642,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Trainer – dùng background giống Packages + overlay tối */}
+        {/* TRAINER – PT 1:1 */}
         <div
           id="trainers-section"
           className="container-fluid courses overflow-hidden py-5 trainer-bg"
           style={{
             backgroundImage: "url('/img/image.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundColor: "#141d3dff",
+            backgroundBlendMode: "multiply",
+            weight: "90%",
+            zIndex: 1,
           }}
         >
-          {/* overlay tối trong suốt */}
-          <div className="trainer-overlay" />
-
           <div
             className="container py-5 position-relative"
             style={{ zIndex: 2 }}
@@ -606,12 +665,14 @@ export default function Home() {
               data-aos="fade-up"
               style={{ maxWidth: 800 }}
             >
-              <h4 className="text-primary">Our Trainer</h4>
+              <h4 className="text-primary">Đội ngũ Huấn luyện viên</h4>
               <h1 className="display-4 text-white mb-4">
-                Meet Our Amazing Team
+                PT 1:1 – đồng hành đến khi bạn đạt mục tiêu.
               </h1>
               <p className="mb-0 text-white-50">
-                Lorem ipsum dolor, sit amet consectetur adipisicing elit...
+                Mỗi huấn luyện viên tại SmartGym đều được đào tạo bài bản về kỹ
+                thuật, chương trình tập và an toàn trong luyện tập. Chúng tôi
+                không tập cho mệt – chúng tôi tập đúng, đủ và hiệu quả.
               </p>
             </div>
 
@@ -629,8 +690,17 @@ export default function Home() {
                       </div>
                     </Link>
                     <div className="team-content">
-                      <h4>{t.name}</h4>
-                      <p className="mb-0">{t.profession}</p>
+                      <h4
+                        style={{ color: "#ffffff", textAlign: "center" }}
+                      >
+                        {t.name}
+                      </h4>
+                      <p
+                        className="mb-0"
+                        style={{ color: "#a0a0a0ff", textAlign: "center" }}
+                      >
+                        {t.profession}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -643,14 +713,16 @@ export default function Home() {
               style={{ marginTop: 40 }}
             >
               <Link to="/trainers" className="btn btn-primary py-3 px-5">
-                <span>More Trainers</span>
+                <span>Xem thêm huấn luyện viên</span>
               </Link>
             </div>
           </div>
         </div>
 
         {/* Feedback */}
-        <GymFeedbackSection />
+        <div id="#feedback-section">
+          <GymFeedbackSection />
+        </div>
       </div>
     </>
   );

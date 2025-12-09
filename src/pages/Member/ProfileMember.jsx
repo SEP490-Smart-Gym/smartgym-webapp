@@ -1,4 +1,3 @@
-// reactstrap components
 import {
   Button,
   Card,
@@ -20,6 +19,7 @@ import { HiArrowUpTray } from "react-icons/hi2";
 import { FcPhone } from "react-icons/fc";
 import api from "../../config/axios";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 
 const ProfileMember = () => {
   const [user, setUser] = useState(null);
@@ -122,104 +122,6 @@ const ProfileMember = () => {
     return age >= 0 ? age : "";
   };
 
-  const getBmiSuggestions = (bmiValue) => {
-    const bmi = parseFloat(bmiValue);
-    if (isNaN(bmi)) return { category: "", workout: "", meal: "" };
-
-    if (bmi < 16)
-      return {
-        category: "🚨 Gầy độ III",
-        workout:
-          "Tập rất nhẹ nhàng, ưu tiên phục hồi thể lực. 3 buổi/tuần, mỗi buổi 30–40 phút. Bắt đầu với bài bodyweight như plank, squat, push-up nhẹ. Tăng dần tạ nhỏ khi cơ thể quen.",
-        meal:
-          "Tăng 500–700 kcal/ngày. Ăn nhiều bữa nhỏ 5–6 lần/ngày. Ưu tiên: sữa nguyên kem, trứng, cá hồi, gạo, khoai lang, bơ, phô mai. Hạn chế đồ uống có gas và cà phê quá mức.",
-      };
-
-    if (bmi < 17)
-      return {
-        category: "⚠️ Gầy độ II",
-        workout:
-          "4 buổi/tuần tập full-body. 3 ngày tập tạ nhẹ – trung bình (compound: squat, bench, deadlift), 1 ngày cardio nhẹ (đi bộ nhanh 20 phút). Nghỉ đủ giấc, tăng trọng lượng tạ dần theo tuần.",
-        meal:
-          "Tăng 400–600 kcal/ngày. Bổ sung protein ≥1.6g/kg cơ thể. Ăn trước khi ngủ bữa nhẹ có sữa hoặc trứng. Uống sữa tăng cân hoặc whey protein sau tập để hỗ trợ phục hồi.",
-      };
-
-    if (bmi < 18.5)
-      return {
-        category: "⚠️ Gầy độ I",
-        workout:
-          "Tập tăng cơ 4–5 buổi/tuần: 3 ngày tập tạ, 2 ngày cardio nhẹ (đạp xe, bơi). Ưu tiên bài compound và progressive overload. Chú trọng ăn sau tập trong 30 phút đầu.",
-        meal:
-          "Ăn 3 bữa chính + 2 bữa phụ. Ưu tiên carb tốt (gạo lứt, yến mạch), protein (thịt gà, cá, trứng), healthy fat (bơ, hạt). Uống đủ 2–2.5L nước/ngày.",
-      };
-
-    if (bmi < 25)
-      return {
-        category: "✅ Bình thường",
-        workout:
-          "Duy trì thể trạng: 5 buổi/tuần (3 buổi strength training, 2 buổi cardio HIIT hoặc chạy bộ). Kết hợp stretching, yoga cuối tuần để tăng linh hoạt. Mục tiêu: duy trì sức khỏe và cơ bắp.",
-        meal:
-          "Ăn cân đối theo tỷ lệ 40% carb – 30% protein – 30% fat. Ưu tiên rau xanh, trái cây tươi, chất xơ hòa tan. Hạn chế đường, rượu bia, nước ngọt. Ăn chậm, đúng giờ.",
-      };
-
-    if (bmi < 30)
-      return {
-        category: "⚠️ Thừa cân",
-        workout:
-          "Tập 5–6 buổi/tuần: 3 buổi cardio (HIIT, chạy nhanh – chậm xen kẽ 30 phút), 2–3 buổi tập tạ full-body. Tăng NEAT (đi bộ, leo cầu thang). Chú trọng đốt mỡ vùng bụng bằng plank, mountain climber.",
-        meal:
-          "Giảm 10–20% calo so với mức duy trì. Giảm tinh bột trắng (cơm, bánh mì), tránh ăn khuya. Ưu tiên thịt nạc, cá, trứng, rau xanh, trái cây ít đường (táo, bưởi). Uống 2.5–3L nước/ngày.",
-      };
-
-    if (bmi < 35)
-      return {
-        category: "⚠️ Béo phì độ I",
-        workout:
-          "Tập 6 buổi/tuần: 4 ngày cardio (đi bộ nhanh, đạp xe, bơi), 2 ngày tạ nhẹ – trung bình. Chú trọng bài giảm áp lực khớp gối: elliptical, plank, resistance band. Nghỉ chủ động 1 ngày.",
-        meal:
-          "Ăn kiểu low-carb hoặc Mediterranean. Cắt đường, nước ngọt, thức ăn nhanh. Ưu tiên rau, đạm nạc, dầu olive. Chia nhỏ bữa ăn, không bỏ bữa sáng. Uống trà xanh hoặc detox tự nhiên.",
-      };
-
-    if (bmi < 40)
-      return {
-        category: "⚠️ Béo phì độ II",
-        workout:
-          "Tập đều đặn hằng ngày 30–45 phút: đi bộ nhanh, bơi, yoga giảm áp lực. Bắt đầu với nhịp tim mục tiêu 60–70% tối đa. Tránh chạy hoặc nhảy mạnh để bảo vệ khớp.",
-        meal:
-          "Giảm khẩu phần nghiêm ngặt: ăn chậm, tránh ăn ngoài. Ưu tiên rau củ hấp, súp, cá hấp. Loại bỏ đường, tinh bột tinh chế, nước ngọt. Giữ mức calo giảm 25–30%.",
-      };
-
-    return {
-      category: "🚨 Béo phì độ III",
-      workout:
-        "Tham khảo bác sĩ hoặc HLV cá nhân. Bắt đầu nhẹ với đi bộ 15 phút/ngày, yoga hít thở, giãn cơ. Khi thể lực cải thiện, tăng dần cường độ. Tránh quá sức để giảm nguy cơ tim mạch.",
-      meal:
-        "Theo dõi bởi chuyên gia dinh dưỡng. Áp dụng chế độ Very Low Calorie Diet (VLCD) nếu cần. Ưu tiên rau củ, protein nạc, giảm hoàn toàn đường, chất béo bão hòa. Uống đủ nước, chia nhỏ bữa.",
-    };
-  };
-
-  const suggestions = getBmiSuggestions(userInfo.bmi);
-
-  // (tuỳ chọn) màu viền theo mức BMI
-  const bmiColor =
-    !userInfo.bmi
-      ? "#6c757d"
-      : userInfo.bmi < 16
-      ? "#0059ffff"
-      : userInfo.bmi < 17
-      ? "#0080ffff"
-      : userInfo.bmi < 18.5
-      ? "#00bfff"
-      : userInfo.bmi < 25
-      ? "#00c853"
-      : userInfo.bmi < 30
-      ? "#ffd54f"
-      : userInfo.bmi < 35
-      ? "#ff9800"
-      : userInfo.bmi < 40
-      ? "#ff6200ff"
-      : "#e53935";
-
   const handleButtonClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -271,10 +173,10 @@ const ProfileMember = () => {
       window.dispatchEvent(new Event("app-auth-changed"));
 
       setPreview(newUrl);
-      alert("Cập nhật ảnh đại diện thành công!");
+      message.success("Cập nhật ảnh đại diện thành công!");
     } catch (err) {
       console.error("Error uploading avatar:", err);
-      alert(
+      message.error(
         `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
       );
     }
@@ -427,7 +329,7 @@ const ProfileMember = () => {
       // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      alert("Cập nhật thông tin cá nhân thành công!");
+      message.success("Cập nhật thông tin cá nhân thành công!");
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
 
@@ -438,7 +340,7 @@ const ProfileMember = () => {
         JSON.stringify(serverData) ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
 
-      alert(msg);
+      message.error(msg);
     }
   };
 
@@ -514,7 +416,7 @@ const ProfileMember = () => {
 
       await api.put("/Profile/member", memberPayload);
 
-      alert("Cập nhật thông tin sức khỏe thành công!");
+      message.success("Cập nhật thông tin sức khỏe thành công!");
     } catch (err) {
       console.error("Error updating health info:", err.response?.data || err);
 
@@ -525,7 +427,7 @@ const ProfileMember = () => {
         JSON.stringify(serverData) ||
         "Cập nhật thông tin sức khỏe thất bại, vui lòng thử lại!";
 
-      alert(msg);
+      message.error(msg);
     }
   };
 
@@ -536,17 +438,19 @@ const ProfileMember = () => {
     const { currentPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      alert("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
+      message.warning(
+        "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!"
+      );
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      message.warning("Mật khẩu mới và xác nhận mật khẩu không khớp!");
       return;
     }
 
     if (newPassword.length < 6) {
-      alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
 
@@ -558,7 +462,7 @@ const ProfileMember = () => {
       };
 
       await api.put("/UserAccount/change-password", payload);
-      alert("Đổi mật khẩu thành công!");
+      message.success("Đổi mật khẩu thành công!");
 
       // reset form
       setPasswordData({
@@ -569,15 +473,15 @@ const ProfileMember = () => {
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
-        alert(
+        message.error(
           err.response.data?.message ||
             "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
         );
       } else if (err.response?.status === 401) {
-        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        message.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
         navigate("/login");
       } else {
-        alert("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+        message.error("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
       }
     }
   };
@@ -660,7 +564,7 @@ const ProfileMember = () => {
                 <Row className="align-items-center">
                   <Col>
                     <h3 className="mb-0" style={{ fontWeight: "bold" }}>
-                      My account
+                      Tài khoản của tôi
                     </h3>
                   </Col>
                 </Row>
@@ -693,7 +597,7 @@ const ProfileMember = () => {
                       }}
                       onClick={() => setActiveSection("user")}
                     >
-                      User Information
+                      Thông tin cá nhân
                     </Button>
                     <Button
                       size="sm"
@@ -710,7 +614,7 @@ const ProfileMember = () => {
                       }}
                       onClick={() => setActiveSection("health")}
                     >
-                      Physical & Health Information
+                      Thông tin sức khỏe
                     </Button>
                     <Button
                       size="sm"
@@ -727,7 +631,7 @@ const ProfileMember = () => {
                       }}
                       onClick={() => setActiveSection("password")}
                     >
-                      Reset Password
+                      Đổi mật khẩu
                     </Button>
                   </div>
 
@@ -742,7 +646,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-fullname"
                               >
-                                👤 Full Name
+                                👤 Họ tên
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -765,7 +669,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-birthday-visible"
                               >
-                                🎂 Birthday
+                                🎂 Ngày sinh
                               </label>
 
                               <div
@@ -815,7 +719,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-email"
                               >
-                                ✉️ Email Address
+                                ✉️ Email
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -838,7 +742,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-phone"
                               >
-                                <FcPhone /> Phone Number
+                                <FcPhone /> SDT
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -863,7 +767,7 @@ const ProfileMember = () => {
                                 className="form-control-label"
                                 htmlFor="input-address"
                               >
-                                🏠 Address
+                                🏠 Địa chỉ
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -891,13 +795,13 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleUpdateUserInfo}
                         >
-                          Update User Information
+                          Cập nhật thông tin cá nhân
                         </Button>
                       </Col>
                     </>
                   )}
 
-                  {/* ====== TAB 2: PHYSICAL & HEALTH INFORMATION + ABOUT ME ====== */}
+                  {/* ====== TAB 2: PHYSICAL & HEALTH INFORMATION ====== */}
                   {activeSection === "health" && (
                     <>
                       <div className="pl-lg-4">
@@ -1045,53 +949,6 @@ const ProfileMember = () => {
                         </Row>
                       </div>
 
-                      <hr
-                        className="my-4"
-                        style={{ borderColor: "#ffffff", opacity: 1 }}
-                      />
-
-                      {/* Description */}
-                      <h6
-                        className="heading-small mb-4"
-                        style={{
-                          color: "#ffffff",
-                          fontSize: "1.25rem",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        About me
-                      </h6>
-
-                      <div className="pl-lg-4">
-                        <FormGroup>
-                          <label>Kế hoạch gợi ý theo BMI</label>
-                          <div
-                            className="p-3 rounded"
-                            style={{
-                              background: "#fff",
-                              color: "#333",
-                              borderLeft: `6px solid ${bmiColor}`,
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                            }}
-                          >
-                            <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                              Trạng thái:{" "}
-                              <span>{suggestions.category || "—"}</span>
-                            </div>
-                            <div className="mt-1">
-                              🏋️ <strong>Workout:</strong>{" "}
-                              {suggestions.workout || "—"}
-                            </div>
-                            <div className="mt-2">
-                              🍽️ <strong>Meal:</strong>{" "}
-                              {suggestions.meal || "—"}
-                            </div>
-                          </div>
-                        </FormGroup>
-                      </div>
-
                       <Col className="d-flex justify-content-center align-items-center mt-4">
                         <Button
                           color="primary"
@@ -1101,7 +958,7 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleUpdateHealthInfo}
                         >
-                          Update Health Information
+                          Cập nhật thông tin sức khỏe
                         </Button>
                       </Col>
                     </>
@@ -1114,7 +971,7 @@ const ProfileMember = () => {
                         {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
                           <Label className="form-control-label">
-                            🔐 Current Password
+                            🔐 Mật khẩu hiện tại
                           </Label>
                           <Input
                             className="form-control-alternative"
@@ -1154,7 +1011,7 @@ const ProfileMember = () => {
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
                               <Label className="form-control-label">
-                                🔑 New Password
+                                🔑 Mật khẩu mới
                               </Label>
                               <Input
                                 className="form-control-alternative"
@@ -1193,7 +1050,7 @@ const ProfileMember = () => {
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
                               <Label className="form-control-label">
-                                🔁 Confirm New Password
+                                🔁 Xác nhận mật khẩu
                               </Label>
                               <Input
                                 className="form-control-alternative"
@@ -1239,7 +1096,7 @@ const ProfileMember = () => {
                           type="button"
                           onClick={handleChangePassword}
                         >
-                          Change Password
+                          Thay đổi mật khẩu
                         </Button>
                       </Col>
                     </>

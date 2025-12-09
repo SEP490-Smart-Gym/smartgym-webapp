@@ -19,7 +19,8 @@ export default function Navbar() {
     };
 
     window.addEventListener("app-auth-changed", handleAuthChange);
-    return () => window.removeEventListener("app-auth-changed", handleAuthChange);
+    return () =>
+      window.removeEventListener("app-auth-changed", handleAuthChange);
   }, []);
 
   useEffect(() => {
@@ -50,6 +51,18 @@ export default function Navbar() {
 
   // id an toàn để ghép vào URL
   const safeId = user?.id || user?.uid || "me";
+
+  // tổng điểm thưởng (đổi key ở đây nếu backend dùng field khác)
+  const rewardPoints =
+    (user &&
+      (user.rewardPoints ?? user.totalPoints ?? user.points ?? 0)) ||
+    0;
+
+  // route tới trang lịch sử điểm thưởng
+  const goToPointsHistory = (e) => {
+    e.stopPropagation(); // tránh làm toggle dropdown
+    navigate("/member/points-history");
+  };
 
   return (
     <div className="container-fluid header-top">
@@ -96,7 +109,11 @@ export default function Navbar() {
                       >
                         <span>Đăng nhập</span>
                       </NavLink>
-                      <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
+                      <NavLink
+                        to="/register"
+                        className=" me-3"
+                        style={{ color: "white" }}
+                      >
                         Đăng ký
                       </NavLink>
                     </>
@@ -127,17 +144,47 @@ export default function Navbar() {
                             background: "#f8f9fa",
                           }}
                         />
-                        <span className="user-name-text" style={{ color: "white" }}>
-                          {user.lastName && user.firstName
-                            ? `${user.lastName} ${user.firstName}`
-                            : user.name ? user.name :"User"}
-                        </span>
+                        {/* username + điểm thưởng */}
+                        <div className="d-flex align-items-center">
+                          <span
+                            className="user-name-text"
+                            style={{ color: "white" }}
+                          >
+                            {user.lastName && user.firstName
+                              ? `${user.lastName} ${user.firstName}`
+                              : "User"}
+                          </span>
+
+                          {/* điểm thưởng click được */}
+                          {user.roleName === "Member" && (
+                            <span
+                              className="d-inline-flex align-items-center reward-points-badge"
+                              style={{
+                                color: "#ffd966",
+                                fontWeight: 600,
+                                fontSize: "0.9rem",
+                                cursor: "pointer",
+                                marginLeft: "20px",
+                              }}
+                              onClick={goToPointsHistory}
+                              title="Xem lịch sử điểm thưởng"
+                            >
+                              {rewardPoints}
+                              <span style={{ marginRight: 2 }}>₫</span>
+                            </span>
+                          )}
+                        </div>
                       </button>
 
-                      <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                      <ul
+                        className="dropdown-menu dropdown-menu-end"
+                        aria-labelledby="userMenu"
+                      >
                         {user.email && (
                           <li>
-                            <span className="dropdown-item-text">{user.email}</span>
+                            <span className="dropdown-item-text">
+                              {user.email}
+                            </span>
                           </li>
                         )}
                         <li>
@@ -163,7 +210,7 @@ export default function Navbar() {
                           </li>
                         )}
 
-                        {/* Member (role = "Member") */}
+                        {/* Member */}
                         {user.roleName === "Member" && (
                           <li>
                             <button
@@ -177,11 +224,19 @@ export default function Navbar() {
 
                             <button
                               className="dropdown-item"
-                              onClick={() => navigate(`/member/${safeId}/schedule`)}
+                              onClick={() =>
+                                navigate(`/member/${safeId}/schedule`)
+                              }
                             >
                               Lịch tập
                             </button>
-
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/workout-meal-plan")}
+                            >
+                              Kế hoạch tập luyện & dinh dưỡng
+                            </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
@@ -196,7 +251,13 @@ export default function Navbar() {
                             >
                               Lịch sử thanh toán
                             </button>
-
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/reward-gifts")}
+                            >
+                              Đổi quà
+                            </button>
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
@@ -219,7 +280,27 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
-                              onClick={() => navigate("staff/equipmentlist")}
+                              onClick={() =>
+                                navigate(`/staff/chat-list`)
+                              }
+                            >
+                              Chat với Học viên
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/staff/reward-redemption")
+                              }
+                            >
+                              Quản lý đổi quà
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("staff/equipmentlist")
+                              }
                             >
                               Quản lý thiết bị
                             </button>
@@ -245,6 +326,13 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
+                              onClick={() => navigate("/manager/manager-refund")}
+                            >
+                              Quản lý Hoàn tiền
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
                               onClick={() => navigate("/manager/schedule")}
                             >
                               Quản lý lịch làm việc
@@ -252,7 +340,9 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
-                              onClick={() => navigate("/manager/equipment-report-all")}
+                              onClick={() =>
+                                navigate("/manager/equipment-report-all")
+                              }
                             >
                               Quản lý thiết bị
                             </button>
@@ -271,16 +361,30 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
-                              onClick={() => navigate(`/trainer/${safeId}/schedule`)}
+                              onClick={() =>
+                                navigate(`/trainer/${safeId}/schedule`)
+                              }
                             >
                               Lịch làm việc
+                            </button>
+                            <hr className="dropdown-divider" />
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate(`/trainer/member-list`)
+                              }
+                            >
+                              Quản lý học viên
                             </button>
                           </li>
                         )}
 
                         <hr className="dropdown-divider" />
                         <li>
-                          <button className="dropdown-item" onClick={handleLogout}>
+                          <button
+                            className="dropdown-item"
+                            onClick={handleLogout}
+                          >
                             Đăng xuất
                           </button>
                         </li>
@@ -331,13 +435,25 @@ export default function Navbar() {
                   <NavLink end to="/" className="nav-item nav-link">
                     Trang chủ
                   </NavLink>
-                  <HashLink smooth to="/#about-section" className="nav-item nav-link">
+                  <HashLink
+                    smooth
+                    to="/#about-section"
+                    className="nav-item nav-link"
+                  >
                     About
                   </HashLink>
-                  <HashLink smooth to="/#package-section" className="nav-item nav-link">
+                  <HashLink
+                    smooth
+                    to="/#package-section"
+                    className="nav-item nav-link"
+                  >
                     Gói tập
                   </HashLink>
-                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">
+                  <HashLink
+                    smooth
+                    to="/#blogs-section"
+                    className="nav-item nav-link"
+                  >
                     Blogs
                   </HashLink>
                   {user?.roleName == "Trainer" &&(
@@ -351,6 +467,11 @@ export default function Navbar() {
                     </NavLink>
                   )}
 
+                  {user?.roleName == "Staff" &&(
+                    <NavLink to="/staff/chatlist" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
 
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}
@@ -363,30 +484,51 @@ export default function Navbar() {
                       aria-expanded={isOpen}
                       type="button"
                     >
-                      <span style={{ display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
                         Pages {isOpen ? <HiChevronUp /> : <HiChevronDown />}
                       </span>
                     </button>
 
-                    <div className={`dropdown-menu${isOpen ? " show" : ""}`}>
-                      <HashLink smooth to="/#features-section" className="dropdown-item">
+                    <div
+                      className={`dropdown-menu${isOpen ? " show" : ""}`}
+                    >
+                      <HashLink
+                        smooth
+                        to="/#features-section"
+                        className="dropdown-item"
+                      >
                         Our Features
                       </HashLink>
-                      <HashLink smooth to="/#trainers-section" className="dropdown-item">
+                      <HashLink
+                        smooth
+                        to="/#trainers-section"
+                        className="dropdown-item"
+                      >
                         Huấn luyện viên
                       </HashLink>
                     </div>
                   </div>
 
-
-                  <HashLink smooth to="/#feedback-section" className="nav-item nav-link">
-                        Đánh giá
+                  <HashLink
+                    smooth
+                    to="/#feedback-section"
+                    className="nav-item nav-link"
+                  >
+                    Đánh giá
                   </HashLink>
                   <NavLink to="/contact" className="nav-item nav-link">
                     Contact
                   </NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
+                  <div
+                    className="nav-btn ps-3 d-flex align-items-center"
+                    style={{ marginLeft: 300 }}
+                  >
                     <button
                       className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
                       data-bs-toggle="modal"

@@ -16,11 +16,20 @@ const styles = `
   display:flex; align-items:center; justify-content:center; z-index:1050;
 }
 .modal-card {
-  background:#fff; border-radius: .75rem; width: min(680px, 92vw);
+  background:#fff;
+  border-radius: .75rem;
+  width: min(680px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 1rem 2rem rgba(0,0,0,.2);
 }
 .modal-header, .modal-footer { padding: 1rem 1.25rem; }
-.modal-body { padding: 0 1.25rem 1.25rem; }
+.modal-body {
+  padding: 0 1.25rem 1.25rem;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
 .modal-header { border-bottom: 1px solid #eee; }
 .modal-footer { border-top: 1px solid #eee; }
 
@@ -35,6 +44,37 @@ const styles = `
 }
 `;
 
+// ⭐ Component chọn Rating bằng sao
+function StarRating({ value, onChange, size = 24, disabled = false }) {
+  const stars = [1, 2, 3, 4, 5];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontSize: size,
+      }}
+    >
+      {stars.map((star) => (
+        <span
+          key={star}
+          onClick={() => {
+            if (!disabled) onChange(star);
+          }}
+          style={{
+            color: star <= value ? "#FFD700" : "#ccc",
+            transition: "color 0.2s",
+          }}
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function formatDDMMYYYY(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -43,6 +83,18 @@ function formatDDMMYYYY(iso) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatDDMMYYYY_HHmm(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
 function durationLabel(months) {
@@ -85,6 +137,7 @@ function currencyVND(n) {
       style: "currency",
       currency: "VND",
       maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
     });
   } catch {
     return `${n}₫`;
@@ -147,14 +200,23 @@ const CANCEL_REASONS = [
   "Khác (tự nhập)",
 ];
 
+const ITEMS_PER_PAGE = 5;
+
 export default function MyPackage() {
   // danh sách lịch sử gói (từ API my-packages)
   const [gymPackagesHistory, setGymPackagesHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
+  // danh sách đơn hoàn tiền của member
+  const [refundRequests, setRefundRequests] = useState([]);
+  const [refundRequestsLoading, setRefundRequestsLoading] = useState(false);
+
   // filter tab: all / active / cancelled / expired
   const [filterStatus, setFilterStatus] = useState("all");
+
+  // phân trang
+  const [currentPage, setCurrentPage] = useState(1);
 
   // modal / confirm state
   const [open, setOpen] = useState(false);
@@ -165,6 +227,48 @@ export default function MyPackage() {
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [confirm70Agree, setConfirm70Agree] = useState(false); // checkbox cảnh báo 70%
+
+  // modal yêu cầu hoàn tiền
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundInfo, setRefundInfo] = useState(null);
+  const [refundCalcLoading, setRefundCalcLoading] = useState(false);
+  const [refundRequestedAmount, setRefundRequestedAmount] = useState(0);
+
+  // modal xem chi tiết đơn hoàn tiền
+  const [viewRefundOpen, setViewRefundOpen] = useState(false);
+  const [viewRefund, setViewRefund] = useState(null);
+
+  // feedback state
+  const [gymRating, setGymRating] = useState(5);
+  const [gymFeedbackType, setGymFeedbackType] = useState("");
+  const [gymComments, setGymComments] = useState("");
+  const [trainerRating, setTrainerRating] = useState(5);
+  const [trainerComments, setTrainerComments] = useState("");
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  function resetFeedbackForms() {
+    setGymRating(5);
+    setGymFeedbackType("");
+    setGymComments("");
+    setTrainerRating(5);
+    setTrainerComments("");
+  }
+
+  const resetRefundState = () => {
+    setRefundReason("");
+    setRefundInfo(null);
+    setRefundRequestedAmount(0);
+    setRefundCalcLoading(false);
+    setRefundLoading(false);
+  };
+
+  const resetViewRefundState = () => {
+    setViewRefund(null);
+    setViewRefundOpen(false);
+  };
 
   // ===== GỌI API my-packages (history) =====
   const fetchPackages = async () => {
@@ -211,9 +315,52 @@ export default function MyPackage() {
     }
   };
 
+  // ===== GỌI API my-refund-requests =====
+  const fetchRefundRequests = async () => {
+    try {
+      setRefundRequestsLoading(true);
+      const res = await api.get("/MemberPackage/my-refund-requests");
+      const data = res.data;
+      const list = Array.isArray(data) ? data : [];
+      const mapped = list.map((r) => ({
+        id: r.id,
+        memberPackageId: r.memberPackageId,
+        memberId: r.memberId,
+        paymentId: r.paymentId,
+        requestedAmount: r.requestedAmount,
+        reason: r.reason,
+        status: r.status,
+        requestedAt: r.requestedAt,
+        reviewedAt: r.reviewedAt,
+        adminNotes: r.adminNotes,
+        memberName: r.memberName,
+        packageName: r.packageName,
+        reviewerName: r.reviewerName,
+      }));
+      setRefundRequests(mapped);
+    } catch (err) {
+      console.error("Error fetching my-refund-requests:", err);
+      // không cần show lỗi to, chỉ log hoặc message nhỏ nếu muốn
+      // message.error("Không tải được danh sách đơn hoàn tiền.");
+    } finally {
+      setRefundRequestsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPackages();
+    fetchRefundRequests();
   }, []);
+
+  // helper: lấy đơn hoàn tiền "còn hiệu lực" cho 1 gói
+  // (status khác 'rejected' => coi như đang có đơn)
+  const getActiveRefundRequestForPackage = (pkgId) => {
+    if (!pkgId) return null;
+    return refundRequests.find((r) => {
+      const s = (r.status || "").toLowerCase();
+      return r.memberPackageId === pkgId && s !== "rejected";
+    });
+  };
 
   // sort theo endDate (gói kết thúc gần nhất lên trên)
   const sortedPackages = useMemo(
@@ -254,9 +401,29 @@ export default function MyPackage() {
     });
   }, [sortedPackages, filterStatus]);
 
+  // tổng số trang
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPackages.length / ITEMS_PER_PAGE) || 1
+  );
+
+  // đảm bảo currentPage không vượt quá totalPages khi filter đổi / data đổi
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // data 5 gói / trang
+  const paginatedPackages = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredPackages.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredPackages, currentPage]);
+
   const handleOpen = (historyItem) => {
     const master = null;
     setSelected({ history: historyItem, master });
+    resetFeedbackForms();
     setOpen(true);
   };
 
@@ -264,12 +431,17 @@ export default function MyPackage() {
     setOpen(false);
     setSelected(null);
     setConfirmOpen(false);
+    setRefundOpen(false);
+    resetRefundState();
+    resetFeedbackForms();
+    resetViewRefundState();
   };
 
-  // Khi bấm "Hủy gói" trong modal -> mở modal chọn lý do
+  // ====== CANCEL PACKAGE ======
   const handleRequestCancel = () => {
     setSelectedReason("");
     setCustomReason("");
+    setConfirm70Agree(false); // reset checkbox
     setConfirmOpen(true);
   };
 
@@ -292,6 +464,13 @@ export default function MyPackage() {
       return;
     }
 
+    if (!confirm70Agree) {
+      message.warning(
+        "Vui lòng xác nhận rằng bạn đã hiểu chính sách chỉ hoàn tối đa 70% số tiền cho buổi/ngày còn lại."
+      );
+      return;
+    }
+
     let finalReason = selectedReason;
     const isOther =
       selectedReason === "Khác (tự nhập)" || selectedReason === "Khác";
@@ -306,19 +485,17 @@ export default function MyPackage() {
     try {
       setCancelLoading(true);
 
-      // Gọi API cancel:
-      // POST /MemberPackage/:id/cancel
-      // body: { cancellationReason: "..." }
       await api.post(`/MemberPackage/${id}/cancel`, {
         cancellationReason: finalReason,
       });
 
       message.success("Hủy gói thành công.");
 
-      // Reload lại danh sách lịch sử gói
       await fetchPackages();
 
       setConfirmOpen(false);
+      setOpen(false);
+      setSelected(null);
     } catch (err) {
       console.error("Error cancel package:", err);
       const detail =
@@ -332,13 +509,230 @@ export default function MyPackage() {
     }
   };
 
+  // ====== REFUND (TÍNH & GỬI YÊU CẦU) ======
+  const fetchRefundCalculation = async (memberPackageId) => {
+    if (!memberPackageId) return;
+    try {
+      setRefundCalcLoading(true);
+      setRefundInfo(null);
+      const res = await api.get(
+        `/MemberPackage/${memberPackageId}/refund-calculation`
+      );
+      const data = res.data;
+
+      const rawAmount = data.calculatedRefundAmount ?? 0;
+      const roundedAmount = Math.round(rawAmount); // tiền: không thập phân
+
+      const usedPctRaw = data.usedCapacityPercentage ?? 0;
+      const refundPctRaw = data.refundPercentage ?? 0;
+
+      const usedPctRounded = Math.round(usedPctRaw * 100) / 100;
+      const refundPctRounded = Math.round(refundPctRaw * 100) / 100;
+
+      setRefundInfo({
+        ...data,
+        calculatedRefundAmount: roundedAmount,
+        usedCapacityPercentage: usedPctRounded,
+        refundPercentage: refundPctRounded,
+      });
+
+      setRefundRequestedAmount(roundedAmount);
+    } catch (err) {
+      console.error("Error fetching refund calculation:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Không lấy được thông tin tính toán hoàn tiền.";
+      message.error(detail);
+      setRefundOpen(false);
+      resetRefundState();
+    } finally {
+      setRefundCalcLoading(false);
+    }
+  };
+
+  const handleOpenRefund = () => {
+    if (!selected || !selected.history) return;
+
+    // nếu gói này đang có đơn hoàn tiền active => không cho mở form mới
+    const activeRefund = getActiveRefundRequestForPackage(
+      selected.history.id
+    );
+    if (activeRefund) {
+      // mở modal xem chi tiết luôn
+      setViewRefund(activeRefund);
+      setViewRefundOpen(true);
+      return;
+    }
+
+    resetRefundState();
+    setRefundOpen(true);
+    fetchRefundCalculation(selected.history.id);
+  };
+
+  const handleOpenRefundFromList = (pkg) => {
+    // nếu có đơn active => xem chi tiết
+    const activeRefund = getActiveRefundRequestForPackage(pkg.id);
+    if (activeRefund) {
+      setSelected({ history: pkg, master: null });
+      setViewRefund(activeRefund);
+      setViewRefundOpen(true);
+      return;
+    }
+
+    setSelected({ history: pkg, master: null });
+    resetFeedbackForms();
+    resetRefundState();
+    setRefundOpen(true);
+    fetchRefundCalculation(pkg.id);
+  };
+
+  const handleRefundModalClose = () => {
+    if (refundLoading || refundCalcLoading) return;
+    setRefundOpen(false);
+    resetRefundState();
+  };
+
+  const handleRefundSubmit = async () => {
+    if (!selected || !selected.history) return;
+
+    const id = selected.history.id;
+    if (!id) {
+      message.error("Không tìm được ID gói để hoàn tiền.");
+      return;
+    }
+
+    if (!refundRequestedAmount || Number(refundRequestedAmount) <= 0) {
+      message.warning("Số tiền yêu cầu hoàn phải lớn hơn 0.");
+      return;
+    }
+
+    if (!refundReason.trim()) {
+      message.warning("Vui lòng nhập lý do yêu cầu hoàn tiền.");
+      return;
+    }
+
+    try {
+      setRefundLoading(true);
+      await api.post(`/MemberPackage/${id}/refund-request`, {
+        requestedAmount: Number(refundRequestedAmount) || 0,
+        reason: refundReason.trim(),
+      });
+
+      message.success("Gửi yêu cầu hoàn tiền thành công.");
+
+      setRefundOpen(false);
+      resetRefundState();
+
+      // reload danh sách đơn hoàn tiền
+      await fetchRefundRequests();
+    } catch (err) {
+      console.error("Error requesting refund:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi yêu cầu hoàn tiền thất bại. Vui lòng thử lại sau.";
+      message.error(detail);
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  // ====== XEM CHI TIẾT ĐƠN HOÀN TIỀN ======
+  const handleOpenViewRefund = (refund) => {
+    if (!refund) return;
+    setViewRefund(refund);
+    setViewRefundOpen(true);
+  };
+
+  const handleCloseViewRefund = () => {
+    resetViewRefundState();
+  };
+
+  // ==== Feedback handlers ====
+  const handleSubmitGymFeedback = async () => {
+    if (!selected || !selected.history) return;
+
+    if (!gymComments.trim()) {
+      message.warning("Vui lòng nhập nội dung đánh giá cho phòng gym.");
+      return;
+    }
+
+    try {
+      setFeedbackLoading(true);
+      const payload = {
+        rating: Number(gymRating) || 5,
+        feedbackType: gymFeedbackType || "GYM",
+        comments: gymComments.trim(),
+      };
+      await api.post("/member/feedback/gym", payload);
+      message.success("Đã gửi đánh giá cho phòng gym. Cảm ơn bạn!");
+      setGymComments("");
+      setGymFeedbackType("");
+    } catch (err) {
+      console.error("Error sending gym feedback:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi đánh giá phòng gym thất bại.";
+      message.error(detail);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
+  const handleSubmitTrainerFeedback = async () => {
+    if (!selected || !selected.history) return;
+
+    if (!selected.history.id) {
+      message.error("Không tìm thấy gói tập để gửi đánh giá HLV.");
+      return;
+    }
+    if (!selected.history.trainerId && !selected.history.trainerName) {
+      message.warning("Gói này không có huấn luyện viên để đánh giá.");
+      return;
+    }
+    if (!trainerComments.trim()) {
+      message.warning("Vui lòng nhập nội dung đánh giá cho huấn luyện viên.");
+      return;
+    }
+
+    try {
+      setFeedbackLoading(true);
+      const payload = {
+        memberPackageId: selected.history.id,
+        rating: Number(trainerRating) || 5,
+        comments: trainerComments.trim(),
+      };
+      await api.post("/member/feedback/trainer", payload);
+      message.success("Đã gửi đánh giá huấn luyện viên. Cảm ơn bạn!");
+      setTrainerComments("");
+    } catch (err) {
+      console.error("Error sending trainer feedback:", err);
+      const detail =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gửi đánh giá huấn luyện viên thất bại.";
+      message.error(detail);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
   const renderFilterTabs = () => (
     <ul className="nav nav-pills justify-content-center mb-4">
       <li className="nav-item">
         <button
           type="button"
           className={"nav-link " + (filterStatus === "all" ? "active" : "")}
-          onClick={() => setFilterStatus("all")}
+          onClick={() => {
+            setFilterStatus("all");
+            setCurrentPage(1);
+          }}
         >
           Tất cả
         </button>
@@ -347,7 +741,10 @@ export default function MyPackage() {
         <button
           type="button"
           className={"nav-link " + (filterStatus === "active" ? "active" : "")}
-          onClick={() => setFilterStatus("active")}
+          onClick={() => {
+            setFilterStatus("active");
+            setCurrentPage(1);
+          }}
         >
           Đang hoạt động
         </button>
@@ -358,7 +755,10 @@ export default function MyPackage() {
           className={
             "nav-link " + (filterStatus === "cancelled" ? "active" : "")
           }
-          onClick={() => setFilterStatus("cancelled")}
+          onClick={() => {
+            setFilterStatus("cancelled");
+            setCurrentPage(1);
+          }}
         >
           Đã hủy
         </button>
@@ -369,7 +769,10 @@ export default function MyPackage() {
           className={
             "nav-link " + (filterStatus === "expired" ? "active" : "")
           }
-          onClick={() => setFilterStatus("expired")}
+          onClick={() => {
+            setFilterStatus("expired");
+            setCurrentPage(1);
+          }}
         >
           Hết hạn
         </button>
@@ -378,361 +781,826 @@ export default function MyPackage() {
   );
 
   return (
-    <div className="container py-4">
-      <style>{styles}</style>
+    <div className="min-h-screen bg-gradient-to-br from-red-100 to-yellow-100 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "url('https://setupphonggym.vn/wp-content/uploads/2020/09/mau-thiet-ke-phong-gym-100m2.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundColor: "rgba(2, 0, 68, 0.75)",
+          backgroundBlendMode: "multiply",
+          weight: "90%",
+          paddingTop: "50px",
+          paddingBottom: "50px",
+          zIndex: 1,
+        }}
+      >
+        <style>{styles}</style>
 
-      <div className="row mb-3 text-center">
-        <div className="col-12">
-          <h3 className="mb-0 fw-bold">Lịch sử gói tập</h3>
-        </div>
-      </div>
-
-      {/* Tabs filter */}
-      {renderFilterTabs()}
-
-      {loading && (
-        <div className="row justify-content-center mb-3">
-          <div className="col-12 col-xl-10">
-            <div className="alert alert-info text-center mb-0">
-              Đang tải thông tin gói tập...
-            </div>
+        <div className="row mb-3 text-center">
+          <div className="col-12">
+            <h3
+              className="mb-0 fw-bold"
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}
+            >
+              Lịch sử gói tập
+            </h3>
           </div>
         </div>
-      )}
 
-      {loadError && (
-        <div className="row justify-content-center mb-3">
-          <div className="col-12 col-xl-10">
-            <div className="alert alert-danger text-center mb-0">
-              {loadError}
-            </div>
-          </div>
-        </div>
-      )}
+        {/* Tabs filter */}
+        {renderFilterTabs()}
 
-      {/* Danh sách gói sau khi lọc */}
-      {filteredPackages.map((pkg) => {
-        const status = getStatus(pkg);
-        const daysRemainDisplay = getDaysRemainingDisplay(pkg);
-
-        return (
-          <div className="row justify-content-center mb-3" key={pkg.id}>
+        {loading && (
+          <div className="row justify-content-center mb-3">
             <div className="col-12 col-xl-10">
-              <div className="card shadow-0 border rounded-3 card-shadow">
-                <div className="card-body">
-                  <div className="row g-3 align-items-center">
-                    <div className="col-12 col-md-6">
-                      <div className="pkg-title mb-1">{pkg.name}</div>
-                      <div className="text-muted">
-                        Thời hạn:{" "}
-                        <strong>{durationLabel(pkg.durationMonths)}</strong>
-                      </div>
-                      {pkg.apiStatus && (
-                        <div className="text-muted small mt-1">
-                          Trạng thái hệ thống:{" "}
-                          <strong>{pkg.apiStatus}</strong>
-                        </div>
-                      )}
-                    </div>
+              <div className="alert alert-info text-center mb-0">
+                Đang tải thông tin gói tập...
+              </div>
+            </div>
+          </div>
+        )}
 
-                    <div className="col-12 col-md-4">
-                      <div className="text-muted small">Ngày bắt đầu</div>
-                      <div className="fw-semibold">
-                        {formatDDMMYYYY(pkg.startDate)}
+        {loadError && (
+          <div className="row justify-content-center mb-3">
+            <div className="col-12 col-xl-10">
+              <div className="alert alert-danger text-center mb-0">
+                {loadError}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Danh sách gói sau khi lọc + phân trang (5 gói / trang) */}
+        {paginatedPackages.map((pkg) => {
+          const status = getStatus(pkg);
+          const daysRemainDisplay = getDaysRemainingDisplay(pkg);
+          const isCancelled =
+            (pkg.apiStatus || "").toLowerCase() === "cancelled";
+
+          const activeRefund = getActiveRefundRequestForPackage(pkg.id);
+
+          return (
+            <div className="row justify-content-center mb-3" key={pkg.id}>
+              <div className="col-12 col-xl-10">
+                <div className="card shadow-0 border rounded-3 card-shadow">
+                  <div className="card-body">
+                    <div className="row g-3 align-items-center">
+                      {/* Cột tên gói */}
+                      <div className="col-12 col-md-5">
+                        <div className="pkg-title mb-1">{pkg.name}</div>
+                        <div className="text-muted">
+                          Thời hạn:{" "}
+                          <strong>{durationLabel(pkg.durationMonths)}</strong>
+                        </div>
+                        {pkg.apiStatus && (
+                          <div className="text-muted small mt-1">
+                            Trạng thái hệ thống:{" "}
+                            <strong>{pkg.apiStatus}</strong>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-muted small mt-2">
-                        Ngày kết thúc
-                      </div>
-                      <div className="fw-semibold">
-                        {formatDDMMYYYY(pkg.endDate)}
-                      </div>
-                      {daysRemainDisplay !== null && (
+
+                      {/* Cột ngày bắt đầu / kết thúc */}
+                      <div className="col-12 col-md-3">
+                        <div className="text-muted small">Ngày bắt đầu</div>
+                        <div className="fw-semibold">
+                          {formatDDMMYYYY(pkg.startDate)}
+                        </div>
                         <div className="text-muted small mt-2">
-                          Còn lại:{" "}
-                          <strong>{daysRemainDisplay} ngày</strong>
+                          Ngày kết thúc
                         </div>
-                      )}
-                    </div>
+                        <div className="fw-semibold">
+                          {formatDDMMYYYY(pkg.endDate)}
+                        </div>
+                        {daysRemainDisplay !== null && (
+                          <div className="text-muted small mt-2">
+                            Còn lại:{" "}
+                            <strong>{daysRemainDisplay} ngày</strong>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="col-12 col-md-2 text-md-end">
-                      <button
-                        className="btn btn-primary btn-sm mb-1"
-                        onClick={() => handleOpen(pkg)}
-                      >
-                        Chi tiết
-                      </button>
-                      <div
-                        className={status.className}
-                        style={{ fontSize: "0.9rem" }}
-                      >
-                        {status.text}
+                      {/* Cột button + status */}
+                      <div className="col-12 col-md-4 d-flex flex-column align-items-md-end align-items-start">
+                        <div className="d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap flex-md-nowrap">
+                          {/* Nếu có đơn hoàn tiền active => nút xem đơn, nếu không => nút yêu cầu hoàn tiền (khi đã hủy) */}
+                          {isCancelled && (
+                            <>
+                              {activeRefund ? (
+                                <button
+                                  className="btn btn-outline-warning btn-sm"
+                                  onClick={() =>
+                                    handleOpenViewRefund(activeRefund)
+                                  }
+                                >
+                                  Đã gửi đơn hoàn tiền
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-warning btn-sm"
+                                  onClick={() =>
+                                    handleOpenRefundFromList(pkg)
+                                  }
+                                >
+                                  Yêu cầu hoàn tiền
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleOpen(pkg)}
+                          >
+                            Chi tiết
+                          </button>
+                        </div>
+
+                        <div
+                          className={status.className}
+                          style={{ fontSize: "0.9rem", marginTop: 8 }}
+                        >
+                          {status.text}
+                        </div>
+
+                        {/* Thông tin rất nhỏ về đơn hoàn tiền (nếu có) */}
+                        {activeRefund && (
+                          <div className="text-muted small mt-1">
+                            Đơn hoàn tiền:{" "}
+                            <strong>{activeRefund.status}</strong>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
 
-      {/* Không có gói trong tab hiện tại */}
-      {!loading &&
-        !loadError &&
-        filteredPackages.length === 0 &&
-        sortedPackages.length > 0 && (
+        {/* Phân trang: 5 gói / trang */}
+        {!loading && !loadError && filteredPackages.length > 0 && (
+          <div className="row justify-content-center mt-3">
+            <div className="col-12 col-xl-10 d-flex justify-content-center">
+              <nav>
+                <ul className="pagination mb-0">
+                  <li
+                    className={`page-item ${
+                      currentPage === 1 ? "disabled" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="page-link"
+                      onClick={() =>
+                        currentPage > 1 && setCurrentPage(currentPage - 1)
+                      }
+                    >
+                      «
+                    </button>
+                  </li>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <li
+                        key={page}
+                        className={
+                          "page-item " +
+                          (page === currentPage ? "active" : "")
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="page-link"
+                          style={{ marginLeft: 10 }}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </button>
+                      </li>
+                    )
+                  )}
+
+                  <li
+                    className={`page-item ${
+                      currentPage === totalPages ? "disabled" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      style={{ marginLeft: 10 }}
+                      className="page-link"
+                      onClick={() =>
+                        currentPage < totalPages &&
+                        setCurrentPage(currentPage + 1)
+                      }
+                    >
+                      »
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Không có gói trong tab hiện tại */}
+        {!loading &&
+          !loadError &&
+          filteredPackages.length === 0 &&
+          sortedPackages.length > 0 && (
+            <div className="row justify-content-center">
+              <div className="col-12 col-xl-10">
+                <div
+                  className="alert alert-light border text-center"
+                  role="alert"
+                >
+                  Không có gói nào trong mục này.
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Không có lịch sử gói (tổng) */}
+        {!loading && !loadError && sortedPackages.length === 0 && (
           <div className="row justify-content-center">
             <div className="col-12 col-xl-10">
               <div
                 className="alert alert-light border text-center"
                 role="alert"
               >
-                Không có gói nào trong mục này.
+                Chưa có lịch sử gói tập.
               </div>
             </div>
           </div>
         )}
 
-      {/* Không có lịch sử gói (tổng) */}
-      {!loading && !loadError && sortedPackages.length === 0 && (
-        <div className="row justify-content-center">
-          <div className="col-12 col-xl-10">
-            <div
-              className="alert alert-light border text-center"
-              role="alert"
-            >
-              Chưa có lịch sử gói tập.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Modal Detail ===== */}
-      {open && selected && (
-        <div
-          className="modal-backdrop-custom"
-          onClick={handleClose}
-          role="dialog"
-          aria-modal="true"
-        >
+        {/* ===== Modal Detail ===== */}
+        {open && selected && (
           <div
-            className="modal-card"
-            onClick={(e) => e.stopPropagation()}
+            className="modal-backdrop-custom"
+            onClick={handleClose}
+            role="dialog"
+            aria-modal="true"
           >
-            <div className="modal-header d-flex justify-content-between align-items-center">
-              <h5 className="m-0">
-                {selected.history?.name || "Chi tiết gói"}
-              </h5>
-              <button
-                className="btn btn-sm btn-outline-secondary"
-                onClick={handleClose}
-              >
-                <AiOutlineClose />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {/* Status + thời gian thực tế */}
-              <div className="mb-3">
-                {(() => {
-                  const st = getStatus(selected.history);
-                  return (
-                    <div
-                      className={st.className}
-                      style={{ fontSize: "0.95rem" }}
-                    >
-                      Trạng thái: {st.text}
-                      {selected.history.apiStatus && (
-                        <span className="text-muted ms-2">
-                          ({selected.history.apiStatus})
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-                <div className="text-muted small">
-                  Thời gian sử dụng:{" "}
-                  <strong>
-                    {formatDDMMYYYY(selected.history.startDate)}
-                  </strong>{" "}
-                  –{" "}
-                  <strong>
-                    {formatDDMMYYYY(selected.history.endDate)}
-                  </strong>
-                </div>
-                {(() => {
-                  const daysRemainDisplay = getDaysRemainingDisplay(
-                    selected.history
-                  );
-                  if (daysRemainDisplay === null) return null;
-                  return (
-                    <div className="text-muted small mt-1">
-                      Còn lại:{" "}
-                      <strong>{daysRemainDisplay} ngày</strong>
-                    </div>
-                  );
-                })()}
-                {selected.history.cancellationReason && (
-                  <div className="text-muted small mt-1">
-                    Lý do hủy:{" "}
-                    <strong>
-                      {selected.history.cancellationReason}
-                    </strong>
-                  </div>
-                )}
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header d-flex justify-content-between align-items-center">
+                <h5 className="m-0">
+                  {selected.history?.name || "Chi tiết gói"}
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={handleClose}
+                >
+                  <AiOutlineClose />
+                </button>
               </div>
 
-              {/* Info chi tiết – dùng data từ API */}
-              <div className="row g-3">
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Số buổi</div>
-                  <div className="fw-semibold">
-                    {selected.history.totalSessionsCount ?? "—"} buổi
+              <div className="modal-body">
+                {/* Status + thời gian thực tế */}
+                <div className="mb-3">
+                  {(() => {
+                    const st = getStatus(selected.history);
+                    return (
+                      <div
+                        className={st.className}
+                        style={{ fontSize: "0.95rem" }}
+                      >
+                        Trạng thái: {st.text}
+                        {selected.history.apiStatus && (
+                          <span className="text-muted ms-2">
+                            ({selected.history.apiStatus})
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div className="text-muted small">
+                    Thời gian sử dụng:{" "}
+                    <strong>
+                      {formatDDMMYYYY(selected.history.startDate)}
+                    </strong>{" "}
+                    –{" "}
+                    <strong>
+                      {formatDDMMYYYY(selected.history.endDate)}
+                    </strong>
                   </div>
-                  {typeof selected.history
-                    .remainingSessionsCount === "number" && (
+                  {(() => {
+                    const daysRemainDisplay =
+                      getDaysRemainingDisplay(selected.history);
+                    if (daysRemainDisplay === null) return null;
+                    return (
+                      <div className="text-muted small mt-1">
+                        Còn lại: <strong>{daysRemainDisplay} ngày</strong>
+                      </div>
+                    );
+                  })()}
+                  {selected.history.cancellationReason && (
                     <div className="text-muted small mt-1">
-                      Còn lại:{" "}
-                      <strong>
-                        {selected.history.remainingSessionsCount} buổi
-                      </strong>
+                      Lý do hủy:{" "}
+                      <strong>{selected.history.cancellationReason}</strong>
                     </div>
                   )}
                 </div>
 
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">
-                    Thời lượng gói (ước tính)
-                  </div>
-                  <div className="fw-semibold">
-                    {durationLabel(
-                      selected.history.durationMonths
-                    ) || "—"}
-                  </div>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Huấn luyện viên</div>
-                  <div className="fw-semibold">
-                    {selected.history.trainerName || (
-                      <span className="text-muted">Không rõ</span>
+                {/* Info chi tiết – dùng data từ API */}
+                <div className="row g-3">
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Số buổi</div>
+                    <div className="fw-semibold">
+                      {selected.history.totalSessionsCount ?? "—"} buổi
+                    </div>
+                    {typeof selected.history.remainingSessionsCount ===
+                      "number" && (
+                      <div className="text-muted small mt-1">
+                        Còn lại:{" "}
+                        <strong>
+                          {selected.history.remainingSessionsCount} buổi
+                        </strong>
+                      </div>
                     )}
                   </div>
-                </div>
 
-                <div className="col-12 col-md-6">
-                  <div className="text-muted small">Giá niêm yết</div>
-                  <div className="fw-semibold">
-                    {currencyVND(selected.history.packagePrice)}
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">
+                      Thời lượng gói (ước tính)
+                    </div>
+                    <div className="fw-semibold">
+                      {durationLabel(selected.history.durationMonths) || "—"}
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Huấn luyện viên</div>
+                    <div className="fw-semibold">
+                      {selected.history.trainerName || (
+                        <span className="text-muted">Không rõ</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <div className="text-muted small">Giá niêm yết</div>
+                    <div className="fw-semibold">
+                      {currencyVND(selected.history.packagePrice)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="modal-footer d-flex justify-content-end gap-2">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={handleRequestCancel}
-              >
-                Hủy gói
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() =>
-                  message.info(
-                    `Chức năng mua lại gói #${
-                      selected.history?.packageId ?? "?"
-                    } đang được phát triển.`
-                  )
-                }
-              >
-                Mua lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                {/* Feedback section */}
+                <hr className="mt-4 mb-3" />
+                <h6 className="mb-3">Đánh giá & phản hồi</h6>
+                <div className="row g-3">
+                  {/* Gym feedback */}
+                  <div className="col-12 col-md-6">
+                    <div className="border rounded p-3 h-100">
+                      <h6 className="mb-2">Phòng gym</h6>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Mức độ hài lòng
+                        </label>
+                        <StarRating
+                          value={gymRating}
+                          onChange={setGymRating}
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Loại phản hồi (tuỳ chọn)
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="VD: Cơ sở vật chất, dịch vụ, không gian..."
+                          value={gymFeedbackType}
+                          onChange={(e) =>
+                            setGymFeedbackType(e.target.value)
+                          }
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label small mb-1">
+                          Nội dung đánh giá
+                        </label>
+                        <textarea
+                          className="form-control"
+                          rows={3}
+                          value={gymComments}
+                          onChange={(e) => setGymComments(e.target.value)}
+                          disabled={feedbackLoading}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary mt-1"
+                        onClick={handleSubmitGymFeedback}
+                        disabled={feedbackLoading}
+                      >
+                        {feedbackLoading
+                          ? "Đang gửi..."
+                          : "Gửi đánh giá phòng gym"}
+                      </button>
+                    </div>
+                  </div>
 
-      {/* ===== Modal chọn lý do hủy gói ===== */}
-      {confirmOpen && (
-        <div
-          className="confirm-backdrop"
-          onClick={handleCancelModalClose}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="confirm-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
-            <p className="text-muted mb-2">
-              Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
-              cải thiện dịch vụ.
-            </p>
-
-            <div
-              className="mb-3"
-              style={{ maxHeight: 260, overflowY: "auto" }}
-            >
-              {CANCEL_REASONS.map((reason) => (
-                <div className="form-check mb-1" key={reason}>
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name="cancelReason"
-                    id={`cancel-${reason}`}
-                    value={reason}
-                    checked={selectedReason === reason}
-                    onChange={(e) => setSelectedReason(e.target.value)}
-                    disabled={cancelLoading}
-                  />
-                  <label
-                    className="form-check-label"
-                    htmlFor={`cancel-${reason}`}
-                  >
-                    {reason}
-                  </label>
+                  {/* Trainer feedback (nếu có trainer) */}
+                  {selected.history?.trainerName && (
+                    <div className="col-12 col-md-6">
+                      <div className="border rounded p-3 h-100">
+                        <h6 className="mb-2">
+                          Huấn luyện viên{" "}
+                          <span className="fw-semibold">
+                            {selected.history.trainerName}
+                          </span>
+                        </h6>
+                        <div className="mb-2">
+                          <label className="form-label small mb-1">
+                            Mức độ hài lòng
+                          </label>
+                          <StarRating
+                            value={trainerRating}
+                            onChange={setTrainerRating}
+                            disabled={feedbackLoading}
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label className="form-label small mb-1">
+                            Nội dung đánh giá
+                          </label>
+                          <textarea
+                            className="form-control"
+                            rows={3}
+                            value={trainerComments}
+                            onChange={(e) =>
+                              setTrainerComments(e.target.value)
+                            }
+                            disabled={feedbackLoading}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-success mt-1"
+                          onClick={handleSubmitTrainerFeedback}
+                          disabled={feedbackLoading}
+                        >
+                          {feedbackLoading
+                            ? "Đang gửi..."
+                            : "Gửi đánh giá huấn luyện viên"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-
-            {(selectedReason === "Khác (tự nhập)" ||
-              selectedReason === "Khác") && (
-              <div className="mb-3">
-                <label className="form-label small">
-                  Nhập lý do chi tiết
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  disabled={cancelLoading}
-                  placeholder="Ví dụ: chuyển chỗ làm xa, không tiện đi tập..."
-                />
               </div>
-            )}
 
-            <div className="d-flex justify-content-end gap-2 mt-3">
-              <button
-                className="btn btn-light"
-                onClick={handleCancelModalClose}
-                disabled={cancelLoading}
-              >
-                Không
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={handleCancelSubmit}
-                disabled={cancelLoading}
-              >
-                {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
-              </button>
+              <div className="modal-footer d-flex justify-content-end gap-2">
+                {/* Refund chỉ khi đã hủy */}
+                {selected.history?.apiStatus?.toLowerCase() === "cancelled" && (
+                  <>
+                    {getActiveRefundRequestForPackage(selected.history.id) ? (
+                      <button
+                        className="btn btn-outline-warning"
+                        onClick={() =>
+                          handleOpenViewRefund(
+                            getActiveRefundRequestForPackage(
+                              selected.history.id
+                            )
+                          )
+                        }
+                      >
+                        Xem đơn hoàn tiền
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-warning"
+                        onClick={handleOpenRefund}
+                      >
+                        Yêu cầu hoàn tiền
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Nút hủy gói chỉ hiện khi status Active */}
+                {selected.history?.apiStatus?.toLowerCase() === "active" && (
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={handleRequestCancel}
+                  >
+                    Hủy gói
+                  </button>
+                )}
+
+                <button
+                  className="btn btn-primary"
+                  onClick={() =>
+                    message.info(
+                      `Chức năng mua lại gói #${
+                        selected.history?.packageId ?? "?"
+                      } đang được phát triển.`
+                    )
+                  }
+                >
+                  Mua lại
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ===== Modal chọn lý do hủy gói ===== */}
+        {confirmOpen && (
+          <div
+            className="confirm-backdrop"
+            onClick={handleCancelModalClose}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
+              <p className="text-muted mb-2">
+                Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
+                cải thiện dịch vụ.
+              </p>
+
+              <div
+                className="mb-3"
+                style={{ maxHeight: 260, overflowY: "auto" }}
+              >
+                {CANCEL_REASONS.map((reason) => (
+                  <div className="form-check mb-1" key={reason}>
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="cancelReason"
+                      id={`cancel-${reason}`}
+                      value={reason}
+                      checked={selectedReason === reason}
+                      onChange={(e) => setSelectedReason(e.target.value)}
+                      disabled={cancelLoading}
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor={`cancel-${reason}`}
+                    >
+                      {reason}
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Checkbox xác nhận chính sách hoàn tối đa 70% */}
+              <div className="form-check mt-2">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="confirm-70"
+                  checked={confirm70Agree}
+                  onChange={() => setConfirm70Agree((v) => !v)}
+                  disabled={cancelLoading}
+                />
+                <label className="form-check-label" htmlFor="confirm-70">
+                  Tôi hiểu rằng khi hủy gói, tôi chỉ có thể được hoàn tối đa{" "}
+                  <strong>70% số tiền</strong> tương ứng với số buổi/ngày còn
+                  lại (nếu đủ điều kiện).
+                </label>
+              </div>
+
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-light"
+                  onClick={handleCancelModalClose}
+                  disabled={cancelLoading}
+                >
+                  Không
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleCancelSubmit}
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== Modal yêu cầu hoàn tiền (GET + POST, không show requestedAmount input) ===== */}
+        {refundOpen && (
+          <div
+            className="confirm-backdrop"
+            onClick={handleRefundModalClose}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <h6 className="mb-2">Yêu cầu hoàn tiền</h6>
+
+              {refundCalcLoading && (
+                <p className="text-muted mb-3">
+                  Đang tính toán số tiền hoàn cho gói của bạn...
+                </p>
+              )}
+
+              {!refundCalcLoading && refundInfo && (
+                <>
+                  <p className="text-muted mb-2">
+                    Thông tin hoàn tiền cho gói:{" "}
+                    <strong>{refundInfo.packageName}</strong>
+                  </p>
+
+                  <div className="mb-2 small">
+                    <div>
+                      <span className="text-muted">Giá gốc: </span>
+                      <strong>
+                        {currencyVND(refundInfo.originalAmount ?? 0)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted">Giá đã thanh toán: </span>
+                      <strong>
+                        {currencyVND(refundInfo.finalAmount ?? 0)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted">Buổi còn lại: </span>
+                      <strong>
+                        {refundInfo.remainingSessions} /{" "}
+                        {refundInfo.totalSessions}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted">Ngày còn lại: </span>
+                      <strong>
+                        {refundInfo.remainingDays} / {refundInfo.totalDays}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted">% đã sử dụng: </span>
+                      <strong>
+                        {typeof refundInfo.usedCapacityPercentage === "number"
+                          ? refundInfo.usedCapacityPercentage.toFixed(2)
+                          : refundInfo.usedCapacityPercentage}
+                        %
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-muted">% được hoàn: </span>
+                      <strong>
+                        {typeof refundInfo.refundPercentage === "number"
+                          ? refundInfo.refundPercentage.toFixed(2)
+                          : refundInfo.refundPercentage}
+                        %
+                      </strong>
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-muted">Số tiền dự kiến hoàn: </span>
+                      <strong>
+                        {currencyVND(
+                          Number(refundInfo.calculatedRefundAmount) || 0
+                        )}
+                      </strong>
+                    </div>
+                    {refundInfo.calculationDetails && (
+                      <div className="mt-1">
+                        <span className="text-muted">Chi tiết tính toán: </span>
+                        <span>{refundInfo.calculationDetails}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <hr className="my-3" />
+
+                  <div className="mb-3">
+                    <label className="form-label small">Lý do hoàn tiền</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      disabled={refundLoading || refundCalcLoading}
+                      placeholder="Ví dụ: không thể tiếp tục sử dụng gói do chuyển nơi ở..."
+                    />
+                  </div>
+                </>
+              )}
+
+              {!refundCalcLoading && !refundInfo && (
+                <p className="text-muted mb-3">
+                  Không lấy được thông tin tính toán hoàn tiền.
+                </p>
+              )}
+
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <button
+                  className="btn btn-light"
+                  onClick={handleRefundModalClose}
+                  disabled={refundLoading || refundCalcLoading}
+                >
+                  Đóng
+                </button>
+                <button
+                  className="btn btn-warning"
+                  onClick={handleRefundSubmit}
+                  disabled={
+                    refundLoading ||
+                    refundCalcLoading ||
+                    !refundInfo ||
+                    !selected
+                  }
+                >
+                  {refundLoading ? "Đang gửi..." : "Gửi yêu cầu hoàn tiền"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== Modal xem chi tiết đơn hoàn tiền ===== */}
+        {viewRefundOpen && viewRefund && (
+          <div
+            className="confirm-backdrop"
+            onClick={handleCloseViewRefund}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
+              <h6 className="mb-2">Chi tiết đơn hoàn tiền</h6>
+
+              <div className="small mb-2">
+                <div>
+                  <span className="text-muted">Gói: </span>
+                  <strong>{viewRefund.packageName}</strong>
+                </div>
+                <div>
+                  <span className="text-muted">Số tiền yêu cầu hoàn: </span>
+                  <strong>{currencyVND(viewRefund.requestedAmount ?? 0)}</strong>
+                </div>
+                <div>
+                  <span className="text-muted">Trạng thái: </span>
+                  <strong>{viewRefund.status || "—"}</strong>
+                </div>
+                <div>
+                  <span className="text-muted">Ngày gửi yêu cầu: </span>
+                  <strong>
+                    {formatDDMMYYYY_HHmm(viewRefund.requestedAt)}
+                  </strong>
+                </div>
+                {viewRefund.reviewedAt && (
+                  <div>
+                    <span className="text-muted">Ngày xử lý: </span>
+                    <strong>
+                      {formatDDMMYYYY_HHmm(viewRefund.reviewedAt)}
+                    </strong>
+                  </div>
+                )}
+                {viewRefund.reviewerName && (
+                  <div>
+                    <span className="text-muted">Người xử lý: </span>
+                    <strong>{viewRefund.reviewerName}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-2">
+                <span className="text-muted small d-block">
+                  Lý do bạn yêu cầu hoàn:
+                </span>
+                <div className="border rounded p-2 small bg-light">
+                  {viewRefund.reason || "—"}
+                </div>
+              </div>
+
+              {viewRefund.adminNotes && (
+                <div className="mb-2">
+                  <span className="text-muted small d-block">
+                    Ghi chú từ quản trị:
+                  </span>
+                  <div className="border rounded p-2 small bg-light">
+                    {viewRefund.adminNotes}
+                  </div>
+                </div>
+              )}
+
+              <div className="d-flex justify-content-end mt-3">
+                <button
+                  className="btn btn-light"
+                  onClick={handleCloseViewRefund}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
