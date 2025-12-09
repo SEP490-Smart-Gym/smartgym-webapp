@@ -72,7 +72,7 @@ export default function Contact() {
                 <i className="fas fa-map-marker-alt text-primary me-3 fa-2x"></i>
                 <div>
                   <h5 className="mb-1">Địa chỉ</h5>
-                  <p className="mb-0">123 Street, New York</p>
+                  <p className="mb-1">7 Đường D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh</p>
                 </div>
               </div>
             </div>
@@ -83,7 +83,7 @@ export default function Contact() {
                 <i className="fas fa-envelope text-primary me-3 fa-2x"></i>
                 <div>
                   <h5 className="mb-1">Email</h5>
-                  <a href="mailto:info@example.com" className="text-decoration-none">info@example.com</a>
+                  <a href="mailto:info@example.com" className="text-decoration-none">smartgym@gmail.com</a>
                 </div>
               </div>
             </div>
@@ -190,23 +190,23 @@ export default function Contact() {
               <h4 className="mb-3">Giờ mở cửa</h4>
               <ul className="list-unstyled mb-4">
                 <li className="d-flex justify-content-between border-bottom py-2">
-                  <span>Mon - Fri</span><strong>08:00 - 20:00</strong>
+                  <span>Thứ Hai - Chủ Nhật</span><strong>05:00 - 21:00</strong>
                 </li>
-                <li className="d-flex justify-content-between border-bottom py-2">
-                  <span>Saturday</span><strong>08:00 - 18:00</strong>
+                {/* <li className="d-flex justify-content-between border-bottom py-2">
+                  <span>Thứ 7</span><strong>08:00 - 18:00</strong>
                 </li>
                 <li className="d-flex justify-content-between py-2">
                   <span>Sunday</span><strong>Closed</strong>
-                </li>
+                </li> */}
               </ul>
 
               <h4 className="mb-3">Theo dõi chúng tôi</h4>
-              <div className="d-flex">
+              {/* <div className="d-flex">
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-facebook-f"></i></a>
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-twitter"></i></a>
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-instagram"></i></a>
                 <a className="btn btn-primary btn-sm-square" href="#"><i className="fab fa-linkedin-in"></i></a>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

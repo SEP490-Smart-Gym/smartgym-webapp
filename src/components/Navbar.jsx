@@ -440,7 +440,7 @@ export default function Navbar() {
                     to="/#about-section"
                     className="nav-item nav-link"
                   >
-                    About
+                    Về Chúng Tôi
                   </HashLink>
                   <HashLink
                     smooth
@@ -490,7 +490,7 @@ export default function Navbar() {
                           alignItems: "center",
                         }}
                       >
-                        Pages {isOpen ? <HiChevronUp /> : <HiChevronDown />}
+                        Các Trang {isOpen ? <HiChevronUp /> : <HiChevronDown />}
                       </span>
                     </button>
 
@@ -502,7 +502,7 @@ export default function Navbar() {
                         to="/#features-section"
                         className="dropdown-item"
                       >
-                        Our Features
+                        Tính Năng 
                       </HashLink>
                       <HashLink
                         smooth
@@ -522,8 +522,8 @@ export default function Navbar() {
                     Đánh giá
                   </HashLink>
                   <NavLink to="/contact" className="nav-item nav-link">
-                    Contact
-                  </NavLink>
+                    Liên hệ
+                   </NavLink>
 
                   <div
                     className="nav-btn ps-3 d-flex align-items-center"

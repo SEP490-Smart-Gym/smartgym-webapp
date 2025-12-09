@@ -1815,3 +1815,7 @@
   font-size: 12px;
   font-weight: 600;
 }
+.mb-0 {
+    margin-bottom: 0 !important;
+    color : white;
+}

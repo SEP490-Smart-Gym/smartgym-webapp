@@ -32,33 +32,30 @@ export default function Footer() {
                   <i className="fas fa-hand-rock text-primary me-2"></i> Fitness
                 </h4>
                 <p className="mb-0">
-                  Dolor amet sit justo amet elitr clita ipsum elitr est. Lorem ipsum dolor sit amet, consectetur adipiscing elit consectetur adipiscing elit.
-                </p>
+                  Phòng gym của chúng tôi được trang bị hiện đại, không gian thoáng rộng và luôn duy trì môi trường luyện tập thoải mái nhất cho mọi hội viên.                </p>
               </div>
             </div>
 
             <div className="col-md-6 col-lg-6 col-xl-3">
               <div className="footer-item">
-                <h4 className="text-white mb-4">Quick Links</h4>
-                <a href="#"> Home</a>
-                <a href="#"> About us</a>
-                <a href="#"> Our Courses</a>
-                <a href="#"> Our Features</a>
-                <a href="#"> Our Blog & news</a>
-                <a href="#"> Testimonial</a>
+                <h4 className="text-white mb-4">Các Đường Dẫn Nhanh</h4>
+                <a href="#"> Trang Chủ</a>
+                <a href="#"> Về Chúng Tôi</a>
+                <a href="#"> Các Khóa Của Chúng Tôi</a>
+                <a href="#"> Các Tính Năng Của Chúng Tôi</a>
               </div>
             </div>
 
             <div className="col-md-6 col-lg-6 col-xl-3">
               <div className="footer-item">
-                <h4 className="text-white mb-4"> Contact Info</h4>
+                <h4 className="text-white mb-4"> Thông Tin Liên Hệ</h4>
                 <div className="row g-2">
                   <div className="col-12">
                     <div className="d-flex">
                       <i className="fas fa-map-marker-alt text-primary me-2"></i>
                       <div>
-                        <h5 className="text-white mb-2">Address</h5>
-                        <p className="mb-0">123 street New York</p>
+                        <h5 className="text-white mb-2">Địa Chỉ</h5>
+                        <p className="mb-0">7 Đường D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh</p>
                       </div>
                     </div>
                   </div>
@@ -66,8 +63,8 @@ export default function Footer() {
                     <div className="d-flex">
                       <i className="fas fa-envelope text-primary me-2"></i>
                       <div>
-                        <h5 className="text-white mb-2">Mail Us</h5>
-                        <p className="mb-0">info@example.com</p>
+                        <h5 className="text-white mb-2">Gửi Mail Cho Chúng Tôi</h5>
+                        <p className="mb-0">fitness@gmail.com</p>
                       </div>
                     </div>
                   </div>
@@ -75,8 +72,8 @@ export default function Footer() {
                     <div className="d-flex">
                       <i className="fa fa-phone-alt text-primary me-2"></i>
                       <div>
-                        <h5 className="text-white mb-2">Telephone</h5>
-                        <p className="mb-0">(+012) 3456 7890 123</p>
+                        <h5 className="text-white mb-2">Số Điện Thoại</h5>
+                        <p className="mb-0">(+084) 123456789</p>
                       </div>
                     </div>
                   </div>
