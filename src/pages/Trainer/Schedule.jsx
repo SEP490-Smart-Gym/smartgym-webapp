@@ -162,7 +162,7 @@ function normalizeScheduleData(apiList) {
   return out;
 }
 
-function StaffSchedule() {
+function TrainerSchedule() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
@@ -771,4 +771,4 @@ function StaffSchedule() {
   );
 }
 
-export default StaffSchedule;
+export default TrainerSchedule;
