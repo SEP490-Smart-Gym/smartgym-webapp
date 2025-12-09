@@ -66,15 +66,7 @@ function normalizeMockData(arr) {
     );
     const end =
       eh || em
-        ? new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-            eh,
-            em,
-            0,
-            0
-          )
+        ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em, 0, 0)
         : null;
     const dateOnly = startOfDay(d);
     const status =
@@ -199,6 +191,10 @@ export default function Calendar() {
   );
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
+  // 🔥 loading state + ref chặn double submit
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const bookingInProgressRef = useRef(false);
+
   // ==== GỌI API timeslot + gói đang active ====
   useEffect(() => {
     let cancelled = false;
@@ -214,7 +210,12 @@ export default function Calendar() {
         if (!cancelled) {
           const slotData = Array.isArray(slotRes.data) ? slotRes.data : [];
           const mappedSlots = slotData
-            .filter((s) => s.isActive !== false)
+            .filter(
+              (s) =>
+                s.isActive !== false &&
+                s.id !== 17 &&
+                s.id !== 18 // loại timeslot 17 & 18
+            )
             .map((s) => {
               const start = (s.startTime || "").slice(0, 5); // "08:00:00" -> "08:00"
               const end = (s.endTime || "").slice(0, 5);
@@ -350,7 +351,6 @@ export default function Calendar() {
       setSelectedDate((prev) => new Date(prev));
       setSelectedSlotId("");
       setDisabledSlots(new Set());
-      // KHÔNG setSelectedEvent(null) ở đây để tránh chớp "Không có dữ liệu"
 
       setShowRescheduleForm(false);
       setRescheduleDate(null);
@@ -941,12 +941,17 @@ export default function Calendar() {
             ModalClass.getInstance(eventModalRef.current) ||
             new ModalClass(eventModalRef.current);
           inst.hide();
+        } else {
+          eventModalRef.current
+            ?.querySelector(".btn-close")
+            ?.click();
         }
       } catch (e) {
         console.warn("Cannot close event modal:", e);
+        eventModalRef.current?.querySelector(".btn-close")?.click();
       }
 
-      // ✅ CHỈ reset form đổi lịch, KHÔNG xóa selectedEvent để tránh "Không có dữ liệu sự kiện" trong lúc fade
+      // reset form đổi lịch
       setShowRescheduleForm(false);
       setRescheduleDate(null);
       setRescheduleVnDate("");
@@ -963,6 +968,8 @@ export default function Calendar() {
       setRescheduleLoading(false);
     }
   };
+
+  // ✅ TÍNH CAN CANCEL / CAN RESCHEDULE (đã ở trên)
 
   return (
     <div className="container mt-5 mb-5">
@@ -1095,71 +1102,77 @@ export default function Calendar() {
             className="modal-content"
             onSubmit={async (e) => {
               e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              const vnDateFromForm = (fd.get("date_vn") || "")
-                .toString()
-                .trim();
-              const isoDate = parseVNDateToISO(vnDateFromForm);
 
-              if (!isoDate) {
-                message.error(
-                  "Ngày không hợp lệ. Vui lòng chọn theo định dạng dd/mm/yyyy."
-                );
-                return;
-              }
-
-              if (!memberPackageId) {
-                message.error(
-                  "Bạn chưa có gói tập đang hoạt động. Vui lòng mua gói trước khi đặt lịch."
-                );
-                return;
-              }
-
-              if (dataRef.current.some((ev) => ev.date === isoDate)) {
-                message.warning(
-                  "Mỗi ngày chỉ được đặt 1 slot. Vui lòng chọn ngày khác."
-                );
-                return;
-              }
-
-              const slotId = selectedSlotId;
-              if (!slotId || disabledSlots.has(String(slotId))) {
-                message.error("Khung giờ không hợp lệ.");
-                return;
-              }
-
-              const slotObj = allSlots.find(
-                (s) => String(s.id) === String(slotId)
-              );
-              if (!slotObj) {
-                message.error(
-                  "Không tìm thấy thông tin khung giờ. Vui lòng tải lại trang."
-                );
-                return;
-              }
-
-              const { start, end, id: timeSlotId } = slotObj;
-
-              // phải trước 24h
-              const [sh, sm] = start.split(":").map(Number);
-              const bookingDateTime = new Date(
-                `${isoDate}T${String(sh).padStart(2, "0")}:${String(
-                  sm
-                ).padStart(2, "0")}:00`
-              );
-              const now = new Date();
-              const diffHours =
-                (bookingDateTime - now) / (1000 * 60 * 60);
-              if (diffHours < 24) {
-                message.warning(
-                  "Vui lòng đặt lịch trước ít nhất 24 giờ."
-                );
-                return;
-              }
-
-              const timeLabel = `${start}-${end}`;
+              // 🔒 nếu đang booking thì không gửi thêm
+              if (bookingInProgressRef.current) return;
+              bookingInProgressRef.current = true;
+              setBookingLoading(true);
 
               try {
+                const fd = new FormData(e.currentTarget);
+                const vnDateFromForm = (fd.get("date_vn") || "")
+                  .toString()
+                  .trim();
+                const isoDate = parseVNDateToISO(vnDateFromForm);
+
+                if (!isoDate) {
+                  message.error(
+                    "Ngày không hợp lệ. Vui lòng chọn theo định dạng dd/mm/yyyy."
+                  );
+                  return;
+                }
+
+                if (!memberPackageId) {
+                  message.error(
+                    "Bạn chưa có gói tập đang hoạt động. Vui lòng mua gói trước khi đặt lịch."
+                  );
+                  return;
+                }
+
+                if (dataRef.current.some((ev) => ev.date === isoDate)) {
+                  message.warning(
+                    "Mỗi ngày chỉ được đặt 1 slot. Vui lòng chọn ngày khác."
+                  );
+                  return;
+                }
+
+                const slotId = selectedSlotId;
+                if (!slotId || disabledSlots.has(String(slotId))) {
+                  message.error("Khung giờ không hợp lệ.");
+                  return;
+                }
+
+                const slotObj = allSlots.find(
+                  (s) => String(s.id) === String(slotId)
+                );
+                if (!slotObj) {
+                  message.error(
+                    "Không tìm thấy thông tin khung giờ. Vui lòng tải lại trang."
+                  );
+                  return;
+                }
+
+                const { start, end, id: timeSlotId } = slotObj;
+
+                // phải trước 24h
+                const [sh, sm] = start.split(":").map(Number);
+                const bookingDateTime = new Date(
+                  `${isoDate}T${String(sh).padStart(2, "0")}:${String(
+                    sm
+                  ).padStart(2, "0")}:00`
+                );
+                const now = new Date();
+                const diffHours =
+                  (bookingDateTime - now) / (1000 * 60 * 60);
+                if (diffHours < 24) {
+                  message.warning(
+                    "Vui lòng đặt lịch trước ít nhất 24 giờ."
+                  );
+                  return;
+                }
+
+                const timeLabel = `${start}-${end}`;
+
                 const payload = {
                   sessionDate: isoDate,
                   timeSlotId: timeSlotId,
@@ -1179,37 +1192,55 @@ export default function Calendar() {
                   status: "not yet",
                 });
 
+                // reset & redraw calendar, đưa date về hiện tại
                 if (window.jQuery && holderRef.current) {
                   window.jQuery(holderRef.current).calendar({
+                    date: new Date(),
                     data: normalizeMockData(dataRef.current),
-                    onOpenEvent: handleOpenEventRef.current, // ✅
+                    onOpenEvent: handleOpenEventRef.current,
                   });
                 }
 
                 message.success("Đã đặt lịch thành công!");
 
+                // Tự tắt modal (chắc chắn)
                 try {
                   const ModalClass =
                     window.bootstrap && window.bootstrap.Modal;
-                  if (ModalClass) {
+                  if (ModalClass && bookingModalRef.current) {
                     const inst =
                       ModalClass.getInstance(bookingModalRef.current) ||
                       new ModalClass(bookingModalRef.current);
                     inst.hide();
+                  } else {
+                    bookingModalRef.current
+                      ?.querySelector(".btn-close")
+                      ?.click();
                   }
-                } catch (_) {
+                } catch (errHide) {
+                  console.warn("Cannot close booking modal:", errHide);
                   bookingModalRef.current
                     ?.querySelector(".btn-close")
                     ?.click();
                 }
 
+                // Reset form + state ngày/slot về hôm nay
                 e.currentTarget.reset();
-                setSelectedDate(new Date());
-                setVnDate(formatTodayVN());
-                setSelectedSlotId(
-                  allSlots.length ? String(allSlots[0].id) : ""
-                );
-                setDisabledSlots(new Set());
+                const nowDate = new Date();
+                setSelectedDate(nowDate);
+                setVnDate(toDDMMYYYY(nowDate));
+
+                if (allSlots.length) {
+                  const ds = computeDisabledSlots(nowDate);
+                  setDisabledSlots(ds);
+                  const firstValid = allSlots.find(
+                    (s) => !ds.has(String(s.id))
+                  );
+                  setSelectedSlotId(firstValid ? String(firstValid.id) : "");
+                } else {
+                  setDisabledSlots(new Set());
+                  setSelectedSlotId("");
+                }
               } catch (err) {
                 console.error("Book session error:", err);
 
@@ -1222,8 +1253,13 @@ export default function Calendar() {
                 } else if (apiMsg) {
                   message.error(apiMsg);
                 } else {
-                  message.error("Có lỗi khi đặt lịch. Vui lòng thử lại sau.");
+                  message.error(
+                    "Có lỗi khi đặt lịch. Vui lòng thử lại sau."
+                  );
                 }
+              } finally {
+                bookingInProgressRef.current = false;
+                setBookingLoading(false);
               }
             }}
           >
@@ -1333,6 +1369,7 @@ export default function Calendar() {
                 type="submit"
                 className="btn btn-primary"
                 disabled={
+                  bookingLoading ||
                   !selectedSlotId ||
                   disabledSlots.has(String(selectedSlotId)) ||
                   dayAlreadyBooked(selectedDate) ||
@@ -1340,7 +1377,7 @@ export default function Calendar() {
                   !memberPackageId
                 }
               >
-                Lưu
+                {bookingLoading ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
           </form>
