@@ -44,7 +44,7 @@ export default function PackageDetail() {
         setLoading(true);
         setError("");
 
-        const res = await api.get(`/Package/${routeId}`);
+        const res = await api.get(`/Package/active/${routeId}`);
         const data = res.data;
 
         // data dạng:
