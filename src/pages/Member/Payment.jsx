@@ -43,6 +43,7 @@ import { message } from "antd";
 import api from "../../config/axios";
 
 // ============ CONSTANTS ============
+// TODO: dùng env cho key này khi build thật
 const STRIPE_PUBLISHABLE_KEY =
   "pk_test_51SS4bPRq7GZWeiD8KPMbvTaHs21UB7LUYmSVcqyNtQ6RghCpQvmgUFMkTGzvsKbxKodpE7jEVmZVDXICO2gK3Yz100upoioxdl";
 
@@ -103,7 +104,7 @@ const CartComponent = () => {
   const navigate = useNavigate();
   const packageId = id || 1;
 
-  const SINGLE_SERVICE = true;
+  const SINGLE_SERVICE = true; // hiện giờ chỉ 1 gói / đơn
 
   // Package
   const [cartItems, setCartItems] = useState([]);
@@ -115,7 +116,7 @@ const CartComponent = () => {
   const [trainerLoading, setTrainerLoading] = useState(false);
   const [trainerError, setTrainerError] = useState("");
 
-  // TimeSlots
+  // TimeSlots (tạm ẩn giao diện nhưng vẫn giữ state & fetch để sau này bật lại)
   const [slots, setSlots] = useState([]);
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
@@ -125,17 +126,20 @@ const CartComponent = () => {
   const [discountCodes, setDiscountCodes] = useState([]);
   const [discountLoading, setDiscountLoading] = useState(false);
 
+  // ====== BƯỚC THANH TOÁN ======
+  // 🔴 ĐÃ BỎ BƯỚC "Chọn giờ tập" khỏi steps
   const steps = useMemo(
     () =>
       includesPT
-        ? ["Giỏ hàng", "Chọn giờ tập", "Chọn huấn luyện viên", "Thanh toán", "Xác nhận"]
+        ? ["Giỏ hàng", "Chọn huấn luyện viên", "Thanh toán", "Xác nhận"]
         : ["Giỏ hàng", "Thanh toán", "Xác nhận"],
     [includesPT]
   );
 
+  // 🔴 ĐÃ BỎ "slot" khỏi key step
   const getStepKey = useCallback(
     (index) => {
-      const withPT = ["cart", "slot", "trainer", "payment", "confirmation"];
+      const withPT = ["cart", "trainer", "payment", "confirmation"];
       const withoutPT = ["cart", "payment", "confirmation"];
       return includesPT ? withPT[index] : withoutPT[index];
     },
@@ -145,8 +149,8 @@ const CartComponent = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Time slot & Trainer
   const [selectedSlot, setSelectedSlot] = useState(null);
-
   const [selectedTrainer, setSelectedTrainer] = useState(null);
   const [userTouchedTrainer, setUserTouchedTrainer] = useState(false);
   const [suggestedTrainer, setSuggestedTrainer] = useState(null);
@@ -299,7 +303,7 @@ const CartComponent = () => {
     fetchTrainers();
   }, [includesPT]);
 
-  // Fetch timeslots (nếu có PT)
+  // Fetch timeslots (nếu có PT) — vẫn fetch nhưng UI đang tạm ẩn
   useEffect(() => {
     if (!includesPT) return;
 
@@ -387,7 +391,6 @@ const CartComponent = () => {
     userTouchedTrainer
   ]);
 
-  const canProceedFromSlot = !!selectedSlot;
   const canProceedFromTrainer = !!selectedTrainer;
 
   // Tính tạm tính
@@ -447,8 +450,9 @@ const CartComponent = () => {
       return;
     }
 
-    if (includesPT && (!selectedTrainer || !selectedSlot)) {
-      message.error("Thiếu thông tin khung giờ hoặc huấn luyện viên.");
+    // 🔴 KHÔNG CÒN BẮT BUỘC selectedSlot
+    if (includesPT && !selectedTrainer) {
+      message.error("Vui lòng chọn huấn luyện viên.");
       return;
     }
 
@@ -574,10 +578,7 @@ const CartComponent = () => {
   const guardedNext = () => {
     const stepKey = getStepKey(activeStep);
 
-    if (includesPT && stepKey === "slot" && !canProceedFromSlot) {
-      return message.warning("Vui lòng chọn khung giờ trước.");
-    }
-
+    // 🔴 BỎ PHẦN CHECK CHO "slot" (vì đã ẩn step)
     if (
       includesPT &&
       stepKey === "trainer" &&
@@ -615,10 +616,7 @@ const CartComponent = () => {
   const nextDisabled =
     loading ||
     (currentStepKey === "cart" &&
-      (cartItems.length === 0 || packageLoading)) ||
-    (includesPT &&
-      currentStepKey === "slot" &&
-      (!selectedSlot || (selectedSlot && isSlotDisabled(selectedSlot))));
+      (cartItems.length === 0 || packageLoading));
 
   const renderStepContent = (stepIndex) => {
     const stepKey = getStepKey(stepIndex);
@@ -766,6 +764,8 @@ const CartComponent = () => {
           </Grid>
         );
 
+      // UI chọn slot vẫn giữ nguyên case này, nhưng sẽ không bao giờ được gọi
+      // vì "slot" đã bị bỏ khỏi steps & getStepKey.
       case "slot":
         return (
           <Stack spacing={3}>
@@ -804,17 +804,13 @@ const CartComponent = () => {
                   return (
                     <Grid item xs={6} sm={4} md={3} key={slot}>
                       <Tooltip
-                        title={
-                          disabled
-                            ? "Slot đã đầy: tất cả huấn luyện viên đều bận."
-                            : `${freeCount} huấn luyện viên rảnh ở slot này`
-                        }
+                        title={disabled
+                          ? "Slot đã đầy: tất cả huấn luyện viên đều bận."
+                          : `${freeCount} huấn luyện viên rảnh ở slot này`}
                       >
                         <span>
                           <SlotButton
-                            variant={
-                              selected ? "contained" : "outlined"
-                            }
+                            variant={selected ? "contained" : "outlined"}
                             onClick={() =>
                               !disabled && setSelectedSlot(slot)
                             }
@@ -829,32 +825,6 @@ const CartComponent = () => {
                   );
                 })}
               </Grid>
-
-              {(selectedSlot || suggestedTrainer) && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    display: "flex",
-                    gap: 1,
-                    alignItems: "center",
-                    flexWrap: "wrap"
-                  }}
-                >
-                  {selectedSlot && (
-                    <Chip
-                      color="primary"
-                      label={`Đã chọn khung giờ: ${selectedSlot}`}
-                    />
-                  )}
-                  {suggestedTrainer && (
-                    <Chip
-                      color="success"
-                      variant="outlined"
-                      label={`Gợi ý huấn luyện viên: ${suggestedTrainer.name}`}
-                    />
-                  )}
-                </Box>
-              )}
             </StyledPaper>
           </Stack>
         );
@@ -936,13 +906,11 @@ const CartComponent = () => {
                             </Typography>
                             <Chip
                               size="small"
-                              label={
-                                selectedSlot
-                                  ? available
-                                    ? "Rảnh"
-                                    : "Bận"
-                                  : "Rảnh"
-                              }
+                              label={selectedSlot
+                                ? available
+                                  ? "Rảnh"
+                                  : "Bận"
+                                : "Rảnh"}
                               color={
                                 selectedSlot
                                   ? available
@@ -1045,6 +1013,8 @@ const CartComponent = () => {
             <Stack spacing={1} sx={{ mb: 2 }}>
               {includesPT && (
                 <>
+                  {/* Có thể giữ dòng khung giờ ở đây để "Chưa chọn" cũng được
+                      nếu muốn ẩn hẳn, có thể xoá block này */}
                   <Typography variant="body2" color="text.secondary">
                     Khung giờ:{" "}
                     <strong>{selectedSlot || "Chưa chọn"}</strong>
@@ -1197,15 +1167,7 @@ const CartComponent = () => {
               )
             }
             onClick={guardedNext}
-            disabled={
-              loading ||
-              (currentStepKey === "cart" &&
-                (cartItems.length === 0 || packageLoading)) ||
-              (includesPT &&
-                currentStepKey === "slot" &&
-                (!selectedSlot ||
-                  (selectedSlot && isSlotDisabled(selectedSlot))))
-            }
+            disabled={nextDisabled}
           >
             {loading ? (
               <CircularProgress size={24} />
