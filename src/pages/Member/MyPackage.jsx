@@ -186,6 +186,36 @@ function getDaysRemainingDisplay(pkg) {
   return diffDays > 0 ? diffDays : 0;
 }
 
+// ⭐ Map status đơn hoàn tiền -> text + màu
+function getRefundStatusDisplay(statusRaw) {
+  const s = (statusRaw || "").toLowerCase();
+
+  if (s === "pending") {
+    return {
+      text: "Chờ xác nhận",
+      className: "text-warning fw-semibold", // vàng
+    };
+  }
+  if (s === "rejected") {
+    return {
+      text: "Từ chối hoàn tiền",
+      className: "text-danger fw-semibold", // đỏ
+    };
+  }
+  if (s === "approved") {
+    return {
+      text: "Hoàn tiền thành công",
+      className: "text-success fw-semibold", // xanh lá
+    };
+  }
+
+  // fallback nếu BE trả trạng thái lạ
+  return {
+    text: statusRaw || "—",
+    className: "text-muted",
+  };
+}
+
 // 10 lý do (có "Khác (tự nhập)")
 const CANCEL_REASONS = [
   "Không còn thời gian tập luyện",
@@ -340,8 +370,6 @@ export default function MyPackage() {
       setRefundRequests(mapped);
     } catch (err) {
       console.error("Error fetching my-refund-requests:", err);
-      // không cần show lỗi to, chỉ log hoặc message nhỏ nếu muốn
-      // message.error("Không tải được danh sách đơn hoàn tiền.");
     } finally {
       setRefundRequestsLoading(false);
     }
@@ -352,14 +380,28 @@ export default function MyPackage() {
     fetchRefundRequests();
   }, []);
 
-  // helper: lấy đơn hoàn tiền "còn hiệu lực" cho 1 gói
-  // (status khác 'rejected' => coi như đang có đơn)
+  // helper: lấy đơn hoàn tiền còn hiệu lực (không tính Rejected)
   const getActiveRefundRequestForPackage = (pkgId) => {
     if (!pkgId) return null;
     return refundRequests.find((r) => {
       const s = (r.status || "").toLowerCase();
       return r.memberPackageId === pkgId && s !== "rejected";
     });
+  };
+
+  // ⭐ helper: lấy tất cả đơn hoàn tiền của 1 package, sort mới nhất trước
+  const getRefundRequestsForPackage = (pkgId) => {
+    if (!pkgId) return [];
+    const list = refundRequests.filter((r) => r.memberPackageId === pkgId);
+    if (list.length === 0) return [];
+    return list
+      .slice()
+      .sort((a, b) => {
+        const da = a.requestedAt ? new Date(a.requestedAt).getTime() : 0;
+        const db = b.requestedAt ? new Date(b.requestedAt).getTime() : 0;
+        if (da !== db) return db - da;
+        return (b.id || 0) - (a.id || 0);
+      });
   };
 
   // sort theo endDate (gói kết thúc gần nhất lên trên)
@@ -391,7 +433,6 @@ export default function MyPackage() {
       }
 
       if (filterStatus === "expired") {
-        // Ưu tiên status Expired, hoặc hết hạn theo ngày (trừ khi đã Cancelled)
         if (apiStatus === "expired") return true;
         if (apiStatus !== "cancelled" && isExpiredByDate) return true;
         return false;
@@ -407,7 +448,7 @@ export default function MyPackage() {
     Math.ceil(filteredPackages.length / ITEMS_PER_PAGE) || 1
   );
 
-  // đảm bảo currentPage không vượt quá totalPages khi filter đổi / data đổi
+  // đảm bảo currentPage không vượt quá totalPages
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
@@ -441,7 +482,7 @@ export default function MyPackage() {
   const handleRequestCancel = () => {
     setSelectedReason("");
     setCustomReason("");
-    setConfirm70Agree(false); // reset checkbox
+    setConfirm70Agree(false);
     setConfirmOpen(true);
   };
 
@@ -521,7 +562,7 @@ export default function MyPackage() {
       const data = res.data;
 
       const rawAmount = data.calculatedRefundAmount ?? 0;
-      const roundedAmount = Math.round(rawAmount); // tiền: không thập phân
+      const roundedAmount = Math.round(rawAmount);
 
       const usedPctRaw = data.usedCapacityPercentage ?? 0;
       const refundPctRaw = data.refundPercentage ?? 0;
@@ -555,14 +596,10 @@ export default function MyPackage() {
   const handleOpenRefund = () => {
     if (!selected || !selected.history) return;
 
-    // nếu gói này đang có đơn hoàn tiền active => không cho mở form mới
     const activeRefund = getActiveRefundRequestForPackage(
       selected.history.id
     );
     if (activeRefund) {
-      // mở modal xem chi tiết luôn
-      setViewRefund(activeRefund);
-      setViewRefundOpen(true);
       return;
     }
 
@@ -572,12 +609,8 @@ export default function MyPackage() {
   };
 
   const handleOpenRefundFromList = (pkg) => {
-    // nếu có đơn active => xem chi tiết
     const activeRefund = getActiveRefundRequestForPackage(pkg.id);
     if (activeRefund) {
-      setSelected({ history: pkg, master: null });
-      setViewRefund(activeRefund);
-      setViewRefundOpen(true);
       return;
     }
 
@@ -625,7 +658,6 @@ export default function MyPackage() {
       setRefundOpen(false);
       resetRefundState();
 
-      // reload danh sách đơn hoàn tiền
       await fetchRefundRequests();
     } catch (err) {
       console.error("Error requesting refund:", err);
@@ -841,13 +873,14 @@ export default function MyPackage() {
             (pkg.apiStatus || "").toLowerCase() === "cancelled";
 
           const activeRefund = getActiveRefundRequestForPackage(pkg.id);
+          const refundList = getRefundRequestsForPackage(pkg.id);
 
           return (
             <div className="row justify-content-center mb-3" key={pkg.id}>
               <div className="col-12 col-xl-10">
                 <div className="card shadow-0 border rounded-3 card-shadow">
                   <div className="card-body">
-                    <div className="row g-3 align-items-center">
+                    <div className="row g-3 align-items-start">
                       {/* Cột tên gói */}
                       <div className="col-12 col-md-5">
                         <div className="pkg-title mb-1">{pkg.name}</div>
@@ -886,29 +919,16 @@ export default function MyPackage() {
                       {/* Cột button + status */}
                       <div className="col-12 col-md-4 d-flex flex-column align-items-md-end align-items-start">
                         <div className="d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap flex-md-nowrap">
-                          {/* Nếu có đơn hoàn tiền active => nút xem đơn, nếu không => nút yêu cầu hoàn tiền (khi đã hủy) */}
-                          {isCancelled && (
-                            <>
-                              {activeRefund ? (
-                                <button
-                                  className="btn btn-outline-warning btn-sm"
-                                  onClick={() =>
-                                    handleOpenViewRefund(activeRefund)
-                                  }
-                                >
-                                  Đã gửi đơn hoàn tiền
-                                </button>
-                              ) : (
-                                <button
-                                  className="btn btn-warning btn-sm"
-                                  onClick={() =>
-                                    handleOpenRefundFromList(pkg)
-                                  }
-                                >
-                                  Yêu cầu hoàn tiền
-                                </button>
-                              )}
-                            </>
+                          {/* Refund button: chỉ khi gói đã hủy & không có đơn Pending/Approved */}
+                          {isCancelled && !activeRefund && (
+                            <button
+                              className="btn btn-warning btn-sm"
+                              onClick={() => handleOpenRefundFromList(pkg)}
+                            >
+                              {refundList.length > 0
+                                ? "Yêu cầu hoàn tiền mới"
+                                : "Yêu cầu hoàn tiền"}
+                            </button>
                           )}
 
                           <button
@@ -925,16 +945,49 @@ export default function MyPackage() {
                         >
                           {status.text}
                         </div>
-
-                        {/* Thông tin rất nhỏ về đơn hoàn tiền (nếu có) */}
-                        {activeRefund && (
-                          <div className="text-muted small mt-1">
-                            Đơn hoàn tiền:{" "}
-                            <strong>{activeRefund.status}</strong>
-                          </div>
-                        )}
                       </div>
                     </div>
+
+                    {/* Danh sách tất cả đơn hoàn tiền của gói này */}
+                    {refundList.length > 0 && (
+                      <div className="mt-3 border-top pt-2">
+                        <div className="small fw-semibold mb-1">
+                          Đơn hoàn tiền ({refundList.length})
+                        </div>
+                        <ul className="list-unstyled mb-0 small">
+                          {refundList.map((r) => {
+                            const disp = getRefundStatusDisplay(r.status);
+                            return (
+                              <li
+                                key={r.id}
+                                className="d-flex justify-content-between align-items-center py-1"
+                              >
+                                <div>
+                                  <span className="text-muted">
+                                    {formatDDMMYYYY_HHmm(r.requestedAt)} -{" "}
+                                  </span>
+                                  <span className={disp.className}>
+                                    {disp.text}
+                                  </span>
+                                  {typeof r.requestedAmount === "number" && (
+                                    <span className="text-muted ms-1">
+                                      ({currencyVND(r.requestedAmount)})
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btn btn-link btn-sm p-0 ms-2"
+                                  onClick={() => handleOpenViewRefund(r)}
+                                >
+                                  Chi tiết
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1107,7 +1160,7 @@ export default function MyPackage() {
                   )}
                 </div>
 
-                {/* Info chi tiết – dùng data từ API */}
+                {/* Info chi tiết */}
                 <div className="row g-3">
                   <div className="col-12 col-md-6">
                     <div className="text-muted small">Số buổi</div>
@@ -1151,7 +1204,7 @@ export default function MyPackage() {
                   </div>
                 </div>
 
-                {/* Feedback section */}
+                {/* Feedback */}
                 <hr className="mt-4 mb-3" />
                 <h6 className="mb-3">Đánh giá & phản hồi</h6>
                 <div className="row g-3">
@@ -1209,7 +1262,7 @@ export default function MyPackage() {
                     </div>
                   </div>
 
-                  {/* Trainer feedback (nếu có trainer) */}
+                  {/* Trainer feedback */}
                   {selected.history?.trainerName && (
                     <div className="col-12 col-md-6">
                       <div className="border rounded p-3 h-100">
@@ -1260,34 +1313,21 @@ export default function MyPackage() {
               </div>
 
               <div className="modal-footer d-flex justify-content-end gap-2">
-                {/* Refund chỉ khi đã hủy */}
-                {selected.history?.apiStatus?.toLowerCase() === "cancelled" && (
-                  <>
-                    {getActiveRefundRequestForPackage(selected.history.id) ? (
-                      <button
-                        className="btn btn-outline-warning"
-                        onClick={() =>
-                          handleOpenViewRefund(
-                            getActiveRefundRequestForPackage(
-                              selected.history.id
-                            )
-                          )
-                        }
-                      >
-                        Xem đơn hoàn tiền
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-warning"
-                        onClick={handleOpenRefund}
-                      >
-                        Yêu cầu hoàn tiền
-                      </button>
-                    )}
-                  </>
-                )}
+                {/* Refund chỉ khi đã hủy & không có đơn Pending/Approved */}
+                {selected.history?.apiStatus?.toLowerCase() === "cancelled" &&
+                  !getActiveRefundRequestForPackage(selected.history.id) && (
+                    <button
+                      className="btn btn-warning"
+                      onClick={handleOpenRefund}
+                    >
+                      {getRefundRequestsForPackage(selected.history.id).length >
+                      0
+                        ? "Yêu cầu hoàn tiền mới"
+                        : "Yêu cầu hoàn tiền"}
+                    </button>
+                  )}
 
-                {/* Nút hủy gói chỉ hiện khi status Active */}
+                {/* Nút hủy gói chỉ khi Active */}
                 {selected.history?.apiStatus?.toLowerCase() === "active" && (
                   <button
                     className="btn btn-outline-secondary"
@@ -1355,7 +1395,7 @@ export default function MyPackage() {
                 ))}
               </div>
 
-              {/* Checkbox xác nhận chính sách hoàn tối đa 70% */}
+              {/* Checkbox xác nhận 70% */}
               <div className="form-check mt-2">
                 <input
                   className="form-check-input"
@@ -1392,7 +1432,7 @@ export default function MyPackage() {
           </div>
         )}
 
-        {/* ===== Modal yêu cầu hoàn tiền (GET + POST, không show requestedAmount input) ===== */}
+        {/* ===== Modal yêu cầu hoàn tiền ===== */}
         {refundOpen && (
           <div
             className="confirm-backdrop"
@@ -1545,7 +1585,12 @@ export default function MyPackage() {
                 </div>
                 <div>
                   <span className="text-muted">Trạng thái: </span>
-                  <strong>{viewRefund.status || "—"}</strong>
+                  {(() => {
+                    const disp = getRefundStatusDisplay(viewRefund.status);
+                    return (
+                      <span className={disp.className}>{disp.text}</span>
+                    );
+                  })()}
                 </div>
                 <div>
                   <span className="text-muted">Ngày gửi yêu cầu: </span>
