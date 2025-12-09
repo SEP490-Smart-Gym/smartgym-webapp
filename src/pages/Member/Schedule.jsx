@@ -31,7 +31,8 @@ function toHHmmFromApiTime(apiTime) {
 function mapSessionStatus(session) {
   const raw = (session.status || "").toLowerCase().trim();
   if (raw === "scheduled" || raw === "booked") return "not yet";
-  if (raw === "completed" || raw === "present" || raw === "done") return "present";
+  if (raw === "completed" || raw === "present" || raw === "done")
+    return "present";
   if (
     raw === "cancelled" ||
     raw === "canceled" ||
@@ -168,7 +169,7 @@ export default function Calendar() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
-  // dataRef: Lưu dạng đơn giản {id?, date, time, title, status}
+  // dataRef: Lưu dạng đơn giản {id, date, time, title, status}
   const dataRef = useRef([]);
   const bookingModalRef = useRef(null);
   const eventModalRef = useRef(null);
@@ -187,6 +188,16 @@ export default function Calendar() {
   const [selectedSlotId, setSelectedSlotId] = useState("");
 
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+  // ==== state cho ĐỔI LỊCH ====
+  const [showRescheduleForm, setShowRescheduleForm] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState(null);
+  const [rescheduleVnDate, setRescheduleVnDate] = useState("");
+  const [rescheduleSlotId, setRescheduleSlotId] = useState("");
+  const [rescheduleDisabledSlots, setRescheduleDisabledSlots] = useState(
+    new Set()
+  );
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
 
   // ==== GỌI API timeslot + gói đang active ====
   useEffect(() => {
@@ -261,11 +272,16 @@ export default function Calendar() {
     };
   }, []);
 
-  // 1 ngày chỉ 1 slot
-  function dayAlreadyBooked(dateObj) {
+  // 1 ngày chỉ 1 slot – cho phép exclude 1 event (khi đổi lịch)
+  function dayAlreadyBooked(dateObj, excludeId = null) {
     if (!dateObj) return false;
     const iso = dateObjToISO(dateObj);
-    return dataRef.current.some((ev) => ev.date === iso);
+    return dataRef.current.some((ev) => {
+      if (!ev.date) return false;
+      if (ev.date !== iso) return false;
+      if (excludeId && ev.id === excludeId) return false;
+      return true;
+    });
   }
 
   // tính slot disable theo 24h
@@ -327,13 +343,20 @@ export default function Calendar() {
       if (window.jQuery && holderRef.current) {
         window.jQuery(holderRef.current).calendar({
           data: normalizeMockData(dataRef.current),
+          onOpenEvent: handleOpenEventRef.current, // ✅ luôn truyền lại
         });
       }
 
       setSelectedDate((prev) => new Date(prev));
       setSelectedSlotId("");
       setDisabledSlots(new Set());
-      setSelectedEvent(null);
+      // KHÔNG setSelectedEvent(null) ở đây để tránh chớp "Không có dữ liệu"
+
+      setShowRescheduleForm(false);
+      setRescheduleDate(null);
+      setRescheduleVnDate("");
+      setRescheduleSlotId("");
+      setRescheduleDisabledSlots(new Set());
 
       try {
         const ModalClass = window.bootstrap && window.bootstrap.Modal;
@@ -354,7 +377,7 @@ export default function Calendar() {
     }
   };
 
-  // cập nhật disable khi đổi ngày hoặc list slot thay đổi
+  // cập nhật disable khi đổi ngày hoặc list slot thay đổi (Booking)
   useEffect(() => {
     if (!allSlots.length) {
       setDisabledSlots(new Set());
@@ -375,6 +398,32 @@ export default function Calendar() {
     setSelectedSlotId(firstValid ? String(firstValid.id) : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, allSlots.length]);
+
+  // cập nhật disable cho ĐỔI LỊCH
+  useEffect(() => {
+    if (!allSlots.length || !rescheduleDate) {
+      setRescheduleDisabledSlots(new Set());
+      if (!rescheduleDate) setRescheduleSlotId("");
+      return;
+    }
+
+    // nếu ngày đó đã có event khác → disable toàn bộ
+    if (dayAlreadyBooked(rescheduleDate, selectedEvent?.id)) {
+      const all = new Set(allSlots.map((s) => String(s.id)));
+      setRescheduleDisabledSlots(all);
+      setRescheduleSlotId("");
+      return;
+    }
+
+    const ds = computeDisabledSlots(rescheduleDate);
+    setRescheduleDisabledSlots(ds);
+    const firstValid = allSlots.find((s) => !ds.has(String(s.id)));
+    setRescheduleSlotId(firstValid ? String(firstValid.id) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rescheduleDate, allSlots.length, selectedEvent?.id]);
+
+  // dùng ref để truyền vào jQuery calendar (vì handleOpenEvent được khai báo sau)
+  const handleOpenEventRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -696,14 +745,24 @@ export default function Calendar() {
 
       // Handler mở modal chi tiết event
       const handleOpenEvent = (ev) => {
+        const baseDate = ev.start instanceof Date ? ev.start : new Date(ev.start);
+
         setSelectedEvent({
           id: ev.id,
           title: ev.title,
-          date: ev.start,
+          date: baseDate,
           start: ev.start,
           end: ev.end,
           status: ev.status || "present",
         });
+
+        // reset state đổi lịch mỗi lần mở modal
+        setShowRescheduleForm(false);
+        setRescheduleDate(null);
+        setRescheduleVnDate("");
+        setRescheduleSlotId("");
+        setRescheduleDisabledSlots(new Set());
+
         try {
           const ModalClass =
             (window.bootstrap && window.bootstrap.Modal) ||
@@ -718,6 +777,9 @@ export default function Calendar() {
           console.warn("Cannot open event modal:", e);
         }
       };
+
+      // lưu vào ref để các chỗ khác (cancel / reschedule / booking) dùng được
+      handleOpenEventRef.current = handleOpenEvent;
 
       // khởi tạo calendar rỗng
       window.jQuery(holderRef.current).calendar({
@@ -743,7 +805,6 @@ export default function Calendar() {
               ? `${startLabel}-${endLabel}`
               : startLabel || "";
 
-          // title = trainerName nếu backend có trả
           const title = s.trainerName || "";
 
           return {
@@ -759,7 +820,7 @@ export default function Calendar() {
 
         window.jQuery(holderRef.current).calendar({
           data: normalizeMockData(dataRef.current),
-          onOpenEvent: handleOpenEvent,
+          onOpenEvent: handleOpenEvent, // ✅ luôn truyền
         });
       } catch (err) {
         console.error("Error loading TrainingSession:", err);
@@ -782,6 +843,126 @@ export default function Calendar() {
 
     return diffHours >= 24;
   })();
+
+  // ✅ CÓ ĐƯỢC ĐỔI LỊCH HAY KHÔNG (status phải là "not yet")
+  const canRescheduleSelectedEvent = (() => {
+    if (!selectedEvent) return false;
+    return (selectedEvent.status || "").toLowerCase() === "not yet";
+  })();
+
+  // bắt đầu chế độ đổi lịch – set ngày mặc định = ngày sự kiện
+  const startReschedule = () => {
+    if (!selectedEvent) return;
+    const baseDate =
+      selectedEvent.date instanceof Date
+        ? selectedEvent.date
+        : new Date(selectedEvent.date);
+
+    setRescheduleDate(baseDate);
+    setRescheduleVnDate(toDDMMYYYY(baseDate));
+    setShowRescheduleForm(true);
+  };
+
+  // SUBMIT ĐỔI LỊCH – PUT /TrainingSession/{id}/reschedule
+  const handleRescheduleSubmit = async () => {
+    if (!selectedEvent || !selectedEvent.id) {
+      message.error("Không tìm thấy buổi tập để đổi lịch.");
+      return;
+    }
+    if (!rescheduleDate || !rescheduleSlotId) {
+      message.warning("Vui lòng chọn ngày mới và khung giờ mới.");
+      return;
+    }
+
+    // 1 ngày chỉ 1 slot – không trùng ngày với event khác
+    if (dayAlreadyBooked(rescheduleDate, selectedEvent.id)) {
+      message.warning(
+        "Ngày này đã có buổi tập khác. Vui lòng chọn ngày khác."
+      );
+      return;
+    }
+
+    const isoDate = dateObjToISO(rescheduleDate);
+    const slotObj = allSlots.find(
+      (s) => String(s.id) === String(rescheduleSlotId)
+    );
+    if (!slotObj) {
+      message.error("Không tìm thấy thông tin khung giờ.");
+      return;
+    }
+
+    // phải trước 24h (slot mới)
+    const [sh, sm] = slotObj.start.split(":").map(Number);
+    const newDateTime = new Date(
+      `${isoDate}T${String(sh).padStart(2, "0")}:${String(sm).padStart(
+        2,
+        "0"
+      )}:00`
+    );
+    const now = new Date();
+    const diffHours = (newDateTime - now) / (1000 * 60 * 60);
+    if (diffHours < 24) {
+      message.warning(
+        "Vui lòng chọn khung giờ mới cách thời điểm hiện tại ít nhất 24 giờ."
+      );
+      return;
+    }
+
+    try {
+      setRescheduleLoading(true);
+
+      await api.put(`/TrainingSession/${selectedEvent.id}/reschedule`, {
+        newSessionDate: isoDate,
+        newTimeSlotId: slotObj.id,
+      });
+
+      // update lại dataRef.current
+      const timeLabel = `${slotObj.start}-${slotObj.end}`;
+      dataRef.current = dataRef.current.map((ev) =>
+        ev.id === selectedEvent.id
+          ? { ...ev, date: isoDate, time: timeLabel }
+          : ev
+      );
+
+      if (window.jQuery && holderRef.current) {
+        window.jQuery(holderRef.current).calendar({
+          data: normalizeMockData(dataRef.current),
+          onOpenEvent: handleOpenEventRef.current, // ✅ luôn truyền
+        });
+      }
+
+      message.success("Đổi lịch thành công.");
+
+      // đóng modal
+      try {
+        const ModalClass = window.bootstrap && window.bootstrap.Modal;
+        if (ModalClass && eventModalRef.current) {
+          const inst =
+            ModalClass.getInstance(eventModalRef.current) ||
+            new ModalClass(eventModalRef.current);
+          inst.hide();
+        }
+      } catch (e) {
+        console.warn("Cannot close event modal:", e);
+      }
+
+      // ✅ CHỈ reset form đổi lịch, KHÔNG xóa selectedEvent để tránh "Không có dữ liệu sự kiện" trong lúc fade
+      setShowRescheduleForm(false);
+      setRescheduleDate(null);
+      setRescheduleVnDate("");
+      setRescheduleSlotId("");
+      setRescheduleDisabledSlots(new Set());
+    } catch (err) {
+      console.error("Reschedule session error:", err);
+      const apiMsg =
+        err?.response?.data?.message || err?.response?.data?.title;
+      message.error(
+        apiMsg || "Có lỗi khi đổi lịch. Vui lòng thử lại sau."
+      );
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
 
   return (
     <div className="container mt-5 mb-5">
@@ -901,7 +1082,7 @@ export default function Calendar() {
         </button>
       </div>
 
-      {/* MODAL: Đặt lịch tập – KHÔNG CHỌN TRAINER */}
+      {/* MODAL: Đặt lịch tập */}
       <div
         className="modal fade"
         id="bookingModal"
@@ -979,15 +1160,12 @@ export default function Calendar() {
               const timeLabel = `${start}-${end}`;
 
               try {
-                // payload KHÔNG có trainerId nữa
                 const payload = {
                   sessionDate: isoDate,
                   timeSlotId: timeSlotId,
                   memberPackageId: memberPackageId,
                   notes: "",
                 };
-                console.log("Booking payload:", payload);
-
                 const res = await api.post("/TrainingSession/book", payload);
                 const created = res.data;
 
@@ -1004,6 +1182,7 @@ export default function Calendar() {
                 if (window.jQuery && holderRef.current) {
                   window.jQuery(holderRef.current).calendar({
                     data: normalizeMockData(dataRef.current),
+                    onOpenEvent: handleOpenEventRef.current, // ✅
                   });
                 }
 
@@ -1059,8 +1238,6 @@ export default function Calendar() {
             </div>
 
             <div className="modal-body">
-              {/* KHÔNG còn select Trainer */}
-
               {/* Date dd/mm/yyyy */}
               <div className="mb-3">
                 <label className="form-label d-block">
@@ -1189,7 +1366,14 @@ export default function Calendar() {
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setShowRescheduleForm(false);
+                  setRescheduleDate(null);
+                  setRescheduleVnDate("");
+                  setRescheduleSlotId("");
+                  setRescheduleDisabledSlots(new Set());
+                }}
               />
             </div>
             <div className="modal-body">
@@ -1225,9 +1409,101 @@ export default function Calendar() {
                     </span>
                   </div>
                   {!canCancelSelectedEvent && (
-                    <div className="text-muted small">
+                    <div className="text-muted small mb-3">
                       Lưu ý: Chỉ có thể hủy lịch trước giờ tập ít nhất 24 giờ.
                     </div>
+                  )}
+
+                  {/* Form đổi lịch */}
+                  {showRescheduleForm && (
+                    <>
+                      <hr />
+                      <h6 className="mb-2">Đổi lịch buổi tập</h6>
+                      <div className="mb-3">
+                        <label className="form-label d-block">
+                          Ngày mới (dd/mm/yyyy)
+                        </label>
+                        <DatePicker
+                          selected={rescheduleDate}
+                          onChange={(date) => {
+                            setRescheduleDate(date);
+                            setRescheduleVnDate(
+                              date ? toDDMMYYYY(date) : ""
+                            );
+                          }}
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="dd/mm/yyyy"
+                          showMonthDropdown
+                          showYearDropdown
+                          dropdownMode="select"
+                          minDate={new Date()}
+                          className="form-control"
+                          wrapperClassName="w-100"
+                        />
+                        {selectedEvent &&
+                          rescheduleDate &&
+                          dayAlreadyBooked(
+                            rescheduleDate,
+                            selectedEvent.id
+                          ) && (
+                            <div className="form-text text-danger mt-2">
+                              Ngày này đã có buổi tập khác. Vui lòng chọn
+                              ngày khác.
+                            </div>
+                          )}
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="form-label">Timeslot mới</label>
+                        <select
+                          className="form-select"
+                          value={rescheduleSlotId}
+                          onChange={(e) =>
+                            setRescheduleSlotId(e.target.value)
+                          }
+                          disabled={
+                            !rescheduleDate ||
+                            !allSlots.length ||
+                            dayAlreadyBooked(
+                              rescheduleDate,
+                              selectedEvent.id
+                            )
+                          }
+                        >
+                          <option value="">-- Chọn khung giờ --</option>
+                          {allSlots.map((s) => (
+                            <option
+                              key={s.id}
+                              value={s.id}
+                              disabled={rescheduleDisabledSlots.has(
+                                String(s.id)
+                              )}
+                            >
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                        {rescheduleDate &&
+                          allSlots.length > 0 &&
+                          !dayAlreadyBooked(
+                            rescheduleDate,
+                            selectedEvent?.id
+                          ) &&
+                          allSlots.every((s) =>
+                            rescheduleDisabledSlots.has(String(s.id))
+                          ) && (
+                            <div className="form-text text-danger mt-1">
+                              Không còn khung giờ khả dụng (cách hiện tại &lt;
+                              24 giờ).
+                            </div>
+                          )}
+                      </div>
+
+                      <div className="text-muted small mt-1">
+                        Lưu ý: Khung giờ mới phải cách thời điểm hiện tại ít
+                        nhất <strong>24 giờ</strong>.
+                      </div>
+                    </>
                   )}
                 </>
               ) : (
@@ -1246,14 +1522,40 @@ export default function Calendar() {
                   Hủy lịch
                 </button>
               )}
-              <button
-                type="button"
-                className="btn btn-light"
-                data-bs-dismiss="modal"
-                onClick={() => setSelectedEvent(null)}
-              >
-                Đóng
-              </button>
+
+              {canRescheduleSelectedEvent && (
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => {
+                    if (!showRescheduleForm) {
+                      startReschedule();
+                    } else {
+                      handleRescheduleSubmit();
+                    }
+                  }}
+                  disabled={
+                    showRescheduleForm &&
+                    (rescheduleLoading ||
+                      !selectedEvent ||
+                      !rescheduleDate ||
+                      !rescheduleSlotId ||
+                      rescheduleDisabledSlots.has(
+                        String(rescheduleSlotId)
+                      ) ||
+                      dayAlreadyBooked(
+                        rescheduleDate,
+                        selectedEvent?.id
+                      ))
+                  }
+                >
+                  {showRescheduleForm
+                    ? rescheduleLoading
+                      ? "Đang đổi lịch..."
+                      : "Lưu đổi lịch"
+                    : "Đổi lịch"}
+                </button>
+              )}
             </div>
           </div>
         </div>

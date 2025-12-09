@@ -169,8 +169,7 @@ export default function Navbar() {
                               onClick={goToPointsHistory}
                               title="Xem lịch sử điểm thưởng"
                             >
-                              {rewardPoints}
-                              <span style={{ marginRight: 2 }}>₫</span>
+                              {rewardPoints} điểm
                             </span>
                           )}
                         </div>

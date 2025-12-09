@@ -216,20 +216,6 @@ function getRefundStatusDisplay(statusRaw) {
   };
 }
 
-// 10 lý do (có "Khác (tự nhập)")
-const CANCEL_REASONS = [
-  "Không còn thời gian tập luyện",
-  "Lý do sức khỏe",
-  "Gặp vấn đề tài chính",
-  "Không phù hợp với lịch làm việc/học tập",
-  "Không hài lòng về cơ sở vật chất",
-  "Không hài lòng về dịch vụ chăm sóc khách hàng",
-  "Không hài lòng về chương trình tập",
-  "Không hài lòng về huấn luyện viên",
-  "Đã tìm được nơi tập khác phù hợp hơn",
-  "Khác (tự nhập)",
-];
-
 const ITEMS_PER_PAGE = 5;
 
 export default function MyPackage() {
@@ -251,13 +237,6 @@ export default function MyPackage() {
   // modal / confirm state
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(null); // {history, master?}
-
-  // modal chọn lý do hủy
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedReason, setSelectedReason] = useState("");
-  const [customReason, setCustomReason] = useState("");
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [confirm70Agree, setConfirm70Agree] = useState(false); // checkbox cảnh báo 70%
 
   // modal yêu cầu hoàn tiền
   const [refundOpen, setRefundOpen] = useState(false);
@@ -471,83 +450,10 @@ export default function MyPackage() {
   const handleClose = () => {
     setOpen(false);
     setSelected(null);
-    setConfirmOpen(false);
     setRefundOpen(false);
     resetRefundState();
     resetFeedbackForms();
     resetViewRefundState();
-  };
-
-  // ====== CANCEL PACKAGE ======
-  const handleRequestCancel = () => {
-    setSelectedReason("");
-    setCustomReason("");
-    setConfirm70Agree(false);
-    setConfirmOpen(true);
-  };
-
-  const handleCancelModalClose = () => {
-    if (cancelLoading) return;
-    setConfirmOpen(false);
-  };
-
-  const handleCancelSubmit = async () => {
-    if (!selected || !selected.history) return;
-
-    const id = selected.history.id;
-    if (!id) {
-      message.error("Không tìm được ID gói để hủy.");
-      return;
-    }
-
-    if (!selectedReason) {
-      message.warning("Vui lòng chọn lý do hủy gói.");
-      return;
-    }
-
-    if (!confirm70Agree) {
-      message.warning(
-        "Vui lòng xác nhận rằng bạn đã hiểu chính sách chỉ hoàn tối đa 70% số tiền cho buổi/ngày còn lại."
-      );
-      return;
-    }
-
-    let finalReason = selectedReason;
-    const isOther =
-      selectedReason === "Khác (tự nhập)" || selectedReason === "Khác";
-    if (isOther) {
-      if (!customReason.trim()) {
-        message.warning("Vui lòng nhập lý do hủy gói.");
-        return;
-      }
-      finalReason = customReason.trim();
-    }
-
-    try {
-      setCancelLoading(true);
-
-      await api.post(`/MemberPackage/${id}/cancel`, {
-        cancellationReason: finalReason,
-      });
-
-      message.success("Hủy gói thành công.");
-
-      await fetchPackages();
-
-      setConfirmOpen(false);
-      setOpen(false);
-      setSelected(null);
-    } catch (err) {
-      console.error("Error cancel package:", err);
-      const detail =
-        err?.response?.data?.title ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Hủy gói thất bại.";
-      message.error(detail);
-    } finally {
-      setCancelLoading(false);
-    }
   };
 
   // ====== REFUND (TÍNH & GỬI YÊU CẦU) ======
@@ -658,7 +564,9 @@ export default function MyPackage() {
       setRefundOpen(false);
       resetRefundState();
 
+      // Cập nhật lại cả danh sách đơn hoàn tiền và gói tập
       await fetchRefundRequests();
+      await fetchPackages();
     } catch (err) {
       console.error("Error requesting refund:", err);
       const detail =
@@ -952,7 +860,7 @@ export default function MyPackage() {
                     {refundList.length > 0 && (
                       <div className="mt-3 border-top pt-2">
                         <div className="small fw-semibold mb-1">
-                          Đơn hoàn tiền ({refundList.length})
+                          Đơn hủy gói ({refundList.length})
                         </div>
                         <ul className="list-unstyled mb-0 small">
                           {refundList.map((r) => {
@@ -1313,29 +1221,43 @@ export default function MyPackage() {
               </div>
 
               <div className="modal-footer d-flex justify-content-end gap-2">
-                {/* Refund chỉ khi đã hủy & không có đơn Pending/Approved */}
-                {selected.history?.apiStatus?.toLowerCase() === "cancelled" &&
-                  !getActiveRefundRequestForPackage(selected.history.id) && (
-                    <button
-                      className="btn btn-warning"
-                      onClick={handleOpenRefund}
-                    >
-                      {getRefundRequestsForPackage(selected.history.id).length >
-                      0
-                        ? "Yêu cầu hoàn tiền mới"
-                        : "Yêu cầu hoàn tiền"}
-                    </button>
-                  )}
+                {(() => {
+                  if (!selected || !selected.history) return null;
+                  const hist = selected.history;
+                  const apiStatusLower = (hist.apiStatus || "").toLowerCase();
+                  const hasActiveRefund = getActiveRefundRequestForPackage(
+                    hist.id
+                  );
+                  if (hasActiveRefund) return null;
 
-                {/* Nút hủy gói chỉ khi Active */}
-                {selected.history?.apiStatus?.toLowerCase() === "active" && (
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={handleRequestCancel}
-                  >
-                    Hủy gói
-                  </button>
-                )}
+                  // Gói đã hủy: vẫn cho yêu cầu hoàn tiền như cũ
+                  if (apiStatusLower === "cancelled") {
+                    return (
+                      <button
+                        className="btn btn-warning"
+                        onClick={handleOpenRefund}
+                      >
+                        {getRefundRequestsForPackage(hist.id).length > 0
+                          ? "Yêu cầu hoàn tiền mới"
+                          : "Yêu cầu hoàn tiền"}
+                      </button>
+                    );
+                  }
+
+                  // Gói đang hoạt động: nút Hủy gói sẽ mở luôn form hoàn tiền
+                  if (apiStatusLower === "active") {
+                    return (
+                      <button
+                        className="btn btn-outline-secondary"
+                        onClick={handleOpenRefund}
+                      >
+                        Hủy gói &amp; yêu cầu hoàn tiền
+                      </button>
+                    );
+                  }
+
+                  return null;
+                })()}
 
                 <button
                   className="btn btn-primary"
@@ -1348,84 +1270,6 @@ export default function MyPackage() {
                   }
                 >
                   Mua lại
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ===== Modal chọn lý do hủy gói ===== */}
-        {confirmOpen && (
-          <div
-            className="confirm-backdrop"
-            onClick={handleCancelModalClose}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
-              <h6 className="mb-2">Bạn muốn hủy gói vì lý do gì?</h6>
-              <p className="text-muted mb-2">
-                Vui lòng chọn một lý do dưới đây. Thông tin này giúp chúng tôi
-                cải thiện dịch vụ.
-              </p>
-
-              <div
-                className="mb-3"
-                style={{ maxHeight: 260, overflowY: "auto" }}
-              >
-                {CANCEL_REASONS.map((reason) => (
-                  <div className="form-check mb-1" key={reason}>
-                    <input
-                      className="form-check-input"
-                      type="radio"
-                      name="cancelReason"
-                      id={`cancel-${reason}`}
-                      value={reason}
-                      checked={selectedReason === reason}
-                      onChange={(e) => setSelectedReason(e.target.value)}
-                      disabled={cancelLoading}
-                    />
-                    <label
-                      className="form-check-label"
-                      htmlFor={`cancel-${reason}`}
-                    >
-                      {reason}
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              {/* Checkbox xác nhận 70% */}
-              <div className="form-check mt-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="confirm-70"
-                  checked={confirm70Agree}
-                  onChange={() => setConfirm70Agree((v) => !v)}
-                  disabled={cancelLoading}
-                />
-                <label className="form-check-label" htmlFor="confirm-70">
-                  Tôi hiểu rằng khi hủy gói, tôi chỉ có thể được hoàn tối đa{" "}
-                  <strong>70% số tiền</strong> tương ứng với số buổi/ngày còn
-                  lại (nếu đủ điều kiện).
-                </label>
-              </div>
-
-              <div className="d-flex justify-content-end gap-2 mt-3">
-                <button
-                  className="btn btn-light"
-                  onClick={handleCancelModalClose}
-                  disabled={cancelLoading}
-                >
-                  Không
-                </button>
-                <button
-                  className="btn btn-danger"
-                  onClick={handleCancelSubmit}
-                  disabled={cancelLoading}
-                >
-                  {cancelLoading ? "Đang hủy..." : "Xác nhận hủy gói"}
                 </button>
               </div>
             </div>
@@ -1572,7 +1416,7 @@ export default function MyPackage() {
             aria-modal="true"
           >
             <div className="confirm-card" onClick={(e) => e.stopPropagation()}>
-              <h6 className="mb-2">Chi tiết đơn hoàn tiền</h6>
+              <h6 className="mb-2">Chi tiết đơn hủy gói</h6>
 
               <div className="small mb-2">
                 <div>
