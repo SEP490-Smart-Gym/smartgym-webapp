@@ -9,62 +9,45 @@ export default function ChatPage() {
   const [startUserId, setStartUserId] = useState("");
   const navigate = useNavigate();
 
+  // ==========================
+  // LOAD CONVERSATIONS
+  // ==========================
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/chat/conversations");
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const userId = user?.id;
+
+
+      if (!userId) {
+        message.error("Không tìm thấy userId trong localStorage");
+        return;
+      }
+
+      // BACKEND REQUIRED: /chat/conversations?userId=123
+      const res = await api.get(`/chat/conversations?userId=${userId}`);
+
       setConversations(res.data || []);
     } catch (err) {
+      console.error(err);
       message.error("Không tải được danh sách trò chuyện");
     } finally {
       setLoading(false);
     }
   };
-const mockConversations = [
-    {
-      id: 101,
-      otherUserId: 21,
-      otherUserName: "Nguyễn Văn Hùng",
-      otherUserAvatar: "/img/user1.jpg",
-      lastMessage: "Anh ơi mai mình tập buổi mấy vậy?",
-      lastMessageTime: "2025-02-15T09:32:00",
-      unreadCount: 2,
-    },
-    {
-      id: 102,
-      otherUserId: 37,
-      otherUserName: "Trần Thảo",
-      otherUserAvatar: "/img/user2.jpg",
-      lastMessage: "Em cảm ơn anh HLV nhiều ạ ❤️",
-      lastMessageTime: "2025-02-14T21:10:00",
-      unreadCount: 0,
-    },
-    {
-      id: 103,
-      otherUserId: 44,
-      otherUserName: "Phạm Quốc Trí",
-      otherUserAvatar: "/img/user3.jpg",
-      lastMessage: "Buổi tập hôm nay hơi căng anh ạ 😅",
-      lastMessageTime: "2025-02-14T18:22:00",
-      unreadCount: 5,
-    },
-    {
-      id: 104,
-      otherUserId: 56,
-      otherUserName: "Lê Mỹ Duyên",
-      otherUserAvatar: "/img/user4.jpg",
-      lastMessage: "Anh gửi giúp em video mẫu bài squat với!",
-      lastMessageTime: "2025-02-13T11:47:00",
-      unreadCount: 0,
-    }
-  ];
+
   useEffect(() => {
     fetchConversations();
-    // setConversations(mockConversations);
   }, []);
 
+  // ==========================
+  // START NEW CONVERSATION
+  // ==========================
   const startConversation = async () => {
-    if (!startUserId) return message.warning("Nhập userId người cần chat");
+    if (!startUserId) {
+      return message.warning("Nhập userId người cần chat");
+    }
 
     try {
       await api.post("/chat/conversations/start", {
@@ -75,17 +58,18 @@ const mockConversations = [
       fetchConversations();
       setStartUserId("");
     } catch (err) {
+      console.error(err);
       message.error("Không thể bắt đầu trò chuyện");
     }
   };
-  
-
 
   return (
     <div className="container py-4">
       <h2 className="mb-4">Tin nhắn</h2>
 
-      {/* Bắt đầu trò chuyện mới */}
+      {/* ========================== */}
+      {/* BẮT ĐẦU TRÒ CHUYỆN MỚI */}
+      {/* ========================== */}
       <div className="card p-3 mb-4">
         <h5>Bắt đầu trò chuyện mới</h5>
         <div className="input-group mt-2">
@@ -102,7 +86,9 @@ const mockConversations = [
         </div>
       </div>
 
-      {/* Danh sách chat */}
+      {/* ========================== */}
+      {/* DANH SÁCH CONVERSATION */}
+      {/* ========================== */}
       <div className="card p-3">
         <h5 className="mb-3">Danh sách cuộc trò chuyện</h5>
 
@@ -116,17 +102,26 @@ const mockConversations = [
           <ul className="list-group">
             {conversations.map((c) => (
               <li
-                key={c.id}
+                key={c.conversationId}
                 className="list-group-item d-flex justify-content-between align-items-center"
                 style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/chat/${c.id}`)}
+                onClick={() => navigate(`/chat/${c.conversationId}`)}
               >
                 <div>
-                  <strong>{c.otherUserName || "Người dùng"}</strong>
+                  {/* PARTNER NAME */}
+                  <strong>
+                    {c.partner
+                      ? `${c.partner.firstName} ${c.partner.lastName}`
+                      : "Người dùng"}
+                  </strong>
+
+                  {/* LAST MESSAGE PREVIEW */}
                   <div className="text-muted small">
-                    {c.lastMessage || "Chưa có tin nhắn"}
+                    {c.lastMessage?.messageText || "Chưa có tin nhắn"}
                   </div>
                 </div>
+
+                {/* Unread count (optional) */}
                 <span className="badge bg-secondary">
                   {c.unreadCount || 0} chưa đọc
                 </span>

@@ -202,7 +202,7 @@ const ChatBot = ({ isPopup = false, onClose }) => {
             <Typography variant="h6">Chat Box</Typography>
           </Stack>
           <Box>
-            <IconButton
+            {/* <IconButton
               onClick={tryAgain}
               aria-label="Try again"
               sx={{ color: "white", mr: 1 }}
@@ -215,7 +215,7 @@ const ChatBot = ({ isPopup = false, onClose }) => {
               sx={{ color: "white" }}
             >
               <IoRefresh />
-            </IconButton>
+            </IconButton> */}
             {isPopup && (
               <IconButton
                 onClick={onClose}
