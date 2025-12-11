@@ -57,57 +57,60 @@ export default function Login() {
     }
   };
 
-  // ✅ LOGIN BACKEND
-  const handleSubmit = async (ev) => {
-    ev.preventDefault();
-    setErrors({ email: "", password: "", server: "" });
+  
+  // ================================
+// LOGIN BACKEND
+// ================================
+const handleSubmit = async (ev) => {
+  ev.preventDefault();
+  setErrors({ email: "", password: "", server: "" });
 
-    if (!validate()) return;
+  if (!validate()) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const res = await api.post("/Auth/login", {
-        email,
-        password,
-      });
+  try {
+    const res = await api.post("/Auth/login", { email, password });
+    const data = res.data;
 
-      const data = res.data;
+   
+    localStorage.setItem("token", data.accessToken);
+    localStorage.setItem("refreshToken", data.refreshToken);
 
-      // ✅ Lưu token
-      localStorage.setItem("token", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+  
+    const me = await api.get("/UserAccount/me");
+    const userInfo = me.data;
 
-      // ✅ Lưu user
-      const userObj = {
-        id: data.userId,
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        roleName: data.roleName,
-      };
+    // 3️⃣ Build user object đầy đủ
+    const userObj = {
+      id: userInfo.userId,
+      email: userInfo.email,
+      firstName: userInfo.firstName,
+      lastName: userInfo.lastName,
+      roleName: userInfo.roleName,
+      photo: userInfo.profileImageUrl,       // ⭐ ảnh đại diện
+    };
 
-      localStorage.setItem("user", JSON.stringify(userObj));
+    // 4️⃣ Lưu vào localStorage
+    localStorage.setItem("user", JSON.stringify(userObj));
 
-      // ✅ bắn event update UI header/menu
-      window.dispatchEvent(new Event("app-auth-changed"));
+    // 5️⃣ Cập nhật UI
+    window.dispatchEvent(new Event("app-auth-changed"));
 
-      // ✅ Điều hướng theo role
-      if (data.roleName === "Admin") navigate("/admin/packages");
-      else if (data.roleName === "Staff") navigate("/staff/equipmentlist");
-      else if (data.roleName === "Manager") navigate("/manager/equipment-report-all");
-      else navigate("/");
+    // 6️⃣ Điều hướng theo role
+    if (data.roleName === "Admin") navigate("/admin/packages");
+    else if (data.roleName === "Staff") navigate("/staff/equipmentlist");
+    else if (data.roleName === "Manager") navigate("/manager/equipment-report-all");
+    else navigate("/");
 
-    } catch (err) {
-      let msg =
-        err.response?.data?.message ||
-        "Sai email hoặc mật khẩu.";
+  } catch (err) {
+    let msg = err.response?.data?.message || "Sai email hoặc mật khẩu.";
+    setErrors(prev => ({ ...prev, server: msg }));
+  }
 
-      setErrors(prev => ({ ...prev, server: msg }));
-    }
+  setLoading(false);
+};
 
-    setLoading(false);
-  };
 
   return (
     <div

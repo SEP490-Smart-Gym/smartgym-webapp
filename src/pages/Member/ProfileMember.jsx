@@ -176,7 +176,7 @@ const ProfileMember = () => {
 
   const age = calculateAge(userInfo.birthday);
 
-  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER + GENDER
+  
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
