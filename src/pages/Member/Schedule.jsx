@@ -157,6 +157,16 @@ function hhmm(d) {
   return `${hh}:${mm}`;
 }
 
+// 🔄 helper so sánh cùng ngày (tránh setState vòng lặp)
+function isSameDay(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default function Calendar() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
@@ -169,7 +179,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [vnDate, setVnDate] = useState(formatTodayVN());
 
-  const [allSlots, setAllSlots] = useState([]); // {id, label, start, end}
+  const [allSlots, setAllSlots] = useState([]); // {id, label, start, end, type}
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
 
@@ -206,7 +216,8 @@ export default function Calendar() {
 
       // 1) TimeSlot
       try {
-        const slotRes = await api.get("/TimeSlot");
+        // 🔄 ĐỔI API SANG /TimeSlot/trainer
+        const slotRes = await api.get("/TimeSlot/trainer");
         if (!cancelled) {
           const slotData = Array.isArray(slotRes.data) ? slotRes.data : [];
           const mappedSlots = slotData
@@ -214,23 +225,22 @@ export default function Calendar() {
               (s) =>
                 s.isActive !== false &&
                 s.id !== 17 &&
-                s.id !== 18 // loại timeslot 17 & 18
+                s.id !== 18 // loại timeslot 17 & 18 nếu vẫn còn ý nghĩa
             )
             .map((s) => {
-              const start = (s.startTime || "").slice(0, 5); // "08:00:00" -> "08:00"
-              const end = (s.endTime || "").slice(0, 5);
+              const start = toHHmmFromApiTime(s.startTime); // "08:00:00" -> "08:00"
+              const end = toHHmmFromApiTime(s.endTime);
               const label = s.slotName ? s.slotName : `${start} - ${end}`;
               return {
                 id: s.id,
                 label,
                 start,
                 end,
+                type: s.type || "",
               };
             });
           setAllSlots(mappedSlots);
-          if (mappedSlots.length > 0) {
-            setSelectedSlotId(String(mappedSlots[0].id));
-          }
+          // ❌ Không set selectedSlotId ở đây nữa, để useEffect phía dưới tự chọn slot hợp lệ sau 24h
         }
       } catch (err) {
         console.error("Error loading TimeSlot:", err);
@@ -296,6 +306,8 @@ export default function Calendar() {
       const slotDateTime = new Date(dateObj);
       slotDateTime.setHours(h, m, 0, 0);
       const diffHours = (slotDateTime - now) / (1000 * 60 * 60);
+
+      // 🔄 Disable nếu < 24 giờ so với hiện tại
       if (diffHours < 24) disabled.add(String(s.id));
     }
     return disabled;
@@ -377,7 +389,7 @@ export default function Calendar() {
     }
   };
 
-  // cập nhật disable khi đổi ngày hoặc list slot thay đổi (Booking)
+  // 🔄 CẬP NHẬT LOGIC: Tự chọn ngày + timeslot đầu tiên hợp lệ (>= 24h)
   useEffect(() => {
     if (!allSlots.length) {
       setDisabledSlots(new Set());
@@ -385,19 +397,69 @@ export default function Calendar() {
       return;
     }
 
-    if (dayAlreadyBooked(selectedDate)) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // đảm bảo baseDate không nhỏ hơn hôm nay
+    let baseDate = selectedDate || new Date();
+    if (baseDate < today) baseDate = today;
+
+    // ngày hiện tại có bị book chưa?
+    const isBooked = dayAlreadyBooked(baseDate);
+
+    // tính disable theo 24h
+    let ds = computeDisabledSlots(baseDate);
+    let firstValid = allSlots.find((s) => !ds.has(String(s.id)));
+
+    // Nếu ngày hiện tại bị book hoặc không có slot hợp lệ => tìm ngày tiếp theo
+    if (isBooked || !firstValid) {
+      let foundDate = null;
+      let foundSlot = null;
+      let foundDisabledSet = null;
+
+      const searchStart = new Date(); // hôm nay
+      searchStart.setHours(0, 0, 0, 0);
+
+      for (let offset = 0; offset < 365; offset++) {
+        const candidate = new Date(searchStart);
+        candidate.setDate(searchStart.getDate() + offset);
+
+        if (dayAlreadyBooked(candidate)) continue;
+
+        const dsCandidate = computeDisabledSlots(candidate);
+        const slotCandidate = allSlots.find(
+          (s) => !dsCandidate.has(String(s.id))
+        );
+        if (slotCandidate) {
+          foundDate = candidate;
+          foundSlot = slotCandidate;
+          foundDisabledSet = dsCandidate;
+          break;
+        }
+      }
+
+      if (foundDate && foundSlot) {
+        if (!isSameDay(selectedDate, foundDate)) {
+          setSelectedDate(foundDate);
+          setVnDate(toDDMMYYYY(foundDate));
+        }
+        setDisabledSlots(foundDisabledSet || new Set());
+        setSelectedSlotId(String(foundSlot.id));
+        return;
+      }
+
+      // không tìm được ngày nào hợp lệ trong 365 ngày → disable toàn bộ
       const all = new Set(allSlots.map((s) => String(s.id)));
       setDisabledSlots(all);
       setSelectedSlotId("");
       return;
     }
 
-    const ds = computeDisabledSlots(selectedDate);
+    // Ngày chưa bị book và có ít nhất 1 slot hợp lệ
     setDisabledSlots(ds);
-    const firstValid = allSlots.find((s) => !ds.has(String(s.id)));
-    setSelectedSlotId(firstValid ? String(firstValid.id) : "");
+    setSelectedSlotId(String(firstValid.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, allSlots.length]);
+  }, [selectedDate, allSlots]); // allSlots thay đổi thì tự tính lại default phù hợp
 
   // cập nhật disable cho ĐỔI LỊCH
   useEffect(() => {
@@ -942,9 +1004,7 @@ export default function Calendar() {
             new ModalClass(eventModalRef.current);
           inst.hide();
         } else {
-          eventModalRef.current
-            ?.querySelector(".btn-close")
-            ?.click();
+          eventModalRef.current?.querySelector(".btn-close")?.click();
         }
       } catch (e) {
         console.warn("Cannot close event modal:", e);
@@ -1224,23 +1284,11 @@ export default function Calendar() {
                     ?.click();
                 }
 
-                // Reset form + state ngày/slot về hôm nay
+                // Reset form + state ngày/slot về hôm nay (effect sẽ tự chọn slot hợp lệ >= 24h)
                 e.currentTarget.reset();
                 const nowDate = new Date();
                 setSelectedDate(nowDate);
                 setVnDate(toDDMMYYYY(nowDate));
-
-                if (allSlots.length) {
-                  const ds = computeDisabledSlots(nowDate);
-                  setDisabledSlots(ds);
-                  const firstValid = allSlots.find(
-                    (s) => !ds.has(String(s.id))
-                  );
-                  setSelectedSlotId(firstValid ? String(firstValid.id) : "");
-                } else {
-                  setDisabledSlots(new Set());
-                  setSelectedSlotId("");
-                }
               } catch (err) {
                 console.error("Book session error:", err);
 
