@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -12,56 +12,74 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Spinner,
 } from "reactstrap";
 import { HiGift } from "react-icons/hi2";
-import { FiSearch, FiCheckCircle, FiClock } from "react-icons/fi";
+import { FiSearch, FiCheckCircle, FiClock, FiXCircle } from "react-icons/fi";
 import { message } from "antd";
+import api from "../../config/axios";
 
-// ===== MOCK DATA YÊU CẦU ĐỔI QUÀ =====
-const MOCK_REDEMPTIONS = [
-  {
-    id: 201,
-    memberName: "Nguyễn Văn A",
-    memberEmail: "nguyenvana@example.com",
-    giftName: "Khăn tập Gym cao cấp",
-    image:
-      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsUsed: 500,
-    redeemedAt: "20/11/2025 18:30",
-    status: "Đã nhận", // hoặc "Chưa nhận"
-    note: "Đã nhận trực tiếp tại quầy.",
-  },
-  {
-    id: 202,
-    memberName: "Trần Thị B",
-    memberEmail: "tranthib@example.com",
-    giftName: "Voucher 1 lần xông hơi miễn phí",
-    image:
-      "https://images.pexels.com/photos/3738046/pexels-photo-3738046.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsUsed: 600,
-    redeemedAt: "05/12/2025 09:15",
-    status: "Chưa nhận",
-    note: "Cần xác nhận hội viên đủ điều kiện trước khi sử dụng.",
-  },
-  {
-    id: 203,
-    memberName: "Lê Hoàng C",
-    memberEmail: "lehoangc@example.com",
-    giftName: "Bình nước thể thao cao cấp",
-    image:
-      "https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsUsed: 800,
-    redeemedAt: "03/12/2025 15:10",
-    status: "Chưa nhận",
-    note: "Hội viên sẽ ghé nhận trong tuần này.",
-  },
-];
+// ===== time helpers (fix giờ VN) =====
+// backend trả datetime không có Z/offset => ép coi là UTC để hiển thị đúng giờ VN
+function toISODateSafe(s) {
+  if (!s) return null;
+  let str = String(s).trim();
+  // cắt nano -> milli
+  str = str.replace(/(\.\d{3})\d+(?=(Z|[+-]\d{2}:\d{2})?$)/, "$1");
+  const hasTZ = /Z$|[+-]\d{2}:\d{2}$/.test(str);
+  return hasTZ ? str : `${str}Z`;
+}
+
+function formatDateTimeVN(dateStr) {
+  const iso = toISODateSafe(dateStr);
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+// ===== status mapping =====
+const STATUS_VI = {
+  Pending: "Chưa xử lý",
+  Approved: "Đã nhận",
+  Cancelled: "Đã hủy",
+};
+
+function getStatusVi(apiStatus) {
+  return STATUS_VI[apiStatus] || apiStatus || "—";
+}
+
+function getBadgeColor(apiStatus) {
+  if (apiStatus === "Approved") return "success";
+  if (apiStatus === "Cancelled") return "secondary";
+  return "warning"; // Pending / others
+}
+
+// ===== normalize API item =====
+function normalizeRedemption(raw) {
+  return {
+    redemptionId: raw?.redemptionId,
+    memberName: raw?.memberName || "—",
+    memberEmail: raw?.memberEmail || "—",
+    rewardName: raw?.rewardName || "—",
+    pointsRedeemed: Number(raw?.pointsRedeemed ?? 0),
+    redemptionDate: raw?.redemptionDate,
+    status: raw?.status, // Pending | Approved | Cancelled
+    deliveryDate: raw?.deliveryDate,
+    notes: raw?.notes,
+    processorName: raw?.processorName,
+  };
+}
 
 const StaffRewardRedemptions = () => {
-  // Mock data (sau này thay bằng API)
-  const [redemptions, setRedemptions] = useState(MOCK_REDEMPTIONS);
+  const [redemptions, setRedemptions] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Filter trạng thái: all | pending | received
+  // Filter trạng thái: all | pending | received | cancelled
   const [statusFilter, setStatusFilter] = useState("all");
 
   // Search theo tên hoặc email
@@ -70,7 +88,42 @@ const StaffRewardRedemptions = () => {
   // Modal chi tiết
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedRedemption, setSelectedRedemption] = useState(null);
+
+  // Updating
   const [updating, setUpdating] = useState(false);
+
+  const fetchRedemptions = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/RewardRedemption");
+      const arr = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.items)
+        ? res.data.items
+        : [];
+
+      const mapped = arr.map(normalizeRedemption).filter((x) => x.redemptionId != null);
+
+      // sort mới -> cũ theo redemptionDate
+      mapped.sort((a, b) => {
+        const ta = new Date(toISODateSafe(a.redemptionDate) || 0).getTime();
+        const tb = new Date(toISODateSafe(b.redemptionDate) || 0).getTime();
+        return tb - ta;
+      });
+
+      setRedemptions(mapped);
+    } catch (err) {
+      console.error("GET /RewardRedemption error:", err?.response?.data || err);
+      message.error("Không tải được danh sách yêu cầu đổi quà.");
+      setRedemptions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRedemptions();
+  }, []);
 
   const handleOpenDetail = (item) => {
     setSelectedRedemption(item);
@@ -83,60 +136,73 @@ const StaffRewardRedemptions = () => {
     setSelectedRedemption(null);
   };
 
-  // Cập nhật trạng thái "Chưa nhận" -> "Đã nhận"
-  const handleMarkAsReceived = (item) => {
-    if (!item || item.status === "Đã nhận") return;
+  const updateStatus = async (item, nextStatus) => {
+    if (!item?.redemptionId) return;
+
+    const isApprove = nextStatus === "Approved";
+    const isCancel = nextStatus === "Cancelled";
 
     const ok = window.confirm(
-      `Xác nhận hội viên "${item.memberName}" đã nhận quà "${item.giftName}"?`
+      isApprove
+        ? `Xác nhận hội viên "${item.memberName}" đã nhận quà "${item.rewardName}"?`
+        : `Xác nhận TỪ CHỐI yêu cầu đổi quà của "${item.memberName}" (${item.rewardName})?`
     );
     if (!ok) return;
 
     try {
       setUpdating(true);
 
-      // Mock gọi API bằng timeout
-      setTimeout(() => {
-        setRedemptions((prev) =>
-          prev.map((r) =>
-            r.id === item.id ? { ...r, status: "Đã nhận" } : r
-          )
-        );
+      const body = {
+        status: nextStatus,
+        deliveryDate: isApprove ? new Date().toISOString() : null,
+        notes: item?.notes || null, // bạn có thể mở input notes sau
+      };
 
-        // Nếu đang mở modal chi tiết -> sync lại
-        setSelectedRedemption((prev) =>
-          prev && prev.id === item.id ? { ...prev, status: "Đã nhận" } : prev
-        );
+      await api.put(`/RewardRedemption/${item.redemptionId}/status`, body);
 
-        message.success("Cập nhật trạng thái: Đã nhận quà.");
-        setUpdating(false);
-      }, 600);
+      message.success(
+        isApprove ? "Đã cập nhật: Đã nhận quà." : "Đã cập nhật: Đã hủy yêu cầu."
+      );
+
+      // refresh list
+      await fetchRedemptions();
+
+      // sync modal (nếu đang mở đúng item)
+      setSelectedRedemption((prev) =>
+        prev && prev.redemptionId === item.redemptionId
+          ? { ...prev, status: nextStatus, deliveryDate: body.deliveryDate }
+          : prev
+      );
     } catch (err) {
-      console.error("Update status error (mock):", err);
-      message.error("Cập nhật trạng thái thất bại (mock), vui lòng thử lại!");
+      console.error("PUT /RewardRedemption/{id}/status error:", err?.response?.data || err);
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Cập nhật trạng thái thất bại, vui lòng thử lại!";
+      message.error(apiMsg);
+    } finally {
       setUpdating(false);
     }
   };
 
   // Dữ liệu đã lọc theo trạng thái + search
-  const filteredRedemptions = useMemo(
-    () =>
-      redemptions
-        .filter((item) => {
-          if (statusFilter === "pending") return item.status === "Chưa nhận";
-          if (statusFilter === "received") return item.status === "Đã nhận";
-          return true;
-        })
-        .filter((item) => {
-          if (!searchText.trim()) return true;
-          const s = searchText.toLowerCase();
-          return (
-            item.memberName.toLowerCase().includes(s) ||
-            item.memberEmail.toLowerCase().includes(s)
-          );
-        }),
-    [redemptions, statusFilter, searchText]
-  );
+  const filteredRedemptions = useMemo(() => {
+    return redemptions
+      .filter((item) => {
+        if (statusFilter === "pending") return item.status === "Pending";
+        if (statusFilter === "received") return item.status === "Approved";
+        if (statusFilter === "cancelled") return item.status === "Cancelled";
+        return true;
+      })
+      .filter((item) => {
+        if (!searchText.trim()) return true;
+        const s = searchText.toLowerCase();
+        return (
+          String(item.memberName || "").toLowerCase().includes(s) ||
+          String(item.memberEmail || "").toLowerCase().includes(s)
+        );
+      });
+  }, [redemptions, statusFilter, searchText]);
 
   return (
     <Container className="mt-5 mb-5" fluid>
@@ -171,10 +237,7 @@ const StaffRewardRedemptions = () => {
                     <HiGift size={24} />
                   </div>
                   <div>
-                    <h3
-                      className="mb-0"
-                      style={{ fontWeight: 700, letterSpacing: 0.3 }}
-                    >
+                    <h3 className="mb-0" style={{ fontWeight: 700, letterSpacing: 0.3 }}>
                       Quản lý đổi quà bằng điểm
                     </h3>
                     <small style={{ opacity: 0.9 }}>
@@ -214,10 +277,7 @@ const StaffRewardRedemptions = () => {
                     className="form-control form-control-sm"
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    style={{
-                      borderRadius: "999px",
-                      fontSize: 13,
-                    }}
+                    style={{ borderRadius: "999px", fontSize: 13 }}
                   />
                 </div>
               </div>
@@ -227,59 +287,66 @@ const StaffRewardRedemptions = () => {
             <CardBody style={{ backgroundColor: "#f3f4f6" }}>
               {/* Filter trạng thái căn giữa */}
               <div className="d-flex justify-content-center mb-3">
-                <div
-                  className="btn-group"
-                  role="group"
-                  aria-label="Status filter"
-                >
+                <div className="btn-group" role="group" aria-label="Status filter">
                   <Button
                     size="sm"
                     color={statusFilter === "all" ? "danger" : "secondary"}
-                    style={{
-                      fontSize: 12,
-                      borderRadius: "999px 0 0 999px",
-                    }}
+                    style={{ fontSize: 12, borderRadius: "999px 0 0 999px" }}
                     onClick={() => setStatusFilter("all")}
                   >
                     Tất cả
                   </Button>
                   <Button
                     size="sm"
-                    color={
-                      statusFilter === "pending" ? "danger" : "secondary"
-                    }
+                    color={statusFilter === "pending" ? "danger" : "secondary"}
                     style={{ fontSize: 12 }}
                     onClick={() => setStatusFilter("pending")}
                   >
-                    Chưa nhận
+                    Chưa xử lý
                   </Button>
                   <Button
                     size="sm"
-                    color={
-                      statusFilter === "received" ? "danger" : "secondary"
-                    }
-                    style={{
-                      fontSize: 12,
-                      borderRadius: "0 999px 999px 0",
-                    }}
+                    color={statusFilter === "received" ? "danger" : "secondary"}
+                    style={{ fontSize: 12 }}
                     onClick={() => setStatusFilter("received")}
                   >
                     Đã nhận
                   </Button>
+                  <Button
+                    size="sm"
+                    color={statusFilter === "cancelled" ? "danger" : "secondary"}
+                    style={{ fontSize: 12, borderRadius: "0 999px 999px 0" }}
+                    onClick={() => setStatusFilter("cancelled")}
+                  >
+                    Đã hủy
+                  </Button>
                 </div>
               </div>
 
-              {filteredRedemptions.length === 0 && (
+              {/* Loading */}
+              {loading && (
+                <div className="text-center py-4">
+                  <Spinner size="sm" />{" "}
+                  <span style={{ fontSize: 13, color: "#6b7280" }}>
+                    Đang tải danh sách yêu cầu...
+                  </span>
+                </div>
+              )}
+
+              {!loading && filteredRedemptions.length === 0 && (
                 <div className="alert alert-light border text-center mb-0">
                   Không tìm thấy yêu cầu đổi quà nào phù hợp.
                 </div>
               )}
 
-              {filteredRedemptions.length > 0 && (
+              {!loading && filteredRedemptions.length > 0 && (
                 <Row className="mt-2">
                   {filteredRedemptions.map((item) => {
-                    const isPending = item.status === "Chưa nhận";
-                    const initials = item.memberName
+                    const isPending = item.status === "Pending";
+                    const isApproved = item.status === "Approved";
+                    const isCancelled = item.status === "Cancelled";
+
+                    const initials = String(item.memberName || "")
                       .split(" ")
                       .filter(Boolean)
                       .slice(-2)
@@ -288,7 +355,7 @@ const StaffRewardRedemptions = () => {
 
                     return (
                       <Col
-                        key={item.id}
+                        key={item.redemptionId}
                         xl="6"
                         lg="6"
                         className="mb-4 d-flex align-items-stretch"
@@ -302,20 +369,17 @@ const StaffRewardRedemptions = () => {
                             flexDirection: "row",
                           }}
                         >
-                          {/* Ảnh quà */}
-                          <div style={{ width: 130, flexShrink: 0 }}>
+                          {/* Không có image từ API => dùng placeholder */}
+                          <div style={{ width: 130, flexShrink: 0, background: "#e5e7eb" }}>
                             <img
-                              src={item.image}
-                              alt={item.giftName}
+                              src={"https://via.placeholder.com/240x240?text=Gift"}
+                              alt={item.rewardName}
                               style={{
                                 width: "100%",
                                 height: "100%",
                                 objectFit: "cover",
                                 display: "block",
-                              }}
-                              onError={(e) => {
-                                e.currentTarget.src =
-                                  "https://via.placeholder.com/240x240?text=Gift";
+                                opacity: isCancelled ? 0.7 : 1,
                               }}
                             />
                           </div>
@@ -351,32 +415,21 @@ const StaffRewardRedemptions = () => {
                                   {initials || "M"}
                                 </div>
                                 <div>
-                                  <div
-                                    style={{
-                                      fontSize: 14,
-                                      fontWeight: 700,
-                                      color: "#111827",
-                                    }}
-                                  >
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
                                     {item.memberName}
                                   </div>
-                                  <div
-                                    style={{
-                                      fontSize: 12,
-                                      color: "#6b7280",
-                                    }}
-                                  >
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>
                                     {item.memberEmail}
                                   </div>
                                 </div>
                               </div>
 
                               <Badge
-                                color={isPending ? "warning" : "success"}
+                                color={getBadgeColor(item.status)}
                                 pill
                                 style={{ fontSize: 11 }}
                               >
-                                {item.status}
+                                {getStatusVi(item.status)}
                               </Badge>
                             </div>
 
@@ -384,24 +437,16 @@ const StaffRewardRedemptions = () => {
                             <div
                               style={{
                                 fontSize: 13,
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 color: "#111827",
                                 marginBottom: 2,
                               }}
                             >
-                              🎁 {item.giftName}
+                              🎁 {item.rewardName}
                             </div>
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: "#4b5563",
-                                marginBottom: 2,
-                              }}
-                            >
+                            <div style={{ fontSize: 12, color: "#4b5563", marginBottom: 2 }}>
                               Đã trừ{" "}
-                              <strong>
-                                {item.pointsUsed.toLocaleString("vi-VN")} điểm
-                              </strong>
+                              <strong>{formatDateTimeVN ? item.pointsRedeemed.toLocaleString("vi-VN") : item.pointsRedeemed} điểm</strong>
                             </div>
                             <div
                               style={{
@@ -415,19 +460,11 @@ const StaffRewardRedemptions = () => {
                             >
                               <FiClock size={13} />
                               <span>
-                                Thời gian đổi:{" "}
-                                <strong>{item.redeemedAt}</strong>
+                                Thời gian đổi: <strong>{formatDateTimeVN(item.redemptionDate)}</strong>
                               </span>
                             </div>
-                            <div
-                              style={{
-                                fontSize: 12,
-                                color: "#6b7280",
-                                marginBottom: 6,
-                              }}
-                            >
-                              Nhận tại:{" "}
-                              <strong>Quầy lễ tân – Phòng gym</strong>
+                            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
+                              Nhận tại: <strong>Quầy lễ tân – Phòng gym</strong>
                             </div>
 
                             {/* Actions */}
@@ -445,38 +482,55 @@ const StaffRewardRedemptions = () => {
                                 Chi tiết
                               </Button>
 
+                              {/* Pending: cho Approve/Reject */}
                               {isPending && (
-                                <Button
-                                  size="sm"
-                                  color="success"
-                                  style={{
-                                    borderRadius: 999,
-                                    fontSize: 13,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                  }}
-                                  onClick={() => handleMarkAsReceived(item)}
-                                  disabled={updating}
-                                >
-                                  <FiCheckCircle size={14} />
-                                  <span>
-                                    {updating
-                                      ? "Đang cập nhật..."
-                                      : "Xác nhận đã nhận"}
-                                  </span>
-                                </Button>
+                                <div className="d-flex align-items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    color="success"
+                                    style={{
+                                      borderRadius: 999,
+                                      fontSize: 13,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                    }}
+                                    onClick={() => updateStatus(item, "Approved")}
+                                    disabled={updating}
+                                  >
+                                    <FiCheckCircle size={14} />
+                                    <span>{updating ? "Đang..." : "Duyệt"}</span>
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    color="danger"
+                                    outline
+                                    style={{
+                                      borderRadius: 999,
+                                      fontSize: 13,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                    }}
+                                    onClick={() => updateStatus(item, "Cancelled")}
+                                    disabled={updating}
+                                  >
+                                    <FiXCircle size={14} />
+                                    <span>{updating ? "Đang..." : "Từ chối"}</span>
+                                  </Button>
+                                </div>
                               )}
 
-                              {!isPending && (
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#16a34a",
-                                    fontWeight: 600,
-                                  }}
-                                >
+                              {isApproved && (
+                                <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 700 }}>
                                   Đã xác nhận
+                                </span>
+                              )}
+
+                              {isCancelled && (
+                                <span style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>
+                                  Đã hủy
                                 </span>
                               )}
                             </div>
@@ -498,31 +552,18 @@ const StaffRewardRedemptions = () => {
           toggle={handleCloseDetail}
           style={{ borderBottom: "none", paddingBottom: 0, fontWeight: 700 }}
         >
-          {selectedRedemption?.giftName || "Chi tiết đổi quà"}
+          {selectedRedemption?.rewardName || "Chi tiết đổi quà"}
         </ModalHeader>
+
         <ModalBody style={{ paddingTop: 0 }}>
           {selectedRedemption && (
             <>
-              <div
-                style={{
-                  borderRadius: "0.75rem",
-                  overflow: "hidden",
-                  marginBottom: 12,
-                }}
-              >
+              {/* Không có image từ API => placeholder */}
+              <div style={{ borderRadius: "0.75rem", overflow: "hidden", marginBottom: 12 }}>
                 <img
-                  src={selectedRedemption.image}
-                  alt={selectedRedemption.giftName}
-                  style={{
-                    width: "100%",
-                    height: 220,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/600x340?text=Gift";
-                  }}
+                  src={"https://via.placeholder.com/600x340?text=Gift"}
+                  alt={selectedRedemption.rewardName}
+                  style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
                 />
               </div>
 
@@ -535,64 +576,54 @@ const StaffRewardRedemptions = () => {
                   backgroundColor: "#f9fafb",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    marginBottom: 4,
-                    color: "#111827",
-                  }}
-                >
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#111827" }}>
                   Thông tin hội viên
                 </div>
                 <div style={{ fontSize: 13, color: "#4b5563" }}>
-                  Họ tên:{" "}
-                  <strong>{selectedRedemption.memberName}</strong>
+                  Họ tên: <strong>{selectedRedemption.memberName}</strong>
                 </div>
                 <div style={{ fontSize: 13, color: "#4b5563" }}>
                   Email: <strong>{selectedRedemption.memberEmail}</strong>
                 </div>
                 <div style={{ fontSize: 13, color: "#4b5563" }}>
-                  Nhận quà tại:{" "}
-                  <strong>Quầy lễ tân – Phòng gym</strong>
+                  Nhận quà tại: <strong>Quầy lễ tân – Phòng gym</strong>
                 </div>
               </div>
 
-              {/* Gift info */}
-              <div
-                className="mb-3"
-                style={{
-                  fontSize: 13,
-                  color: "#4b5563",
-                }}
-              >
+              {/* Redemption info */}
+              <div style={{ fontSize: 13, color: "#4b5563" }} className="mb-3">
                 <div>
-                  Đã trừ{" "}
-                  <strong>
-                    {selectedRedemption.pointsUsed.toLocaleString("vi-VN")} điểm
-                  </strong>
+                  Đã trừ <strong>{selectedRedemption.pointsRedeemed.toLocaleString("vi-VN")} điểm</strong>
                 </div>
                 <div>
-                  Thời gian đổi:{" "}
-                  <strong>{selectedRedemption.redeemedAt}</strong>
+                  Thời gian đổi: <strong>{formatDateTimeVN(selectedRedemption.redemptionDate)}</strong>
                 </div>
                 <div className="mt-1">
                   Trạng thái:{" "}
                   <Badge
-                    color={
-                      selectedRedemption.status === "Đã nhận"
-                        ? "success"
-                        : "warning"
-                    }
+                    color={getBadgeColor(selectedRedemption.status)}
                     pill
                     style={{ fontSize: 11 }}
                   >
-                    {selectedRedemption.status}
+                    {getStatusVi(selectedRedemption.status)}
                   </Badge>
+                </div>
+
+                <div className="mt-2" style={{ fontSize: 12, color: "#6b7280" }}>
+                  Ngày giao (nếu có):{" "}
+                  <strong>
+                    {selectedRedemption.deliveryDate
+                      ? formatDateTimeVN(selectedRedemption.deliveryDate)
+                      : "—"}
+                  </strong>
+                </div>
+
+                <div style={{ fontSize: 12, color: "#6b7280" }}>
+                  Người xử lý: <strong>{selectedRedemption.processorName || "—"}</strong>
                 </div>
               </div>
 
-              {selectedRedemption.note && (
+              {selectedRedemption.notes && (
                 <div
                   style={{
                     fontSize: 12,
@@ -602,37 +633,40 @@ const StaffRewardRedemptions = () => {
                     padding: "10px 12px",
                   }}
                 >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 12,
-                      marginBottom: 4,
-                      color: "#111827",
-                    }}
-                  >
+                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: "#111827" }}>
                     Ghi chú:
                   </div>
-                  <div>{selectedRedemption.note}</div>
+                  <div>{selectedRedemption.notes}</div>
                 </div>
               )}
             </>
           )}
         </ModalBody>
+
         <ModalFooter style={{ borderTop: "none" }}>
-          <Button color="secondary" outline onClick={handleCloseDetail}>
+          <Button color="secondary" outline onClick={handleCloseDetail} disabled={updating}>
             Đóng
           </Button>
 
-          {selectedRedemption &&
-            selectedRedemption.status === "Chưa nhận" && (
+          {selectedRedemption?.status === "Pending" && (
+            <>
+              <Button
+                color="danger"
+                outline
+                disabled={updating}
+                onClick={() => updateStatus(selectedRedemption, "Cancelled")}
+              >
+                {updating ? "Đang cập nhật..." : "Từ chối"}
+              </Button>
               <Button
                 color="success"
                 disabled={updating}
-                onClick={() => handleMarkAsReceived(selectedRedemption)}
+                onClick={() => updateStatus(selectedRedemption, "Approved")}
               >
-                {updating ? "Đang cập nhật..." : "Xác nhận đã nhận quà"}
+                {updating ? "Đang cập nhật..." : "Duyệt (Đã nhận)"}
               </Button>
-            )}
+            </>
+          )}
         </ModalFooter>
       </Modal>
     </Container>

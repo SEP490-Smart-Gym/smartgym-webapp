@@ -1,6 +1,5 @@
 // src/views/Admin/AdminPromotionGifts.jsx
-
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import {
   Card,
@@ -16,242 +15,387 @@ import {
   Typography,
   Popconfirm,
   message,
+  Spin,
+  Switch,
+  Upload,
+  Image,
+  Tooltip,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   GiftOutlined,
+  UploadOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
+import api from "../../config/axios";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-// ===== MOCK DATA QUÀ TẶNG KHUYẾN MÃI (PROMOTION GIFTS) =====
-const MOCK_PROMOTIONS = [
-  {
-    id: 1,
-    name: "Voucher giảm 50% gói PT 1 tháng",
-    imageUrl:
-      "https://images.pexels.com/photos/6695769/pexels-photo-6695769.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    description:
-      "Voucher áp dụng cho tất cả các PT, hiệu lực 30 ngày kể từ ngày đổi. Không áp dụng đồng thời khuyến mãi khác.",
-    pointsRequired: 1500,
-    quantity: 20,
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Bình nước thể thao cao cấp",
-    imageUrl:
-      "https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    description:
-      "Bình nước 1L chống rò rỉ, nhựa an toàn không BPA, phù hợp mang theo khi tập luyện.",
-    pointsRequired: 800,
-    quantity: 45,
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Khăn tập gym cao cấp",
-    imageUrl:
-      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    description:
-      "Khăn cotton mềm, thấm hút tốt, kích thước 35x80cm, nhanh khô.",
-    pointsRequired: 500,
-    quantity: 100,
-    status: "Inactive",
-  },
-];
+/** ===== Helpers: normalize data từ API về format UI ===== */
+function pick(obj, keys, fallback = undefined) {
+  for (const k of keys) {
+    if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return fallback;
+}
+
+function normalizeReward(raw) {
+  // API có thể trả về PascalCase hoặc camelCase
+  const id = pick(raw, ["id", "rewardId", "Id", "RewardId"]);
+  const name = pick(raw, ["rewardName", "RewardName", "name", "Name"], "");
+  const description = pick(
+    raw,
+    ["description", "Description", "desc", "Desc"],
+    ""
+  );
+  const pointsRequired = Number(
+    pick(raw, ["pointsRequired", "PointsRequired", "pointRequired"], 0)
+  );
+  const category = pick(raw, ["category", "Category"], "");
+  const stockQuantity = Number(
+    pick(raw, ["stockQuantity", "StockQuantity", "quantity", "Quantity"], 0)
+  );
+  const isActive = Boolean(pick(raw, ["isActive", "IsActive"], true));
+  const imageUrl = pick(
+    raw,
+    [
+      "imageUrl",
+      "ImageUrl",
+      "image",
+      "Image",
+      "imagePath",
+      "ImagePath",
+      "fileUrl",
+      "FileUrl",
+    ],
+    ""
+  );
+
+  return {
+    id,
+    rewardName: name,
+    description,
+    pointsRequired,
+    category,
+    stockQuantity,
+    isActive,
+    imageUrl,
+    _raw: raw,
+  };
+}
 
 export default function AdminPromotionGifts() {
-  const [promotions, setPromotions] = useState(MOCK_PROMOTIONS);
+  const [rewards, setRewards] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [editOpen, setEditOpen] = useState(false);
-  const [currentRecord, setCurrentRecord] = useState(null);
+  const [currentRecord, setCurrentRecord] = useState(null); // normalized
+  const [saving, setSaving] = useState(false);
+
   const [form] = Form.useForm();
 
-  // mở modal thêm / sửa
-  const handleOpenEdit = (record = null) => {
-    setCurrentRecord(record);
-    if (record) {
-      form.setFieldsValue({
-        name: record.name,
-        imageUrl: record.imageUrl,
-        description: record.description,
-        pointsRequired: record.pointsRequired,
-        quantity: record.quantity,
-        status: record.status,
-      });
-    } else {
-      form.resetFields();
-      form.setFieldsValue({ status: "Active" });
+  // giữ file ảnh (không auto upload)
+  const [pickedFile, setPickedFile] = useState(null);
+
+  const fetchRewards = async () => {
+    setLoading(true);
+    try {
+      // axios instance đã có baseURL /api => gọi "/Reward"
+      const res = await api.get("/Reward");
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.items)
+        ? res.data.items
+        : [];
+
+      const normalized = data.map(normalizeReward).filter((x) => x.id != null);
+      setRewards(normalized);
+    } catch (err) {
+      console.error("GET /Reward error:", err?.response?.data || err);
+      message.error("Không tải được danh sách quà tặng.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchRewards();
+  }, []);
+
+  const resetModalState = () => {
+    setCurrentRecord(null);
+    setPickedFile(null);
+    form.resetFields();
+  };
+
+  // mở modal thêm / sửa
+  const handleOpenEdit = async (record = null) => {
     setEditOpen(true);
+    setSaving(false);
+    setPickedFile(null);
+
+    if (!record) {
+      resetModalState();
+      form.setFieldsValue({
+        RewardName: "",
+        Description: "",
+        PointsRequired: 0,
+        Category: "",
+        StockQuantity: 0,
+        IsActive: true,
+      });
+      return;
+    }
+
+    // Edit: gọi GET by id để lấy data mới nhất
+    try {
+      setSaving(true);
+      const id = record.id;
+      const res = await api.get(`/Reward/${id}`);
+      const normalized = normalizeReward(res.data);
+
+      setCurrentRecord(normalized);
+
+      form.setFieldsValue({
+        RewardName: normalized.rewardName,
+        Description: normalized.description,
+        PointsRequired: normalized.pointsRequired,
+        Category: normalized.category,
+        StockQuantity: normalized.stockQuantity,
+        IsActive: normalized.isActive,
+      });
+    } catch (err) {
+      console.error("GET /Reward/{id} error:", err?.response?.data || err);
+      message.error("Không tải được chi tiết quà tặng.");
+      setEditOpen(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCloseEdit = () => {
     setEditOpen(false);
-    setCurrentRecord(null);
-    form.resetFields();
+    resetModalState();
   };
 
-  // Xóa quà
-  const handleDelete = (record) => {
-    // Sau này đổi thành API DELETE
-    setPromotions((prev) => prev.filter((p) => p.id !== record.id));
-    message.success("Đã xóa quà tặng khuyến mãi.");
+  // DELETE (nếu backend có)
+  const handleDelete = async (record) => {
+    const id = record?.id;
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      await api.delete(`/Reward/${id}`);
+      message.success("Đã xóa quà tặng.");
+      await fetchRewards();
+    } catch (err) {
+      console.error("DELETE /Reward/{id} error:", err?.response?.data || err);
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Xóa thất bại. Backend có thể chưa hỗ trợ DELETE /Reward/{id}.";
+      message.error(apiMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Submit form thêm / sửa
-  const handleSubmitForm = (values) => {
-    if (currentRecord) {
-      // CẬP NHẬT
-      const updated = promotions.map((p) =>
-        p.id === currentRecord.id ? { ...p, ...values } : p
-      );
-      setPromotions(updated);
-      message.success("Cập nhật quà tặng thành công (mock).");
-    } else {
-      // THÊM MỚI
-      const newItem = {
-        id: promotions.length
-          ? Math.max(...promotions.map((p) => p.id)) + 1
-          : 1,
-        ...values,
-      };
-      setPromotions((prev) => [...prev, newItem]);
-      message.success("Thêm quà tặng mới thành công (mock).");
+  const handleSubmitForm = async (values) => {
+    // values theo field PascalCase đúng backend
+    // RewardName, Description, PointsRequired, Category, StockQuantity, IsActive
+    try {
+      setSaving(true);
+
+      const fd = new FormData();
+      fd.append("RewardName", values.RewardName ?? "");
+      fd.append("Description", values.Description ?? "");
+      fd.append("PointsRequired", String(values.PointsRequired ?? 0));
+      fd.append("Category", values.Category ?? "");
+      fd.append("StockQuantity", String(values.StockQuantity ?? 0));
+      fd.append("IsActive", values.IsActive ? "true" : "false");
+
+      if (!currentRecord) {
+        // CREATE yêu cầu ImageFile
+        if (!pickedFile) {
+          message.warning("Vui lòng chọn ảnh quà tặng (ImageFile).");
+          return;
+        }
+        fd.append("ImageFile", pickedFile);
+        await api.post("/Reward", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        message.success("Thêm quà tặng mới thành công.");
+        handleCloseEdit();
+        await fetchRewards();
+        return;
+      }
+
+      // UPDATE (nếu backend có). Nếu muốn cho phép đổi ảnh khi cập nhật:
+      if (pickedFile) fd.append("ImageFile", pickedFile);
+
+      // Nếu backend không có PUT, server sẽ trả lỗi → mình show message
+      await api.put(`/Reward/${currentRecord.id}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      message.success("Cập nhật quà tặng thành công.");
+      handleCloseEdit();
+      await fetchRewards();
+    } catch (err) {
+      console.error("SUBMIT Reward error:", err?.response?.data || err);
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Thao tác thất bại. Kiểm tra lại API (PUT/POST) và field name.";
+      message.error(apiMsg);
+    } finally {
+      setSaving(false);
     }
-    handleCloseEdit();
   };
 
-  const columns = [
-  {
-    title: "Ảnh quà",
-    dataIndex: "imageUrl",
-    key: "imageUrl",
-    width: 140,
-    render: (url, record) => (
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <img
-          src={url}
-          alt={record.name}
-          style={{
-            width: 80,
-            height: 80,
-            objectFit: "cover",
-            borderRadius: 8,
-          }}
-          onError={(e) => {
-            e.currentTarget.src =
-              "https://via.placeholder.com/100x100?text=Gift";
-          }}
-        />
-      </div>
-    ),
-  },
-  {
-    title: "Tên phần quà",
-    dataIndex: "name",
-    key: "name",
-    width: 260,
-    render: (text) => (
-      <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
-        <Text strong>{text}</Text>
-      </div>
-    ),
-  },
-  {
-    title: "Mô tả",
-    dataIndex: "description",
-    key: "description",
-    width: 350,
-    render: (text) => (
-      <div
-        style={{
-          whiteSpace: "normal",
-          wordWrap: "break-word",
-        }}
-      >
-        {text}
-      </div>
-    ),
-  },
-  {
-    title: "Điểm cần để đổi",
-    dataIndex: "pointsRequired",
-    key: "pointsRequired",
-    width: 150,
-    align: "right",
-    render: (val) => (
-      <Text strong>{val.toLocaleString("vi-VN")} điểm</Text>
-    ),
-  },
-  {
-    title: "Số lượng",
-    dataIndex: "quantity",
-    key: "quantity",
-    width: 120,
-    align: "right",
-    render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
-  },
-  {
-    title: "Trạng thái",
-    dataIndex: "status",
-    key: "status",
-    width: 120,
-    align: "center",
-    render: (status) => {
-      let color = "default";
-      if (status === "Active") color = "green";
-      if (status === "Inactive") color = "red";
-      if (status === "Expired") color = "orange";
-      return <Tag color={color}>{status}</Tag>;
-    },
-  },
-  {
-    title: "Thao tác",
-    key: "actions",
-    width: 180,
-    fixed: "right",
-    align: "center",
-    render: (_, record) => (
-      <Space>
-        <Button
-          size="small"
-          type="primary"
-          icon={<EditOutlined />}
-          onClick={() => handleOpenEdit(record)}
-        >
-          Cập nhật
-        </Button>
-        <Popconfirm
-          title="Xóa quà tặng"
-          description={`Bạn chắc chắn muốn xóa "${record.name}"?`}
-          okText="Xóa"
-          cancelText="Hủy"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => handleDelete(record)}
-        >
-          <Button size="small" danger icon={<DeleteOutlined />}>
-            Xóa
-          </Button>
-        </Popconfirm>
-      </Space>
-    ),
-  },
-];
+  const columns = useMemo(
+    () => [
+      {
+        title: "Ảnh quà",
+        dataIndex: "imageUrl",
+        key: "imageUrl",
+        width: 140,
+        align: "center",
+        render: (url, record) => (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            {url ? (
+              <Image
+                src={url}
+                alt={record.rewardName}
+                width={80}
+                height={80}
+                style={{ objectFit: "cover", borderRadius: 8 }}
+                fallback="https://via.placeholder.com/100x100?text=Gift"
+              />
+            ) : (
+              <img
+                src="https://via.placeholder.com/100x100?text=Gift"
+                alt="Gift"
+                style={{
+                  width: 80,
+                  height: 80,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                }}
+              />
+            )}
+          </div>
+        ),
+      },
+      {
+        title: "Tên phần quà",
+        dataIndex: "rewardName",
+        key: "rewardName",
+        width: 260,
+        render: (text) => (
+          <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
+            <Text strong>{text || "—"}</Text>
+          </div>
+        ),
+      },
+      {
+        title: "Mô tả",
+        dataIndex: "description",
+        key: "description",
+        width: 360,
+        render: (text) => (
+          <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
+            {text || "—"}
+          </div>
+        ),
+      },
+      {
+        title: "Danh mục",
+        dataIndex: "category",
+        key: "category",
+        width: 160,
+        render: (v) => v || "—",
+      },
+      {
+        title: "Điểm cần để đổi",
+        dataIndex: "pointsRequired",
+        key: "pointsRequired",
+        width: 160,
+        align: "right",
+        render: (val) => (
+          <Text strong>{Number(val || 0).toLocaleString("vi-VN")} điểm</Text>
+        ),
+      },
+      {
+        title: "Tồn kho",
+        dataIndex: "stockQuantity",
+        key: "stockQuantity",
+        width: 120,
+        align: "right",
+        render: (q) => <Text>{Number(q || 0).toLocaleString("vi-VN")}</Text>,
+      },
+      {
+        title: "Trạng thái",
+        dataIndex: "isActive",
+        key: "isActive",
+        width: 140,
+        align: "center",
+        render: (isActive) => (
+          <Tag color={isActive ? "green" : "red"}>
+            {isActive ? "Active" : "Inactive"}
+          </Tag>
+        ),
+      },
+      {
+        title: "Thao tác",
+        key: "actions",
+        width: 200,
+        fixed: "right",
+        align: "center",
+        render: (_, record) => (
+          <Space>
+            <Button
+              size="small"
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            >
+              Cập nhật
+            </Button>
 
+            <Popconfirm
+              title="Xóa quà tặng"
+              description={`Bạn chắc chắn muốn xóa "${record.rewardName}"?`}
+              okText="Xóa"
+              cancelText="Hủy"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => handleDelete(record)}
+            >
+              <Button size="small" danger icon={<DeleteOutlined />}>
+                Xóa
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [rewards]
+  );
 
   return (
     <div className="container-fluid" style={{ padding: 24 }}>
       <div className="row">
-        {/* Sidebar bên trái */}
+        {/* Sidebar */}
         <div className="col-lg-3 col-md-4 mb-3">
           <AdminSidebar />
         </div>
 
-        {/* Nội dung bên phải */}
+        {/* Content */}
         <div className="col-lg-9 col-md-8">
           <Card
             title={
@@ -269,13 +413,22 @@ export default function AdminPromotionGifts() {
               </div>
             }
             extra={
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => handleOpenEdit(null)}
-              >
-                Thêm quà tặng
-              </Button>
+              <Space>
+                <Tooltip title="Tải lại danh sách">
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={fetchRewards}
+                    disabled={loading}
+                  />
+                </Tooltip>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => handleOpenEdit(null)}
+                >
+                  Thêm quà tặng
+                </Button>
+              </Space>
             }
             bordered={false}
             style={{
@@ -283,18 +436,24 @@ export default function AdminPromotionGifts() {
               boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
             }}
           >
-            <Table
-              rowKey="id"
-              columns={columns}
-              dataSource={promotions}
-              pagination={{ pageSize: 5 }}
-              scroll={{ x: 1000, y: 450 }} // 👉 bảng có thể cuộn
-            />
+            {loading ? (
+              <div className="text-center py-5">
+                <Spin />
+              </div>
+            ) : (
+              <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={rewards}
+                pagination={{ pageSize: 6 }}
+                scroll={{ x: 1200, y: 450 }}
+              />
+            )}
           </Card>
         </div>
       </div>
 
-      {/* MODAL THÊM / CẬP NHẬT QUÀ TẶNG */}
+      {/* MODAL THÊM / CẬP NHẬT */}
       <Modal
         open={editOpen}
         centered
@@ -303,77 +462,122 @@ export default function AdminPromotionGifts() {
         onOk={() => form.submit()}
         okText={currentRecord ? "Lưu thay đổi" : "Thêm mới"}
         cancelText="Hủy"
+        confirmLoading={saving}
+        destroyOnClose
       >
-        <Form layout="vertical" form={form} onFinish={handleSubmitForm}>
-          <Form.Item
-            name="name"
-            label="Tên phần quà"
-            rules={[{ required: true, message: "Vui lòng nhập tên phần quà" }]}
-          >
-            <Input placeholder="VD: Voucher giảm 50% gói PT 1 tháng" />
-          </Form.Item>
+        {saving && currentRecord ? (
+          <div className="text-center py-4">
+            <Spin />
+          </div>
+        ) : (
+          <Form layout="vertical" form={form} onFinish={handleSubmitForm}>
+            <Form.Item
+              name="RewardName"
+              label="Tên phần quà"
+              rules={[{ required: true, message: "Vui lòng nhập tên phần quà" }]}
+            >
+              <Input placeholder="VD: Voucher giảm 50% gói PT 1 tháng" />
+            </Form.Item>
 
-          <Form.Item
-            name="imageUrl"
-            label="Địa chỉ ảnh (URL)"
-            rules={[
-              { required: true, message: "Vui lòng nhập URL ảnh" },
-              { type: "url", message: "URL ảnh không hợp lệ" },
-            ]}
-          >
-            <Input placeholder="https://..." />
-          </Form.Item>
+            <Form.Item
+              name="Category"
+              label="Danh mục"
+              rules={[{ required: true, message: "Vui lòng nhập danh mục" }]}
+            >
+              <Input placeholder="VD: Voucher / Sản phẩm / Dịch vụ..." />
+            </Form.Item>
 
-          <Form.Item
-            name="description"
-            label="Mô tả"
-            rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="Mô tả ngắn gọn về quà tặng, điều kiện sử dụng..."
-            />
-          </Form.Item>
+            <Form.Item
+              name="Description"
+              label="Mô tả"
+              rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}
+            >
+              <Input.TextArea
+                rows={3}
+                placeholder="Mô tả ngắn gọn về quà tặng, điều kiện sử dụng..."
+              />
+            </Form.Item>
 
-          <Form.Item
-            name="pointsRequired"
-            label="Số điểm cần để đổi"
-            rules={[
-              { required: true, message: "Vui lòng nhập số điểm cần để đổi" },
-            ]}
-          >
-            <InputNumber
-              min={0}
-              style={{ width: "100%" }}
-              formatter={(val) =>
-                `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+            <Form.Item
+              name="PointsRequired"
+              label="Số điểm cần để đổi"
+              rules={[
+                { required: true, message: "Vui lòng nhập số điểm cần để đổi" },
+              ]}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                formatter={(val) =>
+                  `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                }
+                parser={(val) => (val ? val.replace(/\./g, "") : "0")}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="StockQuantity"
+              label="Số lượng tồn kho"
+              rules={[
+                { required: true, message: "Vui lòng nhập số lượng tồn kho" },
+              ]}
+            >
+              <InputNumber min={0} style={{ width: "100%" }} />
+            </Form.Item>
+
+            <Form.Item
+              name="IsActive"
+              label="Trạng thái hoạt động"
+              valuePropName="checked"
+              initialValue={true}
+            >
+              <Switch
+                checkedChildren="Active"
+                unCheckedChildren="Inactive"
+                defaultChecked
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="Ảnh quà tặng (ImageFile)"
+              required={!currentRecord} // tạo mới bắt buộc ảnh
+              help={
+                currentRecord
+                  ? "Nếu muốn đổi ảnh, chọn file mới. Nếu không, bỏ trống."
+                  : "Bắt buộc chọn ảnh khi thêm mới."
               }
-              parser={(val) => val.replace(/\./g, "")}
-            />
-          </Form.Item>
+            >
+              <Upload
+                maxCount={1}
+                beforeUpload={(file) => {
+                  setPickedFile(file);
+                  return false; // chặn auto upload
+                }}
+                onRemove={() => {
+                  setPickedFile(null);
+                }}
+                accept="image/*"
+              >
+                <Button icon={<UploadOutlined />}>Chọn file ảnh</Button>
+              </Upload>
 
-          <Form.Item
-            name="quantity"
-            label="Số lượng phần quà"
-            rules={[
-              { required: true, message: "Vui lòng nhập số lượng phần quà" },
-            ]}
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-
-          <Form.Item
-            name="status"
-            label="Trạng thái"
-            rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
-          >
-            <Select>
-              <Option value="Active">Active</Option>
-              <Option value="Inactive">Inactive</Option>
-              <Option value="Expired">Expired</Option>
-            </Select>
-          </Form.Item>
-        </Form>
+              {currentRecord?.imageUrl && !pickedFile && (
+                <div style={{ marginTop: 10 }}>
+                  <Text type="secondary">Ảnh hiện tại:</Text>
+                  <div style={{ marginTop: 8 }}>
+                    <Image
+                      src={currentRecord.imageUrl}
+                      width={140}
+                      height={140}
+                      style={{ objectFit: "cover", borderRadius: 10 }}
+                      fallback="https://via.placeholder.com/140x140?text=Gift"
+                    />
+                  </div>
+                </div>
+              )}
+            </Form.Item>
+          </Form>
+        )}
       </Modal>
     </div>
   );
