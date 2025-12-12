@@ -56,6 +56,22 @@ function formatDateTimeVN(dateStr) {
   return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
 }
 
+// ✅ Map status backend -> label VN + màu hợp lý
+function mapRedemptionStatusVN(rawStatus) {
+  const s = String(rawStatus || "").trim().toLowerCase();
+
+  // theo yêu cầu:
+  if (s === "pending") return { label: "Chờ nhận", color: "warning" }; // vàng
+  if (s === "approved") return { label: "Đã nhận", color: "success" }; // xanh
+  if (s === "rejected") return { label: "Từ chối nhận", color: "danger" }; // đỏ
+
+  // fallback thêm cho an toàn
+  if (s === "cancelled" || s === "canceled") return { label: "Đã hủy", color: "secondary" };
+  if (s === "completed") return { label: "Đã nhận", color: "success" };
+
+  return { label: "Không xác định", color: "secondary" };
+}
+
 function normalizeReward(raw) {
   const id = pick(raw, ["id", "rewardId", "Id", "RewardId"]);
   const name = pick(raw, ["rewardName", "RewardName", "name", "Name"], "");
@@ -67,7 +83,16 @@ function normalizeReward(raw) {
   const isActive = Boolean(pick(raw, ["isActive", "IsActive"], true));
   const imageUrl = pick(
     raw,
-    ["imageUrl", "ImageUrl", "image", "Image", "imagePath", "ImagePath", "fileUrl", "FileUrl"],
+    [
+      "imageUrl",
+      "ImageUrl",
+      "image",
+      "Image",
+      "imagePath",
+      "ImagePath",
+      "fileUrl",
+      "FileUrl",
+    ],
     ""
   );
 
@@ -295,7 +320,10 @@ const RewardGifts = () => {
                     minWidth: 220,
                   }}
                 >
-                  <div className="d-flex justify-content-between align-items-center" style={{ fontSize: 13 }}>
+                  <div
+                    className="d-flex justify-content-between align-items-center"
+                    style={{ fontSize: 13 }}
+                  >
                     <span style={{ opacity: 0.85 }}>Điểm hiện có</span>
                     <FiStar style={{ opacity: 0.9 }} />
                   </div>
@@ -408,7 +436,12 @@ const RewardGifts = () => {
                         const outOfStock = (gift.stockQuantity ?? 0) <= 0;
 
                         return (
-                          <Col key={gift.id} lg="4" md="6" className="mb-4 d-flex align-items-stretch">
+                          <Col
+                            key={gift.id}
+                            lg="4"
+                            md="6"
+                            className="mb-4 d-flex align-items-stretch"
+                          >
                             <Card
                               className="shadow-sm border-0 w-100"
                               style={{
@@ -429,7 +462,8 @@ const RewardGifts = () => {
                                     filter: outOfStock ? "grayscale(0.6)" : "brightness(0.95)",
                                   }}
                                   onError={(e) => {
-                                    e.currentTarget.src = "https://via.placeholder.com/400x240?text=Gift";
+                                    e.currentTarget.src =
+                                      "https://via.placeholder.com/400x240?text=Gift";
                                   }}
                                 />
                                 <Badge
@@ -493,7 +527,11 @@ const RewardGifts = () => {
                                   <Button
                                     size="sm"
                                     color="light"
-                                    style={{ borderRadius: 999, borderColor: "#e5e7eb", fontSize: 13 }}
+                                    style={{
+                                      borderRadius: 999,
+                                      borderColor: "#e5e7eb",
+                                      fontSize: 13,
+                                    }}
                                     onClick={() => handleOpenDetail(gift, "store")}
                                   >
                                     Chi tiết
@@ -544,12 +582,7 @@ const RewardGifts = () => {
                   {!myLoading && myGifts.length > 0 && (
                     <Row className="mt-2">
                       {myGifts.map((r) => {
-                        const statusColor =
-                          String(r.status).toLowerCase() === "completed"
-                            ? "success"
-                            : String(r.status).toLowerCase() === "cancelled"
-                            ? "secondary"
-                            : "warning"; // Pending / Processing
+                        const st = mapRedemptionStatusVN(r.status);
 
                         return (
                           <Col
@@ -577,12 +610,15 @@ const RewardGifts = () => {
                                     {r.rewardName}
                                   </CardTitle>
 
-                                  <Badge color={statusColor} pill>
-                                    {r.status}
+                                  <Badge color={st.color} pill>
+                                    {st.label}
                                   </Badge>
                                 </div>
 
-                                <CardText style={{ fontSize: 13, color: "#6b7280" }} className="mb-2">
+                                <CardText
+                                  style={{ fontSize: 13, color: "#6b7280" }}
+                                  className="mb-2"
+                                >
                                   Đổi lúc: <b>{formatDateTimeVN(r.redemptionDate)}</b>
                                 </CardText>
 
@@ -605,7 +641,11 @@ const RewardGifts = () => {
                                   <Button
                                     size="sm"
                                     color="light"
-                                    style={{ borderRadius: 999, borderColor: "#e5e7eb", fontSize: 13 }}
+                                    style={{
+                                      borderRadius: 999,
+                                      borderColor: "#e5e7eb",
+                                      fontSize: 13,
+                                    }}
                                     onClick={() => handleOpenDetail(r, "my")}
                                   >
                                     Chi tiết
@@ -635,7 +675,6 @@ const RewardGifts = () => {
             fontWeight: 700,
           }}
         >
-          {/* store: selectedGift.name | my: selectedGift.rewardName */}
           {selectedSource === "my"
             ? selectedGift?.rewardName || "Chi tiết quà đã đổi"
             : selectedGift?.name || "Chi tiết quà tặng"}
@@ -669,10 +708,7 @@ const RewardGifts = () => {
                   {formatPoints(selectedGift.pointsRequired)} điểm cần để đổi
                 </div>
 
-                <Badge
-                  color={(selectedGift.stockQuantity ?? 0) > 0 ? "warning" : "secondary"}
-                  pill
-                >
+                <Badge color={(selectedGift.stockQuantity ?? 0) > 0 ? "warning" : "secondary"} pill>
                   {(selectedGift.stockQuantity ?? 0) > 0
                     ? `Còn ${selectedGift.stockQuantity} quà`
                     : "Hết quà"}
@@ -701,18 +737,14 @@ const RewardGifts = () => {
                   -{formatPoints(selectedGift.pointsRedeemed)} điểm
                 </div>
 
-                <Badge
-                  color={
-                    String(selectedGift.status).toLowerCase() === "completed"
-                      ? "success"
-                      : String(selectedGift.status).toLowerCase() === "cancelled"
-                      ? "secondary"
-                      : "warning"
-                  }
-                  pill
-                >
-                  {selectedGift.status || "—"}
-                </Badge>
+                {(() => {
+                  const st = mapRedemptionStatusVN(selectedGift.status);
+                  return (
+                    <Badge color={st.color} pill>
+                      {st.label}
+                    </Badge>
+                  );
+                })()}
               </div>
 
               <div style={{ fontSize: 13, color: "#4b5563" }}>
@@ -743,8 +775,7 @@ const RewardGifts = () => {
           {selectedGift && selectedSource === "store" && (
             <Button
               color={
-                currentPoints >= selectedGift.pointsRequired &&
-                (selectedGift.stockQuantity ?? 0) > 0
+                currentPoints >= selectedGift.pointsRequired && (selectedGift.stockQuantity ?? 0) > 0
                   ? "primary"
                   : "secondary"
               }
