@@ -1290,23 +1290,6 @@ export default function Calendar() {
                     </label>
                   </div>
                 </div>
-
-                {bookingMode === "recurring" && (
-                  <div className="form-text">
-                    Hệ thống sẽ đặt đủ số buổi còn lại trong gói.
-                    {remainingSessions != null ? (
-                      <>
-                        {" "}
-                        Số buổi còn lại: <strong>{remainingSessions}</strong>.
-                      </>
-                    ) : (
-                      <>
-                        {" "}
-                        <span className="text-danger">(Không thấy số buổi còn lại từ API)</span>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* SINGLE DATE */}
