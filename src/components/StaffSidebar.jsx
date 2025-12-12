@@ -74,7 +74,7 @@ export default function StaffSidebar() {
             <span className="label">Lịch bảo trì</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
-          <NavLink to="/staff/repair-history" className="admin-side-item">
+          {/* <NavLink to="/staff/repair-history" className="admin-side-item">
             <MdHistory className="icon" />
             <span className="label">Lịch sử sửa chữa</span>
             <i className="fa fa-angle-right caret" />
@@ -84,7 +84,7 @@ export default function StaffSidebar() {
             <TbReport className="icon" />
             <span className="label">Tạo báo cáo mới</span>
             <i className="fa fa-angle-right caret" />
-          </NavLink>
+          </NavLink> */}
         </nav>
       </aside>
     </>

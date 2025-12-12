@@ -369,9 +369,12 @@ export default function Navbar() {
                   <NavLink end to="/" className="nav-item nav-link">
                     Trang chủ
                   </NavLink>
-
-                  <HashLink smooth to="/#about-section" className="nav-item nav-link">
-                    About
+                  <HashLink
+                    smooth
+                    to="/#about-section"
+                    className="nav-item nav-link"
+                  >
+                    Về Chúng Tôi
                   </HashLink>
 
                   <HashLink smooth to="/#package-section" className="nav-item nav-link">
@@ -387,7 +390,13 @@ export default function Navbar() {
                       Chat
                     </NavLink>
                   )}
-                  {user?.roleName == "Staff" && (
+                  {user?.roleName == "Member" &&(
+                    <NavLink to="/chat" className="nav-item nav-link">
+                      Chat
+                    </NavLink>
+                  )}
+
+                  {user?.roleName == "Staff" &&(
                     <NavLink to="/staff/chatlist" className="nav-item nav-link">
                       Chat
                     </NavLink>
@@ -404,14 +413,25 @@ export default function Navbar() {
                       aria-expanded={isOpen}
                       type="button"
                     >
-                      <span style={{ display: "flex", alignItems: "center" }}>
-                        Pages {isOpen ? <HiChevronUp /> : <HiChevronDown />}
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        Các Trang {isOpen ? <HiChevronUp /> : <HiChevronDown />}
                       </span>
                     </button>
 
-                    <div className={`dropdown-menu${isOpen ? " show" : ""}`}>
-                      <HashLink smooth to="/#features-section" className="dropdown-item">
-                        Our Features
+                    <div
+                      className={`dropdown-menu${isOpen ? " show" : ""}`}
+                    >
+                      <HashLink
+                        smooth
+                        to="/#features-section"
+                        className="dropdown-item"
+                      >
+                        Tính Năng 
                       </HashLink>
                       <HashLink smooth to="/#trainers-section" className="dropdown-item">
                         Huấn luyện viên
@@ -424,8 +444,8 @@ export default function Navbar() {
                   </HashLink>
 
                   <NavLink to="/contact" className="nav-item nav-link">
-                    Contact
-                  </NavLink>
+                    Liên hệ
+                   </NavLink>
 
                   <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
                     <button

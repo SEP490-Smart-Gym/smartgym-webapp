@@ -324,7 +324,7 @@ export default function AdminTrainerList() {
       render: (_, r) => {
         const first = r.firstName || "";
         const last = r.lastName || "";
-        return first || last ? `${first} ${last}`.trim() : r.name || "—";
+        return first || last ? `${last} ${first}`.trim() : r.name || "—";
       },
     },
     { title: "Email", dataIndex: "email", key: "email", width: 220 },

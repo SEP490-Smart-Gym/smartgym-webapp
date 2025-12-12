@@ -72,7 +72,7 @@ export default function Contact() {
                 <i className="fas fa-map-marker-alt text-primary me-3 fa-2x"></i>
                 <div>
                   <h5 className="mb-1">Địa chỉ</h5>
-                  <p className="mb-0">123 Street, New York</p>
+                  <p className="mb-1">7 Đường D1, Long Thạnh Mỹ, Thủ Đức, Hồ Chí Minh</p>
                 </div>
               </div>
             </div>
@@ -83,7 +83,7 @@ export default function Contact() {
                 <i className="fas fa-envelope text-primary me-3 fa-2x"></i>
                 <div>
                   <h5 className="mb-1">Email</h5>
-                  <a href="mailto:info@example.com" className="text-decoration-none">info@example.com</a>
+                  <a href="mailto:info@example.com" className="text-decoration-none">smartgym@gmail.com</a>
                 </div>
               </div>
             </div>
@@ -106,7 +106,7 @@ export default function Contact() {
           <div className="ratio ratio-21x9 rounded-3 overflow-hidden">
             <iframe
               title="Map"
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387190.27991484284!2d-74.25987368790235!3d40.69767006334012!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNDDCsDQxJzUxLjYiTiA3NMKwMTUnMTIuMCJX!5e0!3m2!1sen!2sus!4v1610000000000"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3918.609941530484!2d106.80730807451786!3d10.841132857997911!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752731176b07b1%3A0xb752b24b379bae5e!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBGUFQgVFAuIEhDTQ!5e0!3m2!1svi!2s!4v1765275318647!5m2!1svi!2s" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               style={{ border: 0 }}
@@ -190,23 +190,23 @@ export default function Contact() {
               <h4 className="mb-3">Giờ mở cửa</h4>
               <ul className="list-unstyled mb-4">
                 <li className="d-flex justify-content-between border-bottom py-2">
-                  <span>Mon - Fri</span><strong>08:00 - 20:00</strong>
+                  <span>Thứ Hai - Chủ Nhật</span><strong>05:00 - 21:00</strong>
                 </li>
-                <li className="d-flex justify-content-between border-bottom py-2">
-                  <span>Saturday</span><strong>08:00 - 18:00</strong>
+                {/* <li className="d-flex justify-content-between border-bottom py-2">
+                  <span>Thứ 7</span><strong>08:00 - 18:00</strong>
                 </li>
                 <li className="d-flex justify-content-between py-2">
                   <span>Sunday</span><strong>Closed</strong>
-                </li>
+                </li> */}
               </ul>
 
               <h4 className="mb-3">Theo dõi chúng tôi</h4>
-              <div className="d-flex">
+              {/* <div className="d-flex">
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-facebook-f"></i></a>
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-twitter"></i></a>
                 <a className="btn btn-primary btn-sm-square me-2" href="#"><i className="fab fa-instagram"></i></a>
                 <a className="btn btn-primary btn-sm-square" href="#"><i className="fab fa-linkedin-in"></i></a>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

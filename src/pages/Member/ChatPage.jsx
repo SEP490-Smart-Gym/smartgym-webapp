@@ -9,12 +9,28 @@ export default function ChatPage() {
   const [startUserId, setStartUserId] = useState("");
   const navigate = useNavigate();
 
+  // ==========================
+  // LOAD CONVERSATIONS
+  // ==========================
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/chat/conversations");
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const userId = user?.id;
+
+
+      if (!userId) {
+        message.error("Không tìm thấy userId trong localStorage");
+        return;
+      }
+
+      // BACKEND REQUIRED: /chat/conversations?userId=123
+      const res = await api.get(`/chat/conversations?userId=${userId}`);
+
       setConversations(res.data || []);
     } catch (err) {
+      console.error(err);
       message.error("Không tải được danh sách trò chuyện");
     } finally {
       setLoading(false);
@@ -25,8 +41,13 @@ export default function ChatPage() {
     fetchConversations();
   }, []);
 
+  // ==========================
+  // START NEW CONVERSATION
+  // ==========================
   const startConversation = async () => {
-    if (!startUserId) return message.warning("Nhập userId người cần chat");
+    if (!startUserId) {
+      return message.warning("Nhập userId người cần chat");
+    }
 
     try {
       await api.post("/chat/conversations/start", {
@@ -37,6 +58,7 @@ export default function ChatPage() {
       fetchConversations();
       setStartUserId("");
     } catch (err) {
+      console.error(err);
       message.error("Không thể bắt đầu trò chuyện");
     }
   };
@@ -45,7 +67,9 @@ export default function ChatPage() {
     <div className="container py-4">
       <h2 className="mb-4">Tin nhắn</h2>
 
-      {/* Bắt đầu trò chuyện mới */}
+      {/* ========================== */}
+      {/* BẮT ĐẦU TRÒ CHUYỆN MỚI */}
+      {/* ========================== */}
       <div className="card p-3 mb-4">
         <h5>Bắt đầu trò chuyện mới</h5>
         <div className="input-group mt-2">
@@ -62,7 +86,9 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Danh sách chat */}
+      {/* ========================== */}
+      {/* DANH SÁCH CONVERSATION */}
+      {/* ========================== */}
       <div className="card p-3">
         <h5 className="mb-3">Danh sách cuộc trò chuyện</h5>
 
@@ -76,17 +102,26 @@ export default function ChatPage() {
           <ul className="list-group">
             {conversations.map((c) => (
               <li
-                key={c.id}
+                key={c.conversationId}
                 className="list-group-item d-flex justify-content-between align-items-center"
                 style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/chat/${c.id}`)}
+                onClick={() => navigate(`/chat/${c.conversationId}`)}
               >
                 <div>
-                  <strong>{c.otherUserName || "Người dùng"}</strong>
+                  {/* PARTNER NAME */}
+                  <strong>
+                    {c.partner
+                      ? `${c.partner.firstName} ${c.partner.lastName}`
+                      : "Người dùng"}
+                  </strong>
+
+                  {/* LAST MESSAGE PREVIEW */}
                   <div className="text-muted small">
-                    {c.lastMessage || "Chưa có tin nhắn"}
+                    {c.lastMessage?.messageText || "Chưa có tin nhắn"}
                   </div>
                 </div>
+
+                {/* Unread count (optional) */}
                 <span className="badge bg-secondary">
                   {c.unreadCount || 0} chưa đọc
                 </span>

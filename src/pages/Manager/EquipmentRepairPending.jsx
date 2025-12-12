@@ -123,18 +123,34 @@ export default function EquipmentRepairPending() {
         {
             title: "Mức độ",
             dataIndex: "severity",
-            width: 100,
-            render: (v) => (
-                <Tag color={v === "High" ? "red" : v === "Medium" ? "gold" : "green"}>
-                    {v}
-                </Tag>
-            ),
+            width: 120,
+            render: (v) => {
+                const mapVietnam = {
+                    Low: "Thấp",
+                    Medium: "Trung bình",
+                    High: "Cao",
+                    Critical: "Nghiêm trọng",
+                };
+
+                const colorMap = {
+                    Low: "green",
+                    Medium: "gold",
+                    High: "red",
+                    Critical: "volcano",
+                };
+
+                return (
+                    <Tag color={colorMap[v] || "default"}>
+                        {mapVietnam[v] || v}
+                    </Tag>
+                );
+            },
         },
         {
             title: "Trạng thái",
             dataIndex: "status",
             width: 120,
-            render: () => <Tag color="blue">Pending</Tag>,
+            render: () => <Tag color="blue">Đang chờ duyệt</Tag>,
         },
         {
             title: "Thao tác",
@@ -143,14 +159,14 @@ export default function EquipmentRepairPending() {
             render: (_, r) => (
                 <Space>
                     <Button size="small" onClick={() => openDetail(r)}>
-                        Xem
+                        Xem báo cáo
                     </Button>
-                    <Button size="small" type="primary" onClick={() => approveReport(r.id)}>
+                    {/* <Button size="small" type="primary" onClick={() => approveReport(r.id)}>
                         Duyệt
                     </Button>
                     <Button size="small" danger onClick={() => rejectReport(r.id)}>
                         Từ chối
-                    </Button>
+                    </Button> */}
                 </Space>
             ),
         },
@@ -160,64 +176,64 @@ export default function EquipmentRepairPending() {
         RENDER
     =============================== */
     return (
-    <div className="container-fluid py-5">
-        <div className="row g-4">
-            
-            {/* SIDEBAR */}
-            <div className="col-lg-3">
-                <ManagerSidebar />
-            </div>
+        <div className="container-fluid py-5">
+            <div className="row g-4">
 
-            {/* MAIN CONTENT */}
-            <div className="col-lg-9">
-                <h2 className="mb-4 text-center">Duyệt Báo Cáo Thiết Bị</h2>
-
-                <div className="card shadow-sm">
-                    <div className="card-body">
-                        {loading ? (
-                            <div className="text-center py-5">
-                                <Spin />
-                            </div>
-                        ) : (
-                            <Table
-                                dataSource={reports}
-                                columns={columns}
-                                rowKey="id"
-                                pagination={{ pageSize: 10 }}
-                                scroll={{ x: "max-content" }}
-                            />
-                        )}
-                    </div>
+                {/* SIDEBAR */}
+                <div className="col-lg-3">
+                    <ManagerSidebar />
                 </div>
 
-            </div>
-        </div>
+                {/* MAIN CONTENT */}
+                <div className="col-lg-9">
+                    <h2 className="mb-4 text-center">Duyệt Báo Cáo Thiết Bị</h2>
 
-        {/* DETAIL MODAL */}
-        <Modal
-            open={detailOpen}
-            title="Chi tiết báo cáo"
-            onCancel={closeDetail}
-            footer={null}
-            width={600}
-        >
-            {detail && (
-                <>
-                    <p><strong>Thiết bị:</strong> {detail.equipmentName}</p>
-                    <p><strong>Người báo cáo:</strong> {detail.reporterName}</p>
-                    <p><strong>Ngày báo cáo:</strong> {dayjs(detail.reportDate).format("DD/MM/YYYY HH:mm")}</p>
-                    <p><strong>Mức độ:</strong> {detail.severity}</p>
-                    <p><strong>Mô tả sự cố:</strong></p>
-                    <p>{detail.issueDescription}</p>
-
-                    <div className="d-flex justify-content-end gap-2 mt-3">
-                        <Button type="primary" onClick={() => approveReport(detail.id)}>Duyệt</Button>
-                        <Button danger onClick={() => rejectReport(detail.id)}>Từ chối</Button>
+                    <div className="card shadow-sm">
+                        <div className="card-body">
+                            {loading ? (
+                                <div className="text-center py-5">
+                                    <Spin />
+                                </div>
+                            ) : (
+                                <Table
+                                    dataSource={reports}
+                                    columns={columns}
+                                    rowKey="id"
+                                    pagination={{ pageSize: 10 }}
+                                    scroll={{ x: "max-content" }}
+                                />
+                            )}
+                        </div>
                     </div>
-                </>
-            )}
-        </Modal>
-    </div>
-);
+
+                </div>
+            </div>
+
+            {/* DETAIL MODAL */}
+            <Modal
+                open={detailOpen}
+                title="Chi tiết báo cáo"
+                onCancel={closeDetail}
+                footer={null}
+                width={600}
+            >
+                {detail && (
+                    <>
+                        <p><strong>Thiết bị:</strong> {detail.equipmentName}</p>
+                        <p><strong>Người báo cáo:</strong> {detail.reporterName}</p>
+                        <p><strong>Ngày báo cáo:</strong> {dayjs(detail.reportDate).format("DD/MM/YYYY HH:mm")}</p>
+                        <p><strong>Mức độ:</strong> {detail.severity}</p>
+                        <p><strong>Mô tả sự cố:</strong></p>
+                        <p>{detail.issueDescription}</p>
+
+                        <div className="d-flex justify-content-end gap-2 mt-3">
+                            <Button type="primary" onClick={() => approveReport(detail.id)}>Duyệt</Button>
+                            <Button danger onClick={() => rejectReport(detail.id)}>Từ chối</Button>
+                        </div>
+                    </>
+                )}
+            </Modal>
+        </div>
+    );
 
 }

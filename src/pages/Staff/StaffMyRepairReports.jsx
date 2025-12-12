@@ -181,30 +181,36 @@ export default function StaffMyRepairReports() {
       title: "Thao tác",
       width: 260,
       render: (_, r) => {
-        return (
-          <Space>
-            {/* Start repair */}
-            <Button
-              size="small"
-              type="primary"
-              disabled={r.status !== "Đã Phê Duyệt"}
-              onClick={() => confirmStartRepair(r)}
-            >
-              Bắt đầu sửa
-            </Button>
+    return (
+        <Space>
 
-            {/* Complete repair */}
-            <Button
-              size="small"
-              danger
-              disabled={r.status !== "Đang Sửa Chữa"}
-              onClick={() => openCompleteModal(r)}
-            >
-              Hoàn tất sửa
-            </Button>
-          </Space>
-        );
-      },
+            {/* === BẮT ĐẦU SỬA === */}
+            {(r.status === "Đang Chờ Xử Lý" || r.status === "Đã Phê Duyệt") && (
+                <Button
+                    size="small"
+                    type="primary"
+                    disabled={r.status === "Đang Chờ Xử Lý"} 
+                    onClick={() => confirmStartRepair(r)}
+                >
+                    Bắt đầu sửa
+                </Button>
+            )}
+
+            {/* === HOÀN TẤT SỬA === */}
+            {r.status === "Đang Sửa Chữa" && (
+                <Button
+                    size="small"
+                    danger
+                    onClick={() => openCompleteModal(r)}
+                >
+                    Hoàn tất sửa
+                </Button>
+            )}
+
+        </Space>
+    );
+},
+
     },
   ];
 

@@ -71,21 +71,21 @@ export default function ManagerSidebar() {
                         <span className="label">Phê duyệt báo cáo</span>
                         <i className="fa fa-angle-right caret" />
                     </NavLink>
-                    <NavLink to="/manager/equipments" className="admin-side-item" end>
+                    {/* <NavLink to="/manager/equipments" className="admin-side-item" end>
                         <AiOutlineTool className="me-2" />
                         <span className="label">Thiết bị</span>
                         <i className="fa fa-angle-right caret" />
-                    </NavLink>
+                    </NavLink> */}
                     <NavLink to="/manager/equipment-create-maintain" className="admin-side-item">
                         <IoConstructOutline className="me-2" />
                         <span className="label">Tạo lịch bảo trì</span>
                         <i className="fa fa-angle-right caret" />
                     </NavLink>
-                    <NavLink to="/manager/work-logs" className="admin-side-item">
+                    {/* <NavLink to="/manager/work-logs" className="admin-side-item">
                         <IoConstructOutline className="me-2" />
                         <span className="label">Lịch sử bảo trì</span>
                         <i className="fa fa-angle-right caret" />
-                    </NavLink>
+                    </NavLink> */}
 
 
                 </nav>

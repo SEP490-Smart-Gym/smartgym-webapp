@@ -43,7 +43,7 @@ export default function ChatConversation() {
 
     setSending(true);
     try {
-      await api.post("/chat/messages/send", {
+      await api.post("/chat/messages", {
         conversationId: Number(conversationId),
         content: text,
       });
