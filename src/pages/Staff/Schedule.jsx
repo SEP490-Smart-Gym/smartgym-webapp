@@ -1,65 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+import api from "../../config/axios";
 
-// mock event ban đầu (có thể bỏ khi dùng API thật cho lịch staff)
-const mockData = [
-  { date: "2025-11-05", time: "09:00-10:00", title: "Standup meeting", status: "not yet" },
-  { date: "2025-11-12", time: "14:00-15:30", title: "Code review" },
-  { date: "2025-11-20", time: "08:00-09:00", title: "Training session", status: "not yet" },
-  { date: "2025-11-25", time: "19:00-20:00", title: "Sprint retro" },
-  { date: "2025-10-28", time: "10:00-11:00", title: "Past Sync", status: "present" },
-  { date: "2025-10-29", time: "15:00-16:00", title: "Missed Call", status: "absent" },
-];
-
-function parseTimeRange(timeStr) {
-  if (!timeStr) return [0, 0, 0, 0];
-  const [start, end] = timeStr.split("-");
-  const [sh, sm] = start.split(":").map((v) => +v);
-  const [eh, em] = end ? end.split(":").map((v) => +v) : [sh, sm];
-  return [sh, sm, eh, em];
-}
+// ===== Helpers thời gian & format =====
 function startOfDay(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
-}
-
-function normalizeMockData(arr) {
-  const today = startOfDay(new Date());
-  const seen = new Set();
-  const out = [];
-  for (const it of arr) {
-    const d = new Date(it.date);
-    const k = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-    if (seen.has(k)) continue; // mỗi ngày 1 event cho display
-    seen.add(k);
-    const [sh, sm, eh, em] = parseTimeRange(it.time);
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm, 0, 0);
-    const end = eh || em ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em, 0, 0) : null;
-    const dateOnly = startOfDay(d);
-    const status = dateOnly.getTime() > today.getTime() ? "not yet" : it.status || "present";
-    out.push({
-      title: it.title,
-      start,
-      end,
-      allDay: false,
-      status,
-      text: `<div><strong>${it.title}</strong><br/>${it.time || ""}<br/><em>Status: ${status}</em></div>`,
-    });
-  }
-  out.sort((a, b) => +a.start - +b.start);
-  return out;
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src*="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.async = false;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-    document.body.appendChild(s);
-  });
 }
 
 /** Date -> yyyy-mm-dd (nếu sau này cần) */
@@ -68,6 +14,13 @@ function dateObjToISO(d) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+/** parse "HH:MM:SS" -> [hh, mm] */
+function parseHHMMSS(str) {
+  if (!str) return [0, 0];
+  const [h, m] = str.split(":");
+  return [Number(h) || 0, Number(m) || 0];
 }
 
 /** format HH:MM từ Date */
@@ -87,13 +40,81 @@ function toDDMMYYYY(date) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/** Chuẩn hóa từ API /staff-schedule/my-schedules */
+function normalizeScheduleData(arr) {
+  const today = startOfDay(new Date());
+  const out = [];
+
+  (arr || []).forEach((it) => {
+    if (!it.scheduleDate) return;
+
+    const d = new Date(it.scheduleDate);
+    const [sh, sm] = parseHHMMSS(it.startTime);
+    const [eh, em] = parseHHMMSS(it.endTime);
+
+    const start = new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      sh,
+      sm,
+      0,
+      0
+    );
+    const end =
+      eh || em
+        ? new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+            eh,
+            em,
+            0,
+            0
+          )
+        : null;
+
+    const dateOnly = startOfDay(d);
+    const statusRaw = it.status || "Scheduled";
+    const status =
+      dateOnly.getTime() > today.getTime() ? statusRaw : statusRaw; // giữ nguyên theo API
+
+    out.push({
+      title: it.timeSlotName || "Lịch làm việc",
+      start,
+      end,
+      allDay: false,
+      status,
+      scheduleId: it.scheduleId,
+      scheduleDate: it.scheduleDate,
+      timeSlotId: it.timeSlotId,
+      timeSlotName: it.timeSlotName,
+      notes: it.notes || "",
+    });
+  });
+
+  out.sort((a, b) => +a.start - +b.start);
+  return out;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src*="${src}"]`)) return resolve();
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = false;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.body.appendChild(s);
+  });
+}
+
 function StaffSchedule() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
-  const dataRef = useRef([...mockData]); // giờ chỉ để display, không cho staff chỉnh sửa
+  const dataRef = useRef([]); // dữ liệu lịch từ API
 
-  // event đang xem chi tiết
   const [selectedEvent, setSelectedEvent] = useState(null);
   const eventModalRef = useRef(null);
 
@@ -137,7 +158,14 @@ function StaffSchedule() {
       // Date helpers
       $.extend(Date.prototype, {
         toDateCssClass: function () {
-          return "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate();
+          return (
+            "_" +
+            this.getFullYear() +
+            "_" +
+            (this.getMonth() + 1) +
+            "_" +
+            this.getDate()
+          );
         },
         toDateInt: function () {
           return (this.getFullYear() * 12 + this.getMonth()) * 32 + this.getDate();
@@ -148,7 +176,9 @@ function StaffSchedule() {
           const hh = h > 12 ? h - 12 : h;
           const ampm = h >= 12 ? " CH" : " SA";
           if (h === 0 && m === 0) return "";
-          return m > 0 ? `${hh}:${String(m).padStart(2, "0")}${ampm}` : `${hh}${ampm}`;
+          return m > 0
+            ? `${hh}:${String(m).padStart(2, "0")}${ampm}`
+            : `${hh}${ampm}`;
         },
       });
 
@@ -157,10 +187,17 @@ function StaffSchedule() {
 
       // Popover helpers
       let currentPopover = null;
-      const POPOVER_OPTS = { html: true, container: "body", placement: "auto", trigger: "manual", sanitize: false };
+      const POPOVER_OPTS = {
+        html: true,
+        container: "body",
+        placement: "auto",
+        trigger: "manual",
+        sanitize: false,
+      };
       function getOrCreatePopover(elem, opts) {
         const PopCtor =
-          (window.bootstrap && window.bootstrap.Popover) || (BootstrapBundle && BootstrapBundle.Popover);
+          (window.bootstrap && window.bootstrap.Popover) ||
+          (BootstrapBundle && BootstrapBundle.Popover);
         if (!PopCtor) return null;
         let instance = PopCtor.getInstance ? PopCtor.getInstance(elem) : null;
         if (!instance) instance = new PopCtor(elem, { ...POPOVER_OPTS, ...opts });
@@ -175,23 +212,34 @@ function StaffSchedule() {
         }
       }
       $(document).on("click", (e) => {
-        if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event-chip").length) hideCurrent();
+        if (
+          !$(e.target).closest(
+            ".popover, .js-cal-years, .js-cal-months, .event-chip"
+          ).length
+        )
+          hideCurrent();
       });
 
       function calendar($el, options) {
         $el
           .on("click", ".js-cal-prev", function () {
-            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() - 1);
-            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() - 1);
-            else if (options.mode === "week") options.date.setDate(options.date.getDate() - 7);
+            if (options.mode === "year")
+              options.date.setFullYear(options.date.getFullYear() - 1);
+            else if (options.mode === "month")
+              options.date.setMonth(options.date.getMonth() - 1);
+            else if (options.mode === "week")
+              options.date.setDate(options.date.getDate() - 7);
             else options.date.setDate(options.date.getDate() - 1);
             hideCurrent();
             draw();
           })
           .on("click", ".js-cal-next", function () {
-            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() + 1);
-            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() + 1);
-            else if (options.mode === "week") options.date.setDate(options.date.getDate() + 7);
+            if (options.mode === "year")
+              options.date.setFullYear(options.date.getFullYear() + 1);
+            else if (options.mode === "month")
+              options.date.setMonth(options.date.getMonth() + 1);
+            else if (options.mode === "week")
+              options.date.setDate(options.date.getDate() + 7);
             else options.date.setDate(options.date.getDate() + 1);
             hideCurrent();
             draw();
@@ -204,7 +252,11 @@ function StaffSchedule() {
             for (let m = 0; m < 12; m++) {
               const label = `${options.months[m]}`;
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(options.date.getFullYear(), m, 1).toISOString()}"
+                         data-date="${new Date(
+                           options.date.getFullYear(),
+                           m,
+                           1
+                         ).toISOString()}"
                          data-mode="month">${label}</button>`;
             }
             s += "</div>";
@@ -230,7 +282,11 @@ function StaffSchedule() {
             let s = '<div class="list-group">';
             for (let y = start; y <= end; y++) {
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(y, options.date.getMonth(), 1).toISOString()}"
+                         data-date="${new Date(
+                           y,
+                           options.date.getMonth(),
+                           1
+                         ).toISOString()}"
                          data-mode="month">${y}</button>`;
             }
             s += "</div>";
@@ -274,17 +330,21 @@ function StaffSchedule() {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
           if (!dayCell.length || dayCell.hasClass("has-event")) return;
-          const time = event.start.toTimeString();
+
+          const timeStr = event.start.toTimeString();
+          const endStr = event.end ? " - " + event.end.toTimeString() : "";
           const status = (event.status || "").toLowerCase();
+
           const $chip = $(`
-            <div class="event-chip status-${status.replace(/\s+/g, "-")}" data-index="${index}" title="${event.title}">
+            <div class="event-chip status-${status.replace(
+              /\s+/g,
+              "-"
+            )}" data-index="${index}" title="${event.title}">
               <div class="event-chip-title">${event.title}</div>
-              <div class="event-chip-time">${time}${
-            event.end ? " - " + event.end.toTimeString() : ""
-          }</div>
-              <div class="event-chip-badge">${status}</div>
+              <div class="event-chip-time">${timeStr}${endStr}</div>
             </div>
           `);
+
           dayCell.addClass("has-event").append($chip);
         }
 
@@ -294,7 +354,10 @@ function StaffSchedule() {
             if (v.start.getFullYear() === year) counts[v.start.getMonth()]++;
           });
           $.each(counts, (i, v) => {
-            if (v !== 0) $(".month-" + i).append('<span class="badge bg-info ms-2">' + v + "</span>");
+            if (v !== 0)
+              $(".month-" + i).append(
+                '<span class="badge bg-info ms-2">' + v + "</span>"
+              );
           });
         }
 
@@ -302,8 +365,10 @@ function StaffSchedule() {
           $el.html(t(options));
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
-            if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
+            if (options.mode === "year")
+              yearAddEvents(options.data, options.date.getFullYear());
+            else if (options.mode === "month" || options.mode === "week")
+              $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -324,7 +389,15 @@ function StaffSchedule() {
         });
       })(
         {
-          days: ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"],
+          days: [
+            "Thứ hai",
+            "Thứ ba",
+            "Thứ tư",
+            "Thứ năm",
+            "Thứ sáu",
+            "Thứ bảy",
+            "Chủ nhật",
+          ],
           months: [
             "Tháng 1",
             "Tháng 2",
@@ -339,7 +412,20 @@ function StaffSchedule() {
             "Tháng 11",
             "Tháng 12",
           ],
-          shortMonths: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"],
+          shortMonths: [
+            "Th1",
+            "Th2",
+            "Th3",
+            "Th4",
+            "Th5",
+            "Th6",
+            "Th7",
+            "Th8",
+            "Th9",
+            "Th10",
+            "Th11",
+            "Th12",
+          ],
           date: new Date(),
           daycss: ["", "", "", "", "", "c-saturday", "c-sunday"],
           thismonthcss: "current",
@@ -354,7 +440,18 @@ function StaffSchedule() {
         document
       );
 
-      const normalized = normalizeMockData(dataRef.current);
+      // 👉 GỌI API LẤY LỊCH CỦA STAFF
+      let schedulesFromApi = [];
+      try {
+        const res = await api.get("/staff-schedule/my-schedules");
+        schedulesFromApi = res.data || [];
+      } catch (err) {
+        console.error("Failed to load /staff-schedule/my-schedules:", err);
+      }
+
+      dataRef.current = schedulesFromApi;
+      const normalized = normalizeScheduleData(schedulesFromApi);
+
       window.jQuery(holderRef.current).calendar({
         data: normalized,
         onOpenEvent: (ev) => {
@@ -363,13 +460,16 @@ function StaffSchedule() {
             date: ev.start,
             start: ev.start,
             end: ev.end,
-            status: ev.status || "present",
+            status: ev.status || "Scheduled",
           });
           try {
             const ModalClass =
-              (window.bootstrap && window.bootstrap.Modal) || (BootstrapBundle && BootstrapBundle.Modal);
+              (window.bootstrap && window.bootstrap.Modal) ||
+              (BootstrapBundle && BootstrapBundle.Modal);
             if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
+              const inst = ModalClass.getOrCreateInstance(
+                document.getElementById("eventDetailModal")
+              );
               inst.show();
             }
           } catch (e) {
@@ -405,8 +505,8 @@ function StaffSchedule() {
 
 /* ===== DAY CELL ===== */
 .calendar-day{
-  position:relative; padding:8px; min-height:110px; background:#fff; border:1px solid #e5e7eb;
-  overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
+  position:relative; padding:8px; min-height:110px; background:#ffffff; border:1px solid #e5e7eb;
+  overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .calendar-day .date{ font-weight:600; margin-bottom:6px; }
 .current{ background:#fff; }
@@ -414,35 +514,84 @@ function StaffSchedule() {
 .prev-month .date, .next-month .date{ color:#9aa0a6; font-weight:600; }
 
 /* ===== TODAY ===== */
-.calendar-day.today{ background:#fff7cc !important; border:1px solid #ffd24d !important; box-shadow:inset 0 0 0 2px #ffe58a; }
+.calendar-day.today{
+  background:linear-gradient(135deg,#fff7d6,#fef9c3) !important;
+  border:1px solid #facc15 !important;
+  box-shadow:0 0 0 1px #fde68a inset;
+}
 .calendar-day.today .date{ font-weight:800; color:#b45309; }
 
 /* ===== HAS EVENT ===== */
-.calendar-day.has-event{ background:#fff3f5 !important; border:1px solid #ffc7d2 !important; }
-.calendar-day.has-event .date{ font-weight:700; color:#c80036; }
-.calendar-day.has-event.today{ background:#ffe9a8 !important; border-color:#ffcc66 !important; }
+.calendar-day.has-event{
+  background:#f9fafb !important;
+  border-color:#e5e7eb !important;
+}
+.calendar-day.has-event .date{ font-weight:700; color:#0f172a; }
+.calendar-day.has-event.today{
+  background:linear-gradient(135deg,#fef3c7,#fee2e2) !important;
+  border-color:#f97316 !important;
+}
 
 /* ===== EVENT CHIP ===== */
 .event-chip{
-  margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
-  cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:2px; max-width:100%;
+  margin-top:6px;
+  padding:8px 10px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:12px;
+  line-height:1.25;
+  display:grid;
+  gap:3px;
+  max-width:100%;
+  border:1px solid transparent;
+  box-shadow:0 4px 10px rgba(15,23,42,0.08);
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
 }
-.event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.event-chip-badge{
-  display:inline-block; margin-top:2px; padding:2px 6px; border-radius:999px; font-size:10px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.3px;
+.event-chip-title{
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.event-chip-time{
+  opacity:.9;
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-/* ===== STATUS COLORS ===== */
-.event-chip.status-present{ background:#e6ffed; border-color:#9ae6b4; }
-.event-chip.status-present .event-chip-badge{ background:#34d399; color:#053321; }
+/* Hover effect */
+.event-chip:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(15,23,42,0.16);
+}
 
-.event-chip.status-absent{ background:#ffe6e6; border-color:#ffb3b3; }
-.event-chip.status-absent .event-chip-badge{ background:#f87171; color:#4a0a0a; }
+/* ===== STATUS COLORS (chỉ dùng màu, không show text status) ===== */
 
-.event-chip.status-not\\ yet, .event-chip.status-not-yet{ background:#f1f5f9; border-color:#cbd5e1; }
-.event-chip.status-not\\ yet .event-chip-badge, .event-chip.status-not-yet .event-chip-badge{ background:#94a3b8; color:#0f172a; }
+/* Scheduled = xanh dương pastel */
+.event-chip.status-scheduled{
+  background:linear-gradient(135deg,#e0f2fe,#eff6ff);
+  border-color:#93c5fd;
+}
+.event-chip.status-scheduled .event-chip-title{ color:#0f172a; }
+.event-chip.status-scheduled .event-chip-time{ color:#1d4ed8; }
+
+/* Present = xanh lá nhẹ */
+.event-chip.status-present{
+  background:linear-gradient(135deg,#dcfce7,#ecfdf5);
+  border-color:#86efac;
+}
+.event-chip.status-present .event-chip-title{ color:#065f46; }
+.event-chip.status-present .event-chip-time{ color:#15803d; }
+
+/* Absent = đỏ cam */
+.event-chip.status-absent{
+  background:linear-gradient(135deg,#fee2e2,#fef2f2);
+  border-color:#fecaca;
+}
+.event-chip.status-absent .event-chip-title{ color:#7f1d1d; }
+.event-chip.status-absent .event-chip-time{ color:#b91c1c; }
 
 /* ===== YEAR VIEW ===== */
 .calendar-table td.calendar-month{
@@ -459,23 +608,33 @@ function StaffSchedule() {
 /* ===== RESPONSIVE ===== */
 @media (max-width: 576px){
   .calendar-day{ min-height:90px; padding:6px; }
-  .event-chip{ font-size:11px; }
+  .event-chip{ font-size:11px; padding:6px 8px; }
   .event-chip-time{ font-size:10px; }
   .nav-arrow{ font-size:20px; padding:2px 8px; }
 }
       `}</style>
 
-      {/* TIÊU ĐỀ: LỊCH LÀM VIỆC (staff view only) */}      
+      {/* TIÊU ĐỀ: LỊCH LÀM VIỆC (staff view only) */}
       <div className="d-flex justify-content-center align-items-center mb-3">
-        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Lịch làm việc</h1>
+        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
+          Lịch làm việc
+        </h1>
       </div>
 
-      {/* MODAL CHI TIẾT EVENT - chỉ xem, không có nút hủy */}
-      <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
+      {/* MODAL CHI TIẾT EVENT - chỉ xem, không show status */}
+      <div
+        className="modal fade"
+        id="eventDetailModal"
+        tabIndex="-1"
+        aria-hidden="true"
+        ref={eventModalRef}
+      >
         <div className="modal-dialog">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">{selectedEvent?.title || "Chi tiết lịch làm việc"}</h5>
+              <h5 className="modal-title">
+                {selectedEvent?.title || "Chi tiết lịch làm việc"}
+              </h5>
               <button
                 type="button"
                 className="btn-close"
@@ -488,32 +647,24 @@ function StaffSchedule() {
               {selectedEvent ? (
                 <>
                   <div className="mb-2 text-muted">
-                    Ngày: <strong>{toDDMMYYYY(selectedEvent.date)}</strong>
+                    Ngày:{" "}
+                    <strong>{toDDMMYYYY(selectedEvent.date)}</strong>
                   </div>
                   <div className="mb-2">
                     Thời gian:{" "}
                     <strong>
                       {hhmm(selectedEvent.start)}
-                      {selectedEvent.end ? ` - ${hhmm(selectedEvent.end)}` : ""}
+                      {selectedEvent.end
+                        ? ` - ${hhmm(selectedEvent.end)}`
+                        : ""}
                     </strong>
                   </div>
-                  <div className="mb-2">
-                    Trạng thái:{" "}
-                    <span
-                      className={
-                        (selectedEvent.status || "").toLowerCase() === "present"
-                          ? "badge bg-success"
-                          : (selectedEvent.status || "").toLowerCase() === "absent"
-                          ? "badge bg-danger"
-                          : "badge bg-secondary"
-                      }
-                    >
-                      {selectedEvent.status}
-                    </span>
-                  </div>
+                  {/* Không hiển thị trạng thái cho staff */}
                 </>
               ) : (
-                <div className="text-muted">Không có dữ liệu lịch làm việc.</div>
+                <div className="text-muted">
+                  Không có dữ liệu lịch làm việc.
+                </div>
               )}
             </div>
             <div className="modal-footer">
@@ -530,7 +681,7 @@ function StaffSchedule() {
         </div>
       </div>
 
-      {/* Template calendar */} 
+      {/* Template calendar */}
       <script type="text/tmpl" id="tmpl" ref={tmplRef}>
         {`
   {{ 
@@ -549,7 +700,7 @@ function StaffSchedule() {
     thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
     first = new Date(thedate);
     last = new Date(thedate);
-    last.setDate(last.getDate()+6);
+    last.setDate(thedate.getDate()+6);
   } else if (mode === 'day') {
     thedate = new Date(date);
     first = new Date(thedate);

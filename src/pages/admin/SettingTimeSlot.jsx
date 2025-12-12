@@ -11,8 +11,12 @@ import {
   message,
   Spin,
   Switch,
+  Select,
+  Tag,
 } from "antd";
 import api from "../../config/axios";
+
+const { Option } = Select;
 
 // Chuẩn hóa giờ về dạng HH:mm:ss để backend TimeOnly parse được
 const normalizeTime = (val) => {
@@ -25,6 +29,22 @@ const normalizeTime = (val) => {
   let m = match[2];
   let s = match[3] || "00";
   return `${h}:${m}:${s}`;
+};
+
+// Chuẩn hóa type
+const normalizeType = (val) => {
+  const t = String(val || "").trim().toLowerCase();
+  if (t === "staff") return "Staff";
+  if (t === "trainer") return "Trainer";
+  return "";
+};
+
+// Hiển thị type tiếng Việt (chỉ UI)
+const displayTypeVN = (type) => {
+  const t = normalizeType(type);
+  if (t === "Staff") return "Giờ làm việc";
+  if (t === "Trainer") return "Giờ tập";
+  return "—";
 };
 
 // Sort theo startTime (tăng dần)
@@ -50,7 +70,7 @@ export default function AdminStaffList() {
     setLoading(true);
     try {
       const res = await api.get("/TimeSlot");
-      const data = Array.isArray(res.data) ? res.data : res.data.items || [];
+      const data = Array.isArray(res.data) ? res.data : res.data?.items || [];
       setTimeSlots(sortTimeSlots(data));
     } catch (err) {
       console.error("GET /TimeSlot error:", err.response?.data || err);
@@ -64,16 +84,17 @@ export default function AdminStaffList() {
     fetchTimeSlots();
   }, []);
 
-  // ===== Thêm TimeSlot (POST) - xong gọi lại fetchTimeSlots để reload bảng =====
+  // ===== Thêm TimeSlot (POST) =====
   const handleAdd = async (values) => {
     const startTime = normalizeTime(values.startTime);
     const endTime = normalizeTime(values.endTime);
+    const type = normalizeType(values.type);
 
     const body = {
       slotName: values.slotName,
       startTime,
       endTime,
-      isActive: true, // mặc định ca mới là active
+      type: type || "Staff", // default Staff nếu rỗng
     };
 
     try {
@@ -81,7 +102,6 @@ export default function AdminStaffList() {
       await api.post("/TimeSlot", body);
       message.success("Tạo ca tập thành công!");
       addForm.resetFields();
-      // 🔁 Reload lại toàn bộ danh sách từ backend
       await fetchTimeSlots();
     } catch (err) {
       console.error("POST /TimeSlot error:", err.response?.data || err);
@@ -96,7 +116,7 @@ export default function AdminStaffList() {
     }
   };
 
-  // ===== Xóa TimeSlot (DELETE) với Modal.confirm =====
+  // ===== Xóa TimeSlot (DELETE) =====
   const handleDelete = (record) => {
     const id = record.id ?? record.timeSlotId;
     if (!id) {
@@ -106,7 +126,8 @@ export default function AdminStaffList() {
 
     Modal.confirm({
       title: "Xác nhận xóa ca tập",
-      content: "Bạn có chắc chắn muốn xóa ca tập này? Hành động này không thể hoàn tác.",
+      content:
+        "Bạn có chắc chắn muốn xóa ca tập này? Hành động này không thể hoàn tác.",
       okText: "Xóa",
       cancelText: "Hủy",
       okButtonProps: { danger: true },
@@ -114,7 +135,7 @@ export default function AdminStaffList() {
         try {
           setLoading(true);
           await api.delete(`/TimeSlot/${id}`);
-          await fetchTimeSlots(); // reload lại sau khi xóa
+          await fetchTimeSlots();
           message.success("Xóa ca tập thành công");
         } catch (err) {
           console.error("DELETE /TimeSlot error:", err.response?.data || err);
@@ -138,8 +159,10 @@ export default function AdminStaffList() {
       slotName: record.slotName || "",
       startTime: trimTime(record.startTime),
       endTime: trimTime(record.endTime),
+      type: normalizeType(record.type) || "Staff",
       isActive: record.isActive ?? true,
     });
+
     setEditingSlot(record);
     setEditOpen(true);
   };
@@ -155,11 +178,13 @@ export default function AdminStaffList() {
 
     const startTime = normalizeTime(values.startTime);
     const endTime = normalizeTime(values.endTime);
+    const type = normalizeType(values.type);
 
     const body = {
       slotName: values.slotName,
       startTime,
       endTime,
+      type: type || "Staff",
       isActive:
         typeof values.isActive === "boolean"
           ? values.isActive
@@ -170,8 +195,6 @@ export default function AdminStaffList() {
       setLoading(true);
       await api.put(`/TimeSlot/${id}`, body);
       message.success("Cập nhật ca tập thành công");
-
-      // Reload lại danh sách từ backend để data luôn chuẩn
       await fetchTimeSlots();
 
       setEditOpen(false);
@@ -195,28 +218,43 @@ export default function AdminStaffList() {
       title: "Tên ca",
       dataIndex: "slotName",
       key: "slotName",
-      width: 200,
+      width: 220,
       render: (v) => v || "—",
+    },
+    {
+      title: "Loại ca",
+      dataIndex: "type",
+      key: "type",
+      width: 160,
+      render: (v) => {
+        const t = normalizeType(v);
+        if (!t) return "—";
+        return (
+          <Tag color={t === "Trainer" ? "geekblue" : "green"}>
+            {displayTypeVN(t)}
+          </Tag>
+        );
+      },
     },
     {
       title: "Giờ bắt đầu",
       dataIndex: "startTime",
       key: "startTime",
-      width: 150,
+      width: 140,
       render: (v) => (v ? String(v).substring(0, 5) : "—"), // HH:mm
     },
     {
       title: "Giờ kết thúc",
       dataIndex: "endTime",
       key: "endTime",
-      width: 150,
+      width: 140,
       render: (v) => (v ? String(v).substring(0, 5) : "—"),
     },
     {
       title: "Trạng thái",
       dataIndex: "isActive",
       key: "isActive",
-      width: 140,
+      width: 160,
       render: (v) => (
         <span style={{ whiteSpace: "nowrap" }}>
           <span
@@ -257,6 +295,7 @@ export default function AdminStaffList() {
         <div className="col-lg-3">
           <AdminSidebar />
         </div>
+
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý ca tập</h2>
 
@@ -265,11 +304,17 @@ export default function AdminStaffList() {
             <div className="card-body">
               <h5 className="mb-3">Thêm ca tập mới</h5>
 
-              <Form form={addForm} layout="vertical" onFinish={handleAdd}>
+              <Form
+                form={addForm}
+                layout="vertical"
+                onFinish={handleAdd}
+                initialValues={{ type: "Staff" }}
+              >
                 <div className="row g-3">
                   <div className="col-md-4">
                     <Form.Item
                       name="slotName"
+                      label="Tên ca"
                       rules={[{ required: true, message: "Nhập tên ca" }]}
                     >
                       <Input placeholder="Tên ca (VD: Ca 1)" />
@@ -278,19 +323,34 @@ export default function AdminStaffList() {
 
                   <div className="col-md-4">
                     <Form.Item
-                      name="startTime"
-                      rules={[{ required: true, message: "Nhập giờ bắt đầu" }]}
+                      name="type"
+                      label="Loại ca"
+                      rules={[{ required: true, message: "Chọn loại ca" }]}
                     >
-                      <Input placeholder="Giờ bắt đầu (VD: 6:00 hoặc 06:00)" />
+                      <Select placeholder="Chọn loại ca">
+                        <Option value="Staff">Giờ làm việc</Option>
+                        <Option value="Trainer">Giờ tập</Option>
+                      </Select>
                     </Form.Item>
                   </div>
 
-                  <div className="col-md-4">
+                  <div className="col-md-2">
+                    <Form.Item
+                      name="startTime"
+                      label="Giờ bắt đầu"
+                      rules={[{ required: true, message: "Nhập giờ bắt đầu" }]}
+                    >
+                      <Input placeholder="VD: 6:00 hoặc 06:00" />
+                    </Form.Item>
+                  </div>
+
+                  <div className="col-md-2">
                     <Form.Item
                       name="endTime"
+                      label="Giờ kết thúc"
                       rules={[{ required: true, message: "Nhập giờ kết thúc" }]}
                     >
-                      <Input placeholder="Giờ kết thúc (VD: 7:00 hoặc 07:00)" />
+                      <Input placeholder="VD: 7:00 hoặc 07:00" />
                     </Form.Item>
                   </div>
 
@@ -358,6 +418,17 @@ export default function AdminStaffList() {
           </Form.Item>
 
           <Form.Item
+            name="type"
+            label="Loại ca"
+            rules={[{ required: true, message: "Chọn loại ca" }]}
+          >
+            <Select placeholder="Chọn loại ca">
+              <Option value="Staff">Giờ làm việc</Option>
+              <Option value="Trainer">Giờ tập</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="startTime"
             label="Giờ bắt đầu"
             rules={[{ required: true, message: "Nhập giờ bắt đầu" }]}
@@ -373,11 +444,7 @@ export default function AdminStaffList() {
             <Input placeholder="VD: 7:00 hoặc 07:00" />
           </Form.Item>
 
-          <Form.Item
-            name="isActive"
-            label="Trạng thái"
-            valuePropName="checked"
-          >
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
             <Switch
               checkedChildren="Đang hoạt động"
               unCheckedChildren="Ngưng sử dụng"

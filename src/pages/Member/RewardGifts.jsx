@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Card,
@@ -15,111 +15,94 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Spinner,
 } from "reactstrap";
 import { HiGift } from "react-icons/hi2";
 import { FiStar } from "react-icons/fi";
 import { message } from "antd";
+import api from "../../config/axios";
 
-// ===== MOCK DATA QUÀ TẶNG CÓ THỂ ĐỔI =====
-const MOCK_GIFTS = [
-  {
-    id: 1,
-    name: "Voucher giảm 50% gói PT 1 tháng",
-    image:
-      "https://images.pexels.com/photos/6695769/pexels-photo-6695769.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsRequired: 1500,
-    shortDescription: "Tiết kiệm một nửa chi phí cho gói PT 1-1 trong 1 tháng.",
-    description:
-      "Voucher áp dụng cho tất cả các huấn luyện viên trong hệ thống, có hiệu lực trong vòng 30 ngày kể từ khi đổi quà. Không áp dụng đồng thời với các chương trình khuyến mãi khác.",
-    quantityLeft: 20,
-    terms: [
-      "Không quy đổi ra tiền mặt.",
-      "Mỗi hội viên chỉ được sử dụng tối đa 1 voucher cho mỗi hóa đơn.",
-      "Không áp dụng cùng lúc với các chương trình khuyến mãi khác.",
-    ],
-  },
-  {
-    id: 2,
-    name: "Bình nước thể thao cao cấp",
-    image:
-      "https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsRequired: 800,
-    shortDescription:
-      "Bình nước 1L chống rò rỉ, giúp bạn luôn đủ nước trong buổi tập.",
-    description:
-      "Bình nước thể thao làm từ nhựa cao cấp, không BPA, dung tích 1 lít. Có vạch chia ml, nắp chống rò, phù hợp mang theo khi tập gym hoặc đi làm.",
-    quantityLeft: 45,
-    terms: [
-      "Nhận quà trực tiếp tại quầy lễ tân.",
-      "Không hỗ trợ giao hàng.",
-    ],
-  },
-  {
-    id: 3,
-    name: "Khăn tập Gym cao cấp",
-    image:
-      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsRequired: 500,
-    shortDescription:
-      "Khăn cotton mềm mại, thấm hút tốt cho mỗi buổi tập của bạn.",
-    description:
-      "Khăn tập gym kích thước 35x80cm, chất liệu cotton mềm, thấm hút tốt, nhanh khô. Thích hợp sử dụng trong phòng tập hoặc mang theo hàng ngày.",
-    quantityLeft: 100,
-    terms: [
-      "Không đổi trả sau khi nhận quà.",
-      "Mẫu mã có thể thay đổi tùy đợt nhập hàng.",
-    ],
-  },
-  {
-    id: 4,
-    name: "Voucher 1 lần xông hơi miễn phí",
-    image:
-      "https://images.pexels.com/photos/3738046/pexels-photo-3738046.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsRequired: 600,
-    shortDescription:
-      "Thư giãn cơ bắp và giải tỏa căng thẳng sau buổi tập với 1 lần xông hơi.",
-    description:
-      "Voucher xông hơi miễn phí 1 lần tại phòng xông hơi của hệ thống. Hiệu lực 14 ngày kể từ ngày đổi quà.",
-    quantityLeft: 30,
-    terms: [
-      "Cần đặt lịch trước ít nhất 24h.",
-      "Không áp dụng vào các ngày lễ/tết.",
-    ],
-  },
-];
+// ===== helpers =====
+function pick(obj, keys, fallback = undefined) {
+  for (const k of keys) {
+    if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return fallback;
+}
 
-// ===== MOCK DATA QUÀ ĐÃ ĐỔI =====
-const MOCK_REDEEMED_GIFTS = [
-  {
-    id: 101,
-    name: "Khăn tập Gym cao cấp",
-    image:
-      "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsUsed: 500,
-    redeemedAt: "20/11/2025 18:30",
-    status: "Đã nhận",
-    pickupLocation: "Quầy lễ tân - Chi nhánh Quận 1",
-    note: "Vui lòng mang theo thẻ hội viên khi tới nhận quà.",
-  },
-  {
-    id: 102,
-    name: "Voucher 1 lần xông hơi miễn phí",
-    image:
-      "https://images.pexels.com/photos/3738046/pexels-photo-3738046.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    pointsUsed: 600,
-    redeemedAt: "05/12/2025 09:15",
-    status: "Chưa sử dụng",
-    pickupLocation: "Quầy lễ tân - Chi nhánh Quận 7",
-    note: "Cần đặt lịch trước ít nhất 24h. Hạn sử dụng đến 20/12/2025.",
-  },
-];
+// backend trả datetime không có Z/offset => ép coi là UTC để hiển thị đúng giờ VN
+function toISODateSafe(s) {
+  if (!s) return null;
+  let str = String(s).trim();
+
+  // cắt nano -> milli (Date parse ổn nhất với <= 3 chữ số ms)
+  str = str.replace(/(\.\d{3})\d+(?=(Z|[+-]\d{2}:\d{2})?$)/, "$1");
+
+  const hasTZ = /Z$|[+-]\d{2}:\d{2}$/.test(str);
+  return hasTZ ? str : `${str}Z`;
+}
+
+function formatDateTimeVN(dateStr) {
+  const iso = toISODateSafe(dateStr);
+  if (!iso) return "—";
+  const d = new Date(iso);
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+
+  return `${dd}/${mm}/${yyyy} ${hh}:${mi}`;
+}
+
+function normalizeReward(raw) {
+  const id = pick(raw, ["id", "rewardId", "Id", "RewardId"]);
+  const name = pick(raw, ["rewardName", "RewardName", "name", "Name"], "");
+  const description = pick(raw, ["description", "Description"], "");
+  const pointsRequired = Number(pick(raw, ["pointsRequired", "PointsRequired"], 0));
+  const stockQuantity = Number(
+    pick(raw, ["stockQuantity", "StockQuantity", "quantity", "Quantity"], 0)
+  );
+  const isActive = Boolean(pick(raw, ["isActive", "IsActive"], true));
+  const imageUrl = pick(
+    raw,
+    ["imageUrl", "ImageUrl", "image", "Image", "imagePath", "ImagePath", "fileUrl", "FileUrl"],
+    ""
+  );
+
+  return { id, name, description, pointsRequired, stockQuantity, isActive, imageUrl };
+}
+
+function normalizeMyRedemption(raw) {
+  return {
+    redemptionId: raw?.redemptionId ?? raw?.id,
+    rewardId: raw?.rewardId,
+    rewardName: raw?.rewardName || "—",
+    pointsRedeemed: Number(raw?.pointsRedeemed ?? 0),
+    redemptionDate: raw?.redemptionDate,
+    status: raw?.status || "—",
+    deliveryDate: raw?.deliveryDate,
+    notes: raw?.notes,
+    processorName: raw?.processorName,
+  };
+}
+
+function formatPoints(n) {
+  return Number(n || 0).toLocaleString("vi-VN");
+}
 
 const RewardGifts = () => {
-  // Mock điểm hiện có của member
-  const [currentPoints] = useState(1200);
+  // ===== API states =====
+  const [currentPoints, setCurrentPoints] = useState(0);
+  const [pointsLoading, setPointsLoading] = useState(false);
 
-  const [gifts] = useState(MOCK_GIFTS);
-  const [redeemedGifts] = useState(MOCK_REDEEMED_GIFTS);
+  const [gifts, setGifts] = useState([]);
+  const [giftsLoading, setGiftsLoading] = useState(false);
+
+  // My redemptions
+  const [myGifts, setMyGifts] = useState([]);
+  const [myLoading, setMyLoading] = useState(false);
 
   // 'store' = Đổi quà, 'my' = Quà của tôi
   const [activeTab, setActiveTab] = useState("store");
@@ -131,6 +114,77 @@ const RewardGifts = () => {
   const [selectedSource, setSelectedSource] = useState("store"); // 'store' | 'my'
   const [detailOpen, setDetailOpen] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+
+  const fetchBalance = async () => {
+    setPointsLoading(true);
+    try {
+      const res = await api.get("/Loyalty/balance");
+      const available = Number(pick(res.data, ["availablePoints", "AvailablePoints"], 0));
+      setCurrentPoints(available);
+    } catch (err) {
+      console.error("GET /Loyalty/balance error:", err?.response?.data || err);
+      message.error("Không tải được số dư điểm.");
+    } finally {
+      setPointsLoading(false);
+    }
+  };
+
+  const fetchRewards = async () => {
+    setGiftsLoading(true);
+    try {
+      const res = await api.get("/Reward");
+      const arr = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.items)
+        ? res.data.items
+        : [];
+      const normalized = arr
+        .map(normalizeReward)
+        .filter((x) => x.id != null)
+        .filter((x) => x.isActive !== false);
+      setGifts(normalized);
+    } catch (err) {
+      console.error("GET /Reward error:", err?.response?.data || err);
+      message.error("Không tải được danh sách quà tặng.");
+    } finally {
+      setGiftsLoading(false);
+    }
+  };
+
+  const fetchMyRedemptions = async () => {
+    setMyLoading(true);
+    try {
+      const res = await api.get("/RewardRedemption/me");
+      const arr = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.items)
+        ? res.data.items
+        : [];
+      const mapped = arr.map(normalizeMyRedemption).filter((x) => x.redemptionId != null);
+
+      // sort mới -> cũ theo redemptionDate
+      mapped.sort((a, b) => {
+        const ta = new Date(toISODateSafe(a.redemptionDate) || 0).getTime();
+        const tb = new Date(toISODateSafe(b.redemptionDate) || 0).getTime();
+        return tb - ta;
+      });
+
+      setMyGifts(mapped);
+    } catch (err) {
+      console.error("GET /RewardRedemption/me error:", err?.response?.data || err);
+      message.error("Không tải được danh sách “Quà của tôi”.");
+      setMyGifts([]);
+    } finally {
+      setMyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBalance();
+    fetchRewards();
+    // load luôn để chuyển tab không phải chờ
+    fetchMyRedemptions();
+  }, []);
 
   const handleOpenDetail = (gift, source = "store") => {
     setSelectedGift(gift);
@@ -145,46 +199,50 @@ const RewardGifts = () => {
     setSelectedSource("store");
   };
 
-  const handleRedeem = () => {
-    if (!selectedGift) return;
+  const handleRedeem = async () => {
+    if (!selectedGift?.id) return;
 
     if (currentPoints < selectedGift.pointsRequired) {
       message.warning("Bạn chưa đủ điểm để đổi quà này.");
       return;
     }
 
+    if (selectedGift.stockQuantity <= 0) {
+      message.warning("Quà này đã hết. Vui lòng chọn quà khác.");
+      return;
+    }
+
     try {
       setRedeeming(true);
-      setTimeout(() => {
-        message.success(
-          `Đổi quà thành công (mock): ${selectedGift.name}. Vui lòng liên hệ lễ tân để nhận quà!`
-        );
-        setRedeeming(false);
-        setDetailOpen(false);
-        setSelectedGift(null);
-      }, 700);
+
+      await api.post("/RewardRedemption", { rewardId: selectedGift.id });
+
+      message.success("Đổi quà thành công! Vui lòng liên hệ lễ tân để nhận quà.");
+
+      await Promise.all([fetchBalance(), fetchRewards(), fetchMyRedemptions()]);
+      handleCloseDetail();
     } catch (err) {
-      console.error("Redeem error (mock):", err);
-      message.error("Đổi quà thất bại (mock), vui lòng thử lại!");
+      console.error("POST /RewardRedemption error:", err?.response?.data || err);
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        "Đổi quà thất bại. Vui lòng thử lại!";
+      message.error(apiMsg);
+    } finally {
       setRedeeming(false);
     }
   };
 
-  // ====== ÁP DỤNG FILTER THEO ĐIỂM CHO TAB ĐỔI QUÀ ======
-  const filteredStoreGifts = gifts.filter((gift) => {
-    const p = gift.pointsRequired || 0;
-
-    if (pointFilter === "0-500") {
-      return p <= 500;
-    }
-    if (pointFilter === "500-1000") {
-      return p > 500 && p <= 1000;
-    }
-    if (pointFilter === "1000+") {
-      return p > 1000;
-    }
-    return true; // all
-  });
+  // ===== Filter gifts (tab store) =====
+  const filteredStoreGifts = useMemo(() => {
+    return gifts.filter((gift) => {
+      const p = gift.pointsRequired || 0;
+      if (pointFilter === "0-500") return p <= 500;
+      if (pointFilter === "500-1000") return p > 500 && p <= 1000;
+      if (pointFilter === "1000+") return p > 1000;
+      return true;
+    });
+  }, [gifts, pointFilter]);
 
   return (
     <Container className="mt-5 mb-5" fluid>
@@ -218,15 +276,12 @@ const RewardGifts = () => {
                     <HiGift size={24} />
                   </div>
                   <div>
-                    <h3
-                      className="mb-0"
-                      style={{ fontWeight: 700, letterSpacing: 0.3 }}
-                    >
+                    <h3 className="mb-0" style={{ fontWeight: 700, letterSpacing: 0.3 }}>
                       Quà tặng đổi điểm thưởng
                     </h3>
                     <small style={{ opacity: 0.9 }}>
-                      Tích điểm mỗi lần check-in và thanh toán, đổi lấy quà
-                      tặng hấp dẫn dành riêng cho hội viên.
+                      Tích điểm mỗi lần check-in và thanh toán, đổi lấy quà tặng hấp dẫn
+                      dành riêng cho hội viên.
                     </small>
                   </div>
                 </div>
@@ -240,24 +295,19 @@ const RewardGifts = () => {
                     minWidth: 220,
                   }}
                 >
-                  <div
-                    className="d-flex justify-content-between align-items-center"
-                    style={{ fontSize: 13 }}
-                  >
+                  <div className="d-flex justify-content-between align-items-center" style={{ fontSize: 13 }}>
                     <span style={{ opacity: 0.85 }}>Điểm hiện có</span>
                     <FiStar style={{ opacity: 0.9 }} />
                   </div>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 700,
-                      marginTop: 2,
-                    }}
-                  >
-                    {currentPoints.toLocaleString("vi-VN")}{" "}
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>
-                      điểm
-                    </span>
+                  <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>
+                    {pointsLoading ? (
+                      <span style={{ fontSize: 14, opacity: 0.9 }}>Đang tải...</span>
+                    ) : (
+                      <>
+                        {formatPoints(currentPoints)}{" "}
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>điểm</span>
+                      </>
+                    )}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
                     Đổi quà trước khi điểm hết hạn.
@@ -269,11 +319,7 @@ const RewardGifts = () => {
             <CardBody style={{ backgroundColor: "#f3f4f6" }}>
               {/* TAB SWITCHER */}
               <div className="d-flex justify-content-center mb-3">
-                <div
-                  className="btn-group"
-                  role="group"
-                  aria-label="Reward tabs"
-                >
+                <div className="btn-group" role="group" aria-label="Reward tabs">
                   <Button
                     size="sm"
                     color={activeTab === "store" ? "danger" : "secondary"}
@@ -304,27 +350,18 @@ const RewardGifts = () => {
                 <>
                   {/* Filter theo điểm */}
                   <div className="d-flex justify-content-center mb-3">
-                    <div
-                      className="btn-group"
-                      role="group"
-                      aria-label="Point filter"
-                    >
+                    <div className="btn-group" role="group" aria-label="Point filter">
                       <Button
                         size="sm"
                         color={pointFilter === "all" ? "danger" : "secondary"}
-                        style={{
-                          fontSize: 12,
-                          borderRadius: "999px 0 0 999px",
-                        }}
+                        style={{ fontSize: 12, borderRadius: "999px 0 0 999px" }}
                         onClick={() => setPointFilter("all")}
                       >
                         Tất cả
                       </Button>
                       <Button
                         size="sm"
-                        color={
-                          pointFilter === "0-500" ? "danger" : "secondary"
-                        }
+                        color={pointFilter === "0-500" ? "danger" : "secondary"}
                         style={{ fontSize: 12 }}
                         onClick={() => setPointFilter("0-500")}
                       >
@@ -332,9 +369,7 @@ const RewardGifts = () => {
                       </Button>
                       <Button
                         size="sm"
-                        color={
-                          pointFilter === "500-1000" ? "danger" : "secondary"
-                        }
+                        color={pointFilter === "500-1000" ? "danger" : "secondary"}
                         style={{ fontSize: 12 }}
                         onClick={() => setPointFilter("500-1000")}
                       >
@@ -342,13 +377,8 @@ const RewardGifts = () => {
                       </Button>
                       <Button
                         size="sm"
-                        color={
-                          pointFilter === "1000+" ? "danger" : "secondary"
-                        }
-                        style={{
-                          fontSize: 12,
-                          borderRadius: "0 999px 999px 0",
-                        }}
+                        color={pointFilter === "1000+" ? "danger" : "secondary"}
+                        style={{ fontSize: 12, borderRadius: "0 999px 999px 0" }}
                         onClick={() => setPointFilter("1000+")}
                       >
                         1000+
@@ -356,25 +386,29 @@ const RewardGifts = () => {
                     </div>
                   </div>
 
-                  {filteredStoreGifts.length === 0 && (
+                  {giftsLoading && (
+                    <div className="text-center py-4">
+                      <Spinner size="sm" />{" "}
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>
+                        Đang tải danh sách quà...
+                      </span>
+                    </div>
+                  )}
+
+                  {!giftsLoading && filteredStoreGifts.length === 0 && (
                     <div className="alert alert-light border text-center mb-0">
                       Không có quà nào trong khoảng điểm đã chọn.
                     </div>
                   )}
 
-                  {filteredStoreGifts.length > 0 && (
+                  {!giftsLoading && filteredStoreGifts.length > 0 && (
                     <Row className="mt-2">
                       {filteredStoreGifts.map((gift) => {
-                        const canRedeem =
-                          currentPoints >= gift.pointsRequired;
+                        const canRedeem = currentPoints >= gift.pointsRequired;
+                        const outOfStock = (gift.stockQuantity ?? 0) <= 0;
 
                         return (
-                          <Col
-                            key={gift.id}
-                            lg="4"
-                            md="6"
-                            className="mb-4 d-flex align-items-stretch"
-                          >
+                          <Col key={gift.id} lg="4" md="6" className="mb-4 d-flex align-items-stretch">
                             <Card
                               className="shadow-sm border-0 w-100"
                               style={{
@@ -387,20 +421,19 @@ const RewardGifts = () => {
                               <div style={{ position: "relative" }}>
                                 <CardImg
                                   alt={gift.name}
-                                  src={gift.image}
+                                  src={gift.imageUrl || "https://via.placeholder.com/400x240?text=Gift"}
                                   top
                                   style={{
                                     height: 180,
                                     objectFit: "cover",
-                                    filter: "brightness(0.95)",
+                                    filter: outOfStock ? "grayscale(0.6)" : "brightness(0.95)",
                                   }}
                                   onError={(e) => {
-                                    e.currentTarget.src =
-                                      "https://via.placeholder.com/400x240?text=Gift";
+                                    e.currentTarget.src = "https://via.placeholder.com/400x240?text=Gift";
                                   }}
                                 />
                                 <Badge
-                                  color="warning"
+                                  color={outOfStock ? "secondary" : "warning"}
                                   style={{
                                     position: "absolute",
                                     left: 12,
@@ -410,38 +443,24 @@ const RewardGifts = () => {
                                     fontSize: 11,
                                   }}
                                 >
-                                  {gift.quantityLeft > 0
-                                    ? `Còn ${gift.quantityLeft} quà`
-                                    : "Sắp hết quà"}
+                                  {outOfStock ? "Hết quà" : `Còn ${gift.stockQuantity} quà`}
                                 </Badge>
                               </div>
 
-                              <CardBody
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                }}
-                              >
+                              <CardBody style={{ display: "flex", flexDirection: "column" }}>
                                 <CardTitle
                                   tag="h5"
-                                  style={{
-                                    fontSize: 17,
-                                    fontWeight: 700,
-                                    color: "#111827",
-                                  }}
+                                  style={{ fontSize: 17, fontWeight: 700, color: "#111827" }}
                                   className="mb-1"
                                 >
                                   {gift.name}
                                 </CardTitle>
+
                                 <CardText
-                                  style={{
-                                    fontSize: 13,
-                                    color: "#6b7280",
-                                    minHeight: 40,
-                                  }}
+                                  style={{ fontSize: 13, color: "#6b7280", minHeight: 40 }}
                                   className="mb-2"
                                 >
-                                  {gift.shortDescription}
+                                  {gift.description ? gift.description : "—"}
                                 </CardText>
 
                                 <div className="d-flex align-items-center mb-3">
@@ -455,20 +474,17 @@ const RewardGifts = () => {
                                       color: "#1d4ed8",
                                     }}
                                   >
-                                    {gift.pointsRequired.toLocaleString(
-                                      "vi-VN"
-                                    )}{" "}
-                                    điểm
+                                    {formatPoints(gift.pointsRequired)} điểm
                                   </div>
+
                                   {!canRedeem && (
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        marginLeft: 8,
-                                        color: "#b91c1c",
-                                      }}
-                                    >
+                                    <span style={{ fontSize: 11, marginLeft: 8, color: "#b91c1c" }}>
                                       Bạn chưa đủ điểm
+                                    </span>
+                                  )}
+                                  {outOfStock && (
+                                    <span style={{ fontSize: 11, marginLeft: 8, color: "#6b7280" }}>
+                                      Hết hàng
                                     </span>
                                   )}
                                 </div>
@@ -477,33 +493,24 @@ const RewardGifts = () => {
                                   <Button
                                     size="sm"
                                     color="light"
-                                    style={{
-                                      borderRadius: 999,
-                                      borderColor: "#e5e7eb",
-                                      fontSize: 13,
-                                    }}
-                                    onClick={() =>
-                                      handleOpenDetail(gift, "store")
-                                    }
+                                    style={{ borderRadius: 999, borderColor: "#e5e7eb", fontSize: 13 }}
+                                    onClick={() => handleOpenDetail(gift, "store")}
                                   >
                                     Chi tiết
                                   </Button>
+
                                   <Button
                                     size="sm"
-                                    color={
-                                      canRedeem ? "primary" : "secondary"
-                                    }
+                                    color={canRedeem && !outOfStock ? "primary" : "secondary"}
                                     style={{
                                       borderRadius: 999,
                                       fontSize: 13,
-                                      opacity: canRedeem ? 1 : 0.8,
+                                      opacity: canRedeem && !outOfStock ? 1 : 0.85,
                                     }}
-                                    disabled={!canRedeem}
-                                    onClick={() =>
-                                      handleOpenDetail(gift, "store")
-                                    }
+                                    disabled={!canRedeem || outOfStock}
+                                    onClick={() => handleOpenDetail(gift, "store")}
                                   >
-                                    {canRedeem ? "Đổi ngay" : "Chưa đủ điểm"}
+                                    {outOfStock ? "Hết quà" : canRedeem ? "Đổi ngay" : "Chưa đủ điểm"}
                                   </Button>
                                 </div>
                               </CardBody>
@@ -519,132 +526,96 @@ const RewardGifts = () => {
               {/* ========== TAB: QUÀ CỦA TÔI ========== */}
               {activeTab === "my" && (
                 <>
-                  {redeemedGifts.length === 0 && (
-                    <div className="alert alert-light border text-center mb-0">
-                      Bạn chưa đổi quà nào. Hãy tích điểm và đổi những phần
-                      quà hấp dẫn nhé!
+                  {myLoading && (
+                    <div className="text-center py-4">
+                      <Spinner size="sm" />{" "}
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>
+                        Đang tải quà của tôi...
+                      </span>
                     </div>
                   )}
 
-                  {redeemedGifts.length > 0 && (
-                    <Row className="mt-2">
-                      {redeemedGifts.map((gift) => (
-                        <Col
-                          key={gift.id}
-                          lg="6"
-                          md="6"
-                          className="mb-4 d-flex align-items-stretch"
-                        >
-                          <Card
-                            className="shadow-sm border-0 w-100"
-                            style={{
-                              borderRadius: "0.75rem",
-                              overflow: "hidden",
-                              display: "flex",
-                              flexDirection: "row",
-                            }}
-                          >
-                            <div style={{ width: 140, flexShrink: 0 }}>
-                              <CardImg
-                                alt={gift.name}
-                                src={gift.image}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                                onError={(e) => {
-                                  e.currentTarget.src =
-                                    "https://via.placeholder.com/240x240?text=Gift";
-                                }}
-                              />
-                            </div>
+                  {!myLoading && myGifts.length === 0 && (
+                    <div className="alert alert-light border text-center mb-0">
+                      Bạn chưa đổi quà nào.
+                    </div>
+                  )}
 
-                            <CardBody
+                  {!myLoading && myGifts.length > 0 && (
+                    <Row className="mt-2">
+                      {myGifts.map((r) => {
+                        const statusColor =
+                          String(r.status).toLowerCase() === "completed"
+                            ? "success"
+                            : String(r.status).toLowerCase() === "cancelled"
+                            ? "secondary"
+                            : "warning"; // Pending / Processing
+
+                        return (
+                          <Col
+                            key={r.redemptionId}
+                            lg="4"
+                            md="6"
+                            className="mb-4 d-flex align-items-stretch"
+                          >
+                            <Card
+                              className="shadow-sm border-0 w-100"
                               style={{
+                                borderRadius: "0.75rem",
+                                overflow: "hidden",
                                 display: "flex",
                                 flexDirection: "column",
-                                backgroundColor: "#f9fafb",
                               }}
                             >
-                              <div className="d-flex justify-content-between align-items-start mb-1">
-                                <CardTitle
-                                  tag="h5"
-                                  className="mb-0"
-                                  style={{
-                                    fontSize: 16,
-                                    fontWeight: 700,
-                                    color: "#111827",
-                                  }}
-                                >
-                                  {gift.name}
-                                </CardTitle>
-                                <Badge
-                                  color={
-                                    gift.status === "Đã nhận"
-                                      ? "success"
-                                      : "info"
-                                  }
-                                  pill
-                                  style={{ fontSize: 11 }}
-                                >
-                                  {gift.status}
-                                </Badge>
-                              </div>
+                              <CardBody style={{ display: "flex", flexDirection: "column" }}>
+                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                  <CardTitle
+                                    tag="h5"
+                                    style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}
+                                    className="mb-0"
+                                  >
+                                    {r.rewardName}
+                                  </CardTitle>
 
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  color: "#4b5563",
-                                  marginBottom: 4,
-                                }}
-                              >
-                                Đã sử dụng{" "}
-                                <strong>
-                                  {gift.pointsUsed.toLocaleString("vi-VN")} điểm
-                                </strong>
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  color: "#6b7280",
-                                  marginBottom: 4,
-                                }}
-                              >
-                                Thời gian đổi:{" "}
-                                <strong>{gift.redeemedAt}</strong>
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  color: "#6b7280",
-                                  marginBottom: 8,
-                                }}
-                              >
-                                Nhận tại:{" "}
-                                <strong>{gift.pickupLocation}</strong>
-                              </div>
+                                  <Badge color={statusColor} pill>
+                                    {r.status}
+                                  </Badge>
+                                </div>
 
-                              <div className="mt-auto d-flex justify-content-end">
-                                <Button
-                                  size="sm"
-                                  color="light"
-                                  style={{
-                                    borderRadius: 999,
-                                    borderColor: "#e5e7eb",
-                                    fontSize: 13,
-                                  }}
-                                  onClick={() =>
-                                    handleOpenDetail(gift, "my")
-                                  }
-                                >
-                                  Xem chi tiết
-                                </Button>
-                              </div>
-                            </CardBody>
-                          </Card>
-                        </Col>
-                      ))}
+                                <CardText style={{ fontSize: 13, color: "#6b7280" }} className="mb-2">
+                                  Đổi lúc: <b>{formatDateTimeVN(r.redemptionDate)}</b>
+                                </CardText>
+
+                                <div className="d-flex align-items-center mb-3">
+                                  <div
+                                    style={{
+                                      backgroundColor: "#fff7ed",
+                                      borderRadius: 999,
+                                      padding: "6px 12px",
+                                      fontSize: 12,
+                                      fontWeight: 700,
+                                      color: "#c2410c",
+                                    }}
+                                  >
+                                    -{formatPoints(r.pointsRedeemed)} điểm
+                                  </div>
+                                </div>
+
+                                <div className="d-flex justify-content-between mt-auto">
+                                  <Button
+                                    size="sm"
+                                    color="light"
+                                    style={{ borderRadius: 999, borderColor: "#e5e7eb", fontSize: 13 }}
+                                    onClick={() => handleOpenDetail(r, "my")}
+                                  >
+                                    Chi tiết
+                                  </Button>
+                                </div>
+                              </CardBody>
+                            </Card>
+                          </Col>
+                        );
+                      })}
                     </Row>
                   )}
                 </>
@@ -654,7 +625,7 @@ const RewardGifts = () => {
         </Col>
       </Row>
 
-      {/* ========== MODAL CHI TIẾT QUÀ TẶNG ========== */}
+      {/* ========== MODAL CHI TIẾT ========== */}
       <Modal isOpen={detailOpen} toggle={handleCloseDetail} centered size="md">
         <ModalHeader
           toggle={handleCloseDetail}
@@ -664,175 +635,132 @@ const RewardGifts = () => {
             fontWeight: 700,
           }}
         >
-          {selectedGift?.name || "Chi tiết quà tặng"}
+          {/* store: selectedGift.name | my: selectedGift.rewardName */}
+          {selectedSource === "my"
+            ? selectedGift?.rewardName || "Chi tiết quà đã đổi"
+            : selectedGift?.name || "Chi tiết quà tặng"}
         </ModalHeader>
+
         <ModalBody style={{ paddingTop: 0 }}>
-          {selectedGift && (
+          {selectedGift && selectedSource === "store" && (
             <>
-              <div
-                style={{
-                  borderRadius: "0.75rem",
-                  overflow: "hidden",
-                  marginBottom: 12,
-                }}
-              >
+              <div style={{ borderRadius: "0.75rem", overflow: "hidden", marginBottom: 12 }}>
                 <img
-                  src={selectedGift.image}
+                  src={selectedGift.imageUrl || "https://via.placeholder.com/600x340?text=Gift"}
                   alt={selectedGift.name}
-                  style={{
-                    width: "100%",
-                    height: 220,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
+                  style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
                   onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/600x340?text=Gift";
+                    e.currentTarget.src = "https://via.placeholder.com/600x340?text=Gift";
                   }}
                 />
               </div>
 
-              {/* Nếu mở từ tab ĐỔI QUÀ */}
-              {selectedSource === "store" && (
-                <>
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <div
-                      style={{
-                        backgroundColor: "#eff6ff",
-                        borderRadius: 999,
-                        padding: "6px 14px",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "#1d4ed8",
-                      }}
-                    >
-                      {selectedGift.pointsRequired.toLocaleString("vi-VN")} điểm
-                      cần để đổi
-                    </div>
-                    <Badge color="warning" pill>
-                      {selectedGift.quantityLeft > 0
-                        ? `Còn ${selectedGift.quantityLeft} quà`
-                        : "Sắp hết quà"}
-                    </Badge>
-                  </div>
-                </>
-              )}
-
-              {/* Nếu mở từ tab QUÀ CỦA TÔI */}
-              {selectedSource === "my" && (
-                <div
-                  className="mb-2"
-                  style={{ fontSize: 13, color: "#4b5563" }}
-                >
-                  <div>
-                    Đã dùng{" "}
-                    <strong>
-                      {selectedGift.pointsUsed.toLocaleString("vi-VN")} điểm
-                    </strong>
-                  </div>
-                  <div>
-                    Thời gian đổi:{" "}
-                    <strong>{selectedGift.redeemedAt}</strong>
-                  </div>
-                  <div>
-                    Nhận tại:{" "}
-                    <strong>{selectedGift.pickupLocation}</strong>
-                  </div>
-                </div>
-              )}
-
-              {/* Mô tả / ghi chú */}
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#4b5563",
-                  marginBottom: 8,
-                }}
-              >
-                {selectedGift.description || selectedGift.note}
-              </p>
-
-              {/* Điều kiện & lưu ý */}
-              {selectedSource === "store" &&
-                selectedGift.terms &&
-                selectedGift.terms.length > 0 && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#6b7280",
-                      backgroundColor: "#f9fafb",
-                      borderRadius: "0.75rem",
-                      padding: "10px 12px",
-                      marginTop: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 12,
-                        marginBottom: 4,
-                        color: "#111827",
-                      }}
-                    >
-                      Điều kiện & lưu ý:
-                    </div>
-                    <ul style={{ paddingLeft: "1.1rem", marginBottom: 0 }}>
-                      {selectedGift.terms.map((t, idx) => (
-                        <li key={idx}>{t}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-              {selectedSource === "my" && selectedGift.note && (
+              <div className="d-flex justify-content-between align-items-center mb-2">
                 <div
                   style={{
-                    fontSize: 12,
-                    color: "#6b7280",
-                    backgroundColor: "#f9fafb",
-                    borderRadius: "0.75rem",
-                    padding: "10px 12px",
-                    marginTop: 8,
+                    backgroundColor: "#eff6ff",
+                    borderRadius: 999,
+                    padding: "6px 14px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#1d4ed8",
                   }}
                 >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 12,
-                      marginBottom: 4,
-                      color: "#111827",
-                    }}
-                  >
-                    Ghi chú:
-                  </div>
-                  <div>{selectedGift.note}</div>
+                  {formatPoints(selectedGift.pointsRequired)} điểm cần để đổi
                 </div>
-              )}
+
+                <Badge
+                  color={(selectedGift.stockQuantity ?? 0) > 0 ? "warning" : "secondary"}
+                  pill
+                >
+                  {(selectedGift.stockQuantity ?? 0) > 0
+                    ? `Còn ${selectedGift.stockQuantity} quà`
+                    : "Hết quà"}
+                </Badge>
+              </div>
+
+              <p style={{ fontSize: 13, color: "#4b5563", marginBottom: 8 }}>
+                {selectedGift.description || "—"}
+              </p>
+            </>
+          )}
+
+          {selectedGift && selectedSource === "my" && (
+            <>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <div
+                  style={{
+                    backgroundColor: "#fff7ed",
+                    borderRadius: 999,
+                    padding: "6px 14px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#c2410c",
+                  }}
+                >
+                  -{formatPoints(selectedGift.pointsRedeemed)} điểm
+                </div>
+
+                <Badge
+                  color={
+                    String(selectedGift.status).toLowerCase() === "completed"
+                      ? "success"
+                      : String(selectedGift.status).toLowerCase() === "cancelled"
+                      ? "secondary"
+                      : "warning"
+                  }
+                  pill
+                >
+                  {selectedGift.status || "—"}
+                </Badge>
+              </div>
+
+              <div style={{ fontSize: 13, color: "#4b5563" }}>
+                <div className="mb-1">
+                  Thời gian đổi: <b>{formatDateTimeVN(selectedGift.redemptionDate)}</b>
+                </div>
+                <div className="mb-1">
+                  Ngày giao (nếu có):{" "}
+                  <b>{selectedGift.deliveryDate ? formatDateTimeVN(selectedGift.deliveryDate) : "—"}</b>
+                </div>
+                <div className="mb-1">
+                  Người xử lý: <b>{selectedGift.processorName || "—"}</b>
+                </div>
+                <div className="mb-1">
+                  Ghi chú: <b>{selectedGift.notes || "—"}</b>
+                </div>
+              </div>
             </>
           )}
         </ModalBody>
+
         <ModalFooter style={{ borderTop: "none" }}>
-          <Button color="secondary" outline onClick={handleCloseDetail}>
+          <Button color="secondary" outline onClick={handleCloseDetail} disabled={redeeming}>
             Đóng
           </Button>
 
-          {/* Nút xác nhận đổi quà chỉ hiện ở TAB ĐỔI QUÀ */}
+          {/* chỉ cho redeem ở store */}
           {selectedGift && selectedSource === "store" && (
             <Button
               color={
-                currentPoints >= selectedGift.pointsRequired
+                currentPoints >= selectedGift.pointsRequired &&
+                (selectedGift.stockQuantity ?? 0) > 0
                   ? "primary"
                   : "secondary"
               }
               disabled={
-                currentPoints < selectedGift.pointsRequired || redeeming
+                redeeming ||
+                currentPoints < selectedGift.pointsRequired ||
+                (selectedGift.stockQuantity ?? 0) <= 0
               }
               onClick={handleRedeem}
             >
               {redeeming
                 ? "Đang xử lý..."
+                : (selectedGift.stockQuantity ?? 0) <= 0
+                ? "Hết quà"
                 : currentPoints >= selectedGift.pointsRequired
-                ? "Xác nhận đổi quà (mock)"
+                ? "Xác nhận đổi quà"
                 : "Chưa đủ điểm"}
             </Button>
           )}

@@ -7,9 +7,10 @@ import api from "../../config/axios";
 const styles = `
 .card-shadow { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); }
 
-.status-pending { color: #0d6efd; font-weight: 600; }
+.status-pending { color: #0d6efd; font-weight: 600; } /* vẫn giữ đề phòng nếu dùng nơi khác */
 .status-failed { color: #dc3545; font-weight: 600; }
 .status-completed { color: #198754; font-weight: 600; }
+.status-refunded { color: #6f42c1; font-weight: 600; }
 
 .modal-backdrop-custom {
   position: fixed; inset: 0; background: rgba(0,0,0,.35);
@@ -76,6 +77,9 @@ function getPaymentStatusDisplay(payment) {
   if (status === "completed" || status === "success") {
     return { text: "Thanh toán thành công", className: "status-completed" };
   }
+  if (status === "refunded") {
+    return { text: "Đã hoàn tiền", className: "status-refunded" };
+  }
   return { text: raw || "Không rõ", className: "text-muted fw-semibold" };
 }
 
@@ -105,7 +109,7 @@ export default function PaymentHistory() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
-  // filter tab: all / pending / failed / completed
+  // filter tab: all / failed / completed / refunded (❌ không còn pending)
   const [filterStatus, setFilterStatus] = useState("all");
 
   // phân trang
@@ -204,16 +208,21 @@ export default function PaymentHistory() {
     [payments]
   );
 
-  // lọc theo tab
+  // lọc theo tab + loại bỏ Pending
   const filteredPayments = useMemo(() => {
-    if (filterStatus === "all") return sortedPayments;
+    // luôn loại Pending khỏi mọi tab
+    const nonPending = sortedPayments.filter(
+      (p) => (p.paymentStatus || "").toLowerCase() !== "pending"
+    );
 
-    return sortedPayments.filter((p) => {
+    if (filterStatus === "all") return nonPending;
+
+    return nonPending.filter((p) => {
       const st = (p.paymentStatus || "").toLowerCase();
-      if (filterStatus === "pending") return st === "pending";
       if (filterStatus === "failed") return st === "failed";
       if (filterStatus === "completed")
         return st === "completed" || st === "success";
+      if (filterStatus === "refunded") return st === "refunded";
       return true;
     });
   }, [sortedPayments, filterStatus]);
@@ -267,6 +276,7 @@ export default function PaymentHistory() {
   };
 
   // ===== Tiếp tục thanh toán cho payment Pending =====
+  // (Thực tế sẽ không dùng nữa vì Pending đã bị lọc ra, nhưng để code an toàn vẫn giữ)
   const handleContinuePayment = () => {
     if (!selected) return;
 
@@ -300,13 +310,15 @@ export default function PaymentHistory() {
       <li className="nav-item">
         <button
           type="button"
-          className={"nav-link " + (filterStatus === "pending" ? "active" : "")}
+          className={
+            "nav-link " + (filterStatus === "completed" ? "active" : "")
+          }
           onClick={() => {
-            setFilterStatus("pending");
+            setFilterStatus("completed");
             setCurrentPage(1);
           }}
         >
-          Đang chờ
+          Thành công
         </button>
       </li>
       <li className="nav-item">
@@ -324,13 +336,15 @@ export default function PaymentHistory() {
       <li className="nav-item">
         <button
           type="button"
-          className={"nav-link " + (filterStatus === "completed" ? "active" : "")}
+          className={
+            "nav-link " + (filterStatus === "refunded" ? "active" : "")
+          }
           onClick={() => {
-            setFilterStatus("completed");
+            setFilterStatus("refunded");
             setCurrentPage(1);
           }}
         >
-          Thành công
+          Đã hoàn tiền
         </button>
       </li>
     </ul>
@@ -357,8 +371,12 @@ export default function PaymentHistory() {
 
         <div className="row mb-3 text-center">
           <div className="col-12">
-            <h3 className="mb-0 fw-bold" 
-              style={{ color: "#fde6e6ff", fontSize: "50px" }}>Lịch sử thanh toán</h3>
+            <h3
+              className="mb-0 fw-bold"
+              style={{ color: "#fde6e6ff", fontSize: "50px" }}
+            >
+              Lịch sử thanh toán
+            </h3>
           </div>
         </div>
 
@@ -651,7 +669,8 @@ export default function PaymentHistory() {
                   Đóng
                 </button>
 
-                {/* Chỉ cho phép tiếp tục thanh toán khi Pending + có Stripe PI Id */}
+                {/* Chỉ cho phép tiếp tục thanh toán khi Pending + có Stripe PI Id
+                    => do Pending đã bị lọc nên thực tế nút này không xuất hiện nữa */}
                 {(() => {
                   const rawStatus = (selected.paymentStatus || "").toLowerCase();
                   const piId = getStripePaymentIntentId(selected);

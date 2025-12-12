@@ -92,7 +92,7 @@ export default function Navbar() {
                   <div className="pe-0">
                     <span className=" small" style={{ color: "white" }}>
                       <i className="fa fa-clock text-primary me-2"></i>
-                      Thứ Hai - Chủ Nhật: 5.00 am - 9.00 pm
+                      Thứ Hai - Chủ Nhật: 6.00 am - 10.00 pm
                     </span>
                   </div>
                 </div>
@@ -169,8 +169,7 @@ export default function Navbar() {
                               onClick={goToPointsHistory}
                               title="Xem lịch sử điểm thưởng"
                             >
-                              {rewardPoints}
-                              <span style={{ marginRight: 2 }}>₫</span>
+                              {rewardPoints} điểm
                             </span>
                           )}
                         </div>
