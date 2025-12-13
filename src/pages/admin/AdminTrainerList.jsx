@@ -176,29 +176,53 @@ export default function AdminTrainerList() {
   };
 
   // DELETE trainer
-  const handleDelete = async (record) => {
-    if (!window.confirm("Bạn có chắc muốn xoá HLV này?")) return;
-    try {
-      const id = record?.id || record?.raw?.userId;
-      if (!id) {
-        setTrainers((p) => p.filter((t) => t !== record));
-        message.success("Đã xóa (local)");
-        return;
-      }
-
+  const handleDelete = (record) => {
+  Modal.confirm({
+    title: "Xác nhận xoá Huấn luyện viên",
+    content: (
+      <>
+        <p>
+          Bạn có chắc chắn muốn xoá huấn luyện viên:
+          <strong>
+            {" "}
+            {record.lastName} {record.firstName}
+          </strong>
+          ?
+        </p>
+      </>
+    ),
+    okText: "Xoá",
+    okType: "danger",
+    cancelText: "Huỷ",
+    async onOk() {
       try {
-        await api.delete(`/Admin/user/${id}`);
-      } catch (err) {
-        await api.delete(`/Admin/user/${id}`);
-      }
+        const id = record?.id || record?.raw?.userId;
 
-      message.success("Xóa tài khoản thành công");
-      await fetchTrainers();
-    } catch (err) {
-      console.error("delete trainer error", err);
-      message.error("Xóa thất bại");
-    }
-  };
+        if (!id) {
+          // fallback local
+          setTrainers((prev) => prev.filter((t) => t !== record));
+          message.success("Đã xoá (local)");
+          return;
+        }
+
+        // call API
+        try {
+          await api.delete(`/Admin/user/${id}`);
+        } catch {
+          // fallback nếu backend map khác
+          await api.delete(`/Admin/trainer/${id}`);
+        }
+
+        message.success("Xoá huấn luyện viên thành công");
+        await fetchTrainers();
+      } catch (err) {
+        console.error("delete trainer error", err);
+        message.error("Xoá huấn luyện viên thất bại");
+      }
+    },
+  });
+};
+
 
   // OPEN edit modal
   const openEdit = (record) => {

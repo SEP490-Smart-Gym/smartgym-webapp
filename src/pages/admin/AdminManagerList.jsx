@@ -166,20 +166,37 @@ export default function AdminManagerList() {
   };
 
   // DELETE
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa manager này?")) return;
-    try {
-      await api.delete(`/Admin/user/${id}`);
+  const handleDelete = (record) => {
+  Modal.confirm({
+    title: "Xác nhận xoá Manager",
+    content: (
+      <>
+        <p>
+          Bạn có chắc chắn muốn xoá manager:
+          <strong>
+            {" "}
+            {record.lastName} {record.firstName}
+          </strong>
+          ?
+        </p>
+      </>
+    ),
+    okText: "Xoá",
+    okType: "danger",
+    cancelText: "Huỷ",
+    async onOk() {
+      try {
+        await api.delete(`/Admin/user/${record.id}`);
+        message.success("Xoá manager thành công");
+        await fetchManagers();
+      } catch (err) {
+        console.error("delete manager error", err);
+        message.error("Xoá manager thất bại");
+      }
+    },
+  });
+};
 
-      // fetch lại danh sách
-      await fetchManagers();
-
-      message.success("Xóa thành công");
-    } catch (err) {
-      console.error("delete manager error", err);
-      message.error("Xóa thất bại");
-    }
-  };
 
   // EDIT (open modal with form)
   const openEdit = (record) => {
@@ -309,7 +326,7 @@ export default function AdminManagerList() {
           <Button size="small" onClick={() => openEdit(record)}>
             Sửa
           </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+          <Button size="small" danger onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
