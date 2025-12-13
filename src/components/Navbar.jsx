@@ -195,7 +195,7 @@ export default function Navbar() {
                               onClick={goToPointsHistory}
                               title="Xem lịch sử điểm thưởng"
                             >
-                              {availablePoints} điểm
+                              {(Number(availablePoints) || 0).toLocaleString("vi-VN")} điểm
                             </span>
                           )}
                         </div>

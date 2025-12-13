@@ -32,9 +32,7 @@ const ProfileMember = () => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   // State chung cho cả User + Health
@@ -65,27 +63,23 @@ const ProfileMember = () => {
     confirm: false,
   });
 
-  // 🧮 Tự động tính BMI khi cân nặng/chiều cao thay đổi
-  useEffect(() => {
-    const { canNang, chieuCao } = userInfo;
-    if (canNang && chieuCao) {
-      const weight = Number(canNang);
-      const height = Number(chieuCao);
-      if (!isNaN(weight) && !isNaN(height) && height > 0) {
-        const heightInMeters = height / 100;
-        const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
-        setUserInfo((prev) => ({ ...prev, bmi }));
-      }
-    } else {
-      // nếu thiếu 1 trong 2 thì clear BMI
-      setUserInfo((prev) => ({ ...prev, bmi: "" }));
-    }
-  }, [userInfo.canNang, userInfo.chieuCao]);
+  /** ================== VALIDATORS ================== */
+  const isValidEmail = (email) => {
+    if (!email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
+  };
+
+  // chấp nhận 0xxxxxxxxx hoặc +84xxxxxxxxx
+  const isValidVNPhone = (phone) => {
+    if (!phone) return false;
+    const p = String(phone).trim();
+    return /^(0\d{9}|\+84\d{9})$/.test(p);
+  };
 
   // 👉 Chuyển string dd/MM/yyyy -> Date (cho react-datepicker)
   const toDateFromDDMMYYYY = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
     return isNaN(d) ? null : d;
@@ -103,7 +97,7 @@ const ProfileMember = () => {
   // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần cho API, tránh timezone)
   const toApiDate = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     return `${yyyy}-${mm}-${dd}`;
   };
@@ -111,7 +105,7 @@ const ProfileMember = () => {
   // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
   const calculateAge = (birthdayString) => {
     if (!birthdayString) return "";
-    const [day, month, year] = birthdayString.split("/").map(Number);
+    const [day, month, year] = String(birthdayString).split("/").map(Number);
     if (!day || !month || !year) return "";
     const today = new Date();
     let age = today.getFullYear() - year;
@@ -122,61 +116,85 @@ const ProfileMember = () => {
     return age >= 0 ? age : "";
   };
 
-  const handleButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+  /** ================== BMI AUTO ================== */
+  useEffect(() => {
+    const { canNang, chieuCao } = userInfo;
+    if (canNang !== "" && chieuCao !== "") {
+      const weight = Number(canNang);
+      const height = Number(chieuCao);
+      if (!isNaN(weight) && !isNaN(height) && height > 0) {
+        const heightInMeters = height / 100;
+        const bmi = (weight / (heightInMeters * heightInMeters)).toFixed(1);
+        setUserInfo((prev) => ({ ...prev, bmi }));
+      } else {
+        setUserInfo((prev) => ({ ...prev, bmi: "" }));
+      }
+    } else {
+      setUserInfo((prev) => ({ ...prev, bmi: "" }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo.canNang, userInfo.chieuCao]);
+
+  /** ================== AVATAR UPLOAD ================== */
+  const handleButtonClick = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   const handleFileChange = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Preview tạm
-  const localUrl = URL.createObjectURL(file);
-  setPreview(localUrl);
+    const loadingKey = "upload-avatar";
 
-  try {
-    const formData = new FormData();
-    formData.append("file", file); 
+    // Preview tạm
+    const localUrl = URL.createObjectURL(file);
+    setPreview(localUrl);
 
-
-    const res = await api.post("/UserAccount/avatar/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
+    message.loading({
+      content: "Đang tải ảnh lên...",
+      key: loadingKey,
+      duration: 0,
     });
 
-    const newAvatarUrl = res.data?.profileImageUrl || localUrl;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    // Cập nhật UI
-    setUser((prev) => ({
-      ...(prev || {}),
-      photo: newAvatarUrl,
-    }));
+      const res = await api.post("/UserAccount/avatar/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-    // Cập nhật localStorage
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      parsed.photo = newAvatarUrl;
-      localStorage.setItem("user", JSON.stringify(parsed));
+      const newAvatarUrl = res.data?.profileImageUrl || localUrl;
+
+      setUser((prev) => ({ ...(prev || {}), photo: newAvatarUrl }));
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        parsed.photo = newAvatarUrl;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+
+      window.dispatchEvent(new Event("app-auth-changed"));
+
+      message.success({
+        content: "Cập nhật ảnh đại diện thành công!",
+        key: loadingKey,
+        duration: 2,
+      });
+    } catch (err) {
+      console.error("Upload avatar failed:", err);
+      message.error({
+        content: "Không thể tải ảnh lên, vui lòng thử lại!",
+        key: loadingKey,
+        duration: 3,
+      });
     }
-
-    // Bắn event để Navbar refresh avatar
-    window.dispatchEvent(new Event("app-auth-changed"));
-
-    message.success("Cập nhật ảnh đại diện thành công!");
-  } catch (err) {
-    console.error("Upload avatar failed:", err);
-    message.error("Không thể upload ảnh, vui lòng thử lại!");
-  }
-};
-
+  };
 
   const age = calculateAge(userInfo.birthday);
 
-  
+  /** ================== FETCH USER (TAB USER) ================== */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
@@ -186,19 +204,47 @@ const ProfileMember = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || ""} ${
-          data.firstName || ""
-        }`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${data.firstName || ""}`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
-          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
           const datePart = String(data.dateOfBirth).split("T")[0];
           const [yyyy, mm, dd] = datePart.split("-");
-          if (dd && mm && yyyy) {
-            birthday = `${dd}/${mm}/${yyyy}`;
-          }
+          if (dd && mm && yyyy) birthday = `${dd}/${mm}/${yyyy}`;
         }
+
+        setUserInfo((prev) => ({
+          ...prev,
+          fullName: fullNameFromApi,
+          email: data.email || "",
+          phone: data.phoneNumber || "",
+          address: data.address || "",
+          birthday,
+          // giới tính nằm ở tab sức khỏe -> fill ở fetch profile
+        }));
+      } catch (err) {
+        if (err.response?.status === 401) {
+          message.warning("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+          navigate("/login");
+          return;
+        }
+        console.error("Error fetching /UserAccount/me:", err);
+        message.error("Không thể tải thông tin cá nhân. Vui lòng thử lại!");
+      }
+    };
+
+    fetchUserInfoFromApi();
+  }, [navigate]);
+
+  /** ================== FETCH MEMBER PROFILE (TAB HEALTH) ================== */
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+
+    const fetchMemberProfile = async () => {
+      try {
+        const res = await api.get("/Profile/my-profile");
+        const data = res.data;
 
         let gioiTinh = "";
         if (data.gender) {
@@ -210,270 +256,317 @@ const ProfileMember = () => {
 
         setUserInfo((prev) => ({
           ...prev,
-          fullName: fullNameFromApi,
-          email: data.email || "",
-          phone: data.phoneNumber || "",
-          address: data.address || "",
-          birthday,
-          gioiTinh,
-        }));
-      } catch (err) {
-        if (err.response?.status === 401) {
-          console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
-          navigate("/login");
-          return;
-        }
-        console.error("Error fetching /UserAccount/me:", err);
-      }
-    };
-
-    fetchUserInfoFromApi();
-  }, [navigate]);
-
-  // 🚀 LẤY THÔNG TIN SỨC KHỎE /Profile/my-profile FILL VÀO TAB HEALTH
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) return;
-
-    const fetchMemberProfile = async () => {
-      try {
-        const res = await api.get("/Profile/my-profile");
-        const data = res.data;
-
-        setUserInfo((prev) => ({
-          ...prev,
           canNang:
-            data.weight !== null && data.weight !== undefined
-              ? data.weight
-              : prev.canNang,
+            data.weight !== null && data.weight !== undefined ? String(data.weight) : prev.canNang,
           chieuCao:
-            data.height !== null && data.height !== undefined
-              ? data.height
-              : prev.chieuCao,
-          mucTieu: data.target || prev.mucTieu,
-          sucKhoe: data.healthStatus || prev.sucKhoe,
+            data.height !== null && data.height !== undefined ? String(data.height) : prev.chieuCao,
+          mucTieu: data.target ?? prev.mucTieu,
+          sucKhoe: data.healthStatus ?? prev.sucKhoe,
+          gioiTinh: gioiTinh || prev.gioiTinh,
         }));
       } catch (err) {
         if (err.response?.status === 401) {
-          console.log(
-            "Không có quyền / chưa đăng nhập -> /Profile/my-profile trả 401"
-          );
+          message.warning("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
           return;
         }
         console.error("Error fetching /Profile/my-profile:", err);
+        message.error("Không thể tải thông tin sức khỏe. Vui lòng thử lại!");
       }
     };
 
     fetchMemberProfile();
   }, []);
 
-  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
+  /** ================== VALIDATE BEFORE UPDATE ================== */
+  const validateUserUpdate = () => {
+    const fullName = String(userInfo.fullName || "").trim();
+    const birthdayStr = String(userInfo.birthday || "").trim();
+    const email = String(userInfo.email || "").trim();
+    const phone = String(userInfo.phone || "").trim();
+    const address = String(userInfo.address || "").trim();
+
+    if (!fullName) {
+      message.error("Vui lòng nhập Họ tên.");
+      return false;
+    }
+
+    if (!birthdayStr) {
+      message.error("Vui lòng chọn Ngày sinh.");
+      return false;
+    }
+
+    const dob = toDateFromDDMMYYYY(birthdayStr);
+    if (!dob) {
+      message.error("Ngày sinh không hợp lệ (dd/MM/yyyy).");
+      return false;
+    }
+
+    if (dob > new Date()) {
+      message.error("Ngày sinh không được lớn hơn ngày hiện tại.");
+      return false;
+    }
+
+    if (!email) {
+      message.error("Vui lòng nhập Email.");
+      return false;
+    }
+
+    if (!isValidEmail(email)) {
+      message.error("Email không đúng định dạng. Ví dụ: ten@gmail.com");
+      return false;
+    }
+
+    if (!phone) {
+      message.error("Vui lòng nhập Số điện thoại.");
+      return false;
+    }
+
+    if (!isValidVNPhone(phone)) {
+      message.error("Số điện thoại không đúng định dạng (vd: 0901234567 hoặc +84901234567).");
+      return false;
+    }
+
+    if (!address) {
+      message.error("Vui lòng nhập Địa chỉ.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateHealthUpdate = () => {
+    // vì tab sức khỏe có gọi /UserAccount/update => yêu cầu đủ info user luôn
+    if (!validateUserUpdate()) return false;
+
+    const weight = userInfo.canNang;
+    const height = userInfo.chieuCao;
+    const gender = String(userInfo.gioiTinh || "").trim();
+    const goal = String(userInfo.mucTieu || "").trim();
+    const health = String(userInfo.sucKhoe || "").trim();
+
+    if (weight === "" || weight === null || weight === undefined) {
+      message.error("Vui lòng nhập Cân nặng.");
+      return false;
+    }
+    if (Number.isNaN(Number(weight)) || Number(weight) <= 0) {
+      message.error("Cân nặng không hợp lệ.");
+      return false;
+    }
+    if (Number(weight) < 20 || Number(weight) > 300) {
+      message.error("Cân nặng nên nằm trong khoảng 20–300 kg.");
+      return false;
+    }
+
+    if (height === "" || height === null || height === undefined) {
+      message.error("Vui lòng nhập Chiều cao.");
+      return false;
+    }
+    if (Number.isNaN(Number(height)) || Number(height) <= 0) {
+      message.error("Chiều cao không hợp lệ.");
+      return false;
+    }
+    if (Number(height) < 80 || Number(height) > 250) {
+      message.error("Chiều cao nên nằm trong khoảng 80–250 cm.");
+      return false;
+    }
+
+    if (!gender) {
+      message.error("Vui lòng chọn Giới tính.");
+      return false;
+    }
+
+    if (!goal) {
+      message.error("Vui lòng nhập Mục tiêu.");
+      return false;
+    }
+
+    if (!health) {
+      message.error("Vui lòng nhập Tình trạng sức khỏe.");
+      return false;
+    }
+
+    return true;
+  };
+
+  /** ================== UPDATE USER INFO ================== */
   const handleUpdateUserInfo = async (e) => {
     e && e.preventDefault();
+    if (!validateUserUpdate()) return;
+
+    const loadingKey = "update-user";
+    message.loading({ content: "Đang cập nhật thông tin cá nhân...", key: loadingKey, duration: 0 });
+
     try {
-      const nameParts = (userInfo.fullName || "")
+      const nameParts = String(userInfo.fullName || "")
         .trim()
         .split(" ")
         .filter(Boolean);
       const lastName = nameParts.length > 0 ? nameParts[0] : "";
-      const firstName =
-        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> yyyy-MM-dd (string thuần)
       const dateOfBirthApi = toApiDate(userInfo.birthday);
-
-      // map giới tính đúng enum backend: Male / Female / Other
-      const genderMapApi = {
-        Nam: "Male",
-        Nữ: "Female",
-        Khác: "Other",
-      };
 
       const payload = {
         firstName,
         lastName,
-        email: userInfo.email || "",
-        phoneNumber: userInfo.phone || "",
-        gender: genderMapApi[userInfo.gioiTinh] || null,
-        address: userInfo.address || "",
+        email: String(userInfo.email || "").trim(),
+        phoneNumber: String(userInfo.phone || "").trim(),
+        address: String(userInfo.address || "").trim(),
         dateOfBirth: dateOfBirthApi,
       };
 
-      console.log("UPDATE /UserAccount/update payload:", payload);
-
       await api.put("/UserAccount/update", payload);
 
-      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
+      // sync localStorage + state user
       const storedUser = localStorage.getItem("user");
       let newUser = user || {};
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         parsed.firstName = firstName;
         parsed.lastName = lastName;
-        parsed.email = userInfo.email || parsed.email;
-        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-        parsed.address = userInfo.address || parsed.address;
+        parsed.email = payload.email;
+        parsed.phoneNumber = payload.phoneNumber;
+        parsed.address = payload.address;
         newUser = parsed;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
       setUser(newUser);
-
-      // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      message.success("Cập nhật thông tin cá nhân thành công!");
+      message.success({ content: "Cập nhật thông tin cá nhân thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
-
       const serverData = err.response?.data;
-      let msg =
+      const msg =
         serverData?.title ||
         serverData?.message ||
-        JSON.stringify(serverData) ||
+        (serverData ? JSON.stringify(serverData) : "") ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-
-      message.error(msg);
+      message.error({ content: msg, key: loadingKey, duration: 3 });
     }
   };
 
-  // ⚙️ HANDLE UPDATE TAB HEALTH
+  /** ================== UPDATE HEALTH INFO ================== */
   const handleUpdateHealthInfo = async (e) => {
     e && e.preventDefault();
+    if (!validateHealthUpdate()) return;
+
+    const loadingKey = "update-health";
+    message.loading({ content: "Đang cập nhật thông tin sức khỏe...", key: loadingKey, duration: 0 });
 
     try {
-      // 1️⃣ Update gender (và info user) qua /UserAccount/update
-      const nameParts = (userInfo.fullName || "")
+      // 1) Update user (bao gồm gender)
+      const nameParts = String(userInfo.fullName || "")
         .trim()
         .split(" ")
         .filter(Boolean);
       const lastName = nameParts.length > 0 ? nameParts[0] : "";
-      const firstName =
-        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
       const dateOfBirthApi = toApiDate(userInfo.birthday);
 
-      const genderMapApi = {
-        Nam: "Male",
-        Nữ: "Female",
-        Khác: "Other",
-      };
+      const genderMapApi = { Nam: "Male", Nữ: "Female", Khác: "Other" };
 
       const userPayload = {
         firstName,
         lastName,
-        email: userInfo.email || "",
-        phoneNumber: userInfo.phone || "",
-        gender: genderMapApi[userInfo.gioiTinh] || null,
-        address: userInfo.address || "",
+        email: String(userInfo.email || "").trim(),
+        phoneNumber: String(userInfo.phone || "").trim(),
+        address: String(userInfo.address || "").trim(),
         dateOfBirth: dateOfBirthApi,
+        gender: genderMapApi[userInfo.gioiTinh] || null,
       };
 
       await api.put("/UserAccount/update", userPayload);
 
-      // Cập nhật localStorage + state user
+      // sync user localStorage
       const storedUser = localStorage.getItem("user");
       let newUser = user || {};
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         parsed.firstName = firstName;
         parsed.lastName = lastName;
-        parsed.email = userInfo.email || parsed.email;
-        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-        parsed.address = userInfo.address || parsed.address;
+        parsed.email = userPayload.email;
+        parsed.phoneNumber = userPayload.phoneNumber;
+        parsed.address = userPayload.address;
+        parsed.gender = userPayload.gender;
         newUser = parsed;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
       setUser(newUser);
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      // 2️⃣ Update health data qua /Profile/member
+      // 2) Update member profile
       const memberPayload = {
-        weight:
-          userInfo.canNang !== null &&
-          userInfo.canNang !== undefined &&
-          userInfo.canNang !== ""
-            ? Number(userInfo.canNang)
-            : null,
-        height:
-          userInfo.chieuCao !== null &&
-          userInfo.chieuCao !== undefined &&
-          userInfo.chieuCao !== ""
-            ? Number(userInfo.chieuCao)
-            : null,
-        target: userInfo.mucTieu || null,
-        healthStatus: userInfo.sucKhoe || null,
+        weight: Number(userInfo.canNang),
+        height: Number(userInfo.chieuCao),
+        target: String(userInfo.mucTieu || "").trim(),
+        healthStatus: String(userInfo.sucKhoe || "").trim(),
       };
-
-      console.log("UPDATE /Profile/member payload:", memberPayload);
 
       await api.put("/Profile/member", memberPayload);
 
-      message.success("Cập nhật thông tin sức khỏe thành công!");
+      message.success({ content: "Cập nhật thông tin sức khỏe thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error updating health info:", err.response?.data || err);
-
       const serverData = err.response?.data;
-      let msg =
+      const msg =
         serverData?.title ||
         serverData?.message ||
-        JSON.stringify(serverData) ||
+        (serverData ? JSON.stringify(serverData) : "") ||
         "Cập nhật thông tin sức khỏe thất bại, vui lòng thử lại!";
-
-      message.error(msg);
+      message.error({ content: msg, key: loadingKey, duration: 3 });
     }
   };
 
-  // ⚙️ HANDLE CHANGE PASSWORD
+  /** ================== CHANGE PASSWORD ================== */
   const handleChangePassword = async (e) => {
     e && e.preventDefault();
 
     const { currentPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      message.warning(
-        "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!"
-      );
+      message.warning("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
       return;
     }
-
     if (newPassword !== confirmNewPassword) {
-      message.warning("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      message.error("Mật khẩu mới và xác nhận mật khẩu không khớp!");
       return;
     }
-
     if (newPassword.length < 6) {
       message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
 
+    const loadingKey = "change-password";
+    message.loading({ content: "Đang đổi mật khẩu...", key: loadingKey, duration: 0 });
+
     try {
-      const payload = {
-        currentPassword,
-        newPassword,
-        confirmNewPassword,
-      };
-
+      const payload = { currentPassword, newPassword, confirmNewPassword };
       await api.put("/UserAccount/change-password", payload);
-      message.success("Đổi mật khẩu thành công!");
 
-      // reset form
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
-      });
+      message.success({ content: "Đổi mật khẩu thành công!", key: loadingKey, duration: 2 });
+
+      setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
-        message.error(
-          err.response.data?.message ||
-            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
-        );
+        message.error({
+          content:
+            err.response.data?.message ||
+            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!",
+          key: loadingKey,
+          duration: 3,
+        });
       } else if (err.response?.status === 401) {
-        message.error("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        message.warning({
+          content: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!",
+          key: loadingKey,
+          duration: 3,
+        });
         navigate("/login");
       } else {
-        message.error("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+        message.error({ content: "Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!", key: loadingKey, duration: 3 });
       }
     }
   };
@@ -548,10 +641,7 @@ const ProfileMember = () => {
           </Col>
 
           <Col xl="8">
-            <Card
-              className="bg-secondary shadow"
-              style={{ marginRight: "5%", marginLeft: "5%" }}
-            >
+            <Card className="bg-secondary shadow" style={{ marginRight: "5%", marginLeft: "5%" }}>
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
                   <Col>
@@ -572,18 +662,13 @@ const ProfileMember = () => {
               >
                 <Form>
                   {/* Tabs chọn section */}
-                  <div
-                    className="d-flex mb-4 justify-content-center"
-                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
-                  >
+                  <div className="d-flex mb-4 justify-content-center" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "user" ? "#ffffff" : "transparent",
-                        color:
-                          activeSection === "user" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "user" ? "#ffffff" : "transparent",
+                        color: activeSection === "user" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "user" ? 700 : 500,
                       }}
@@ -591,16 +676,13 @@ const ProfileMember = () => {
                     >
                       Thông tin cá nhân
                     </Button>
+
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "health"
-                            ? "#ffffff"
-                            : "transparent",
-                        color:
-                          activeSection === "health" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "health" ? "#ffffff" : "transparent",
+                        color: activeSection === "health" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "health" ? 700 : 500,
                       }}
@@ -608,16 +690,13 @@ const ProfileMember = () => {
                     >
                       Thông tin sức khỏe
                     </Button>
+
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "password"
-                            ? "#ffffff"
-                            : "transparent",
-                        color:
-                          activeSection === "password" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "password" ? "#ffffff" : "transparent",
+                        color: activeSection === "password" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "password" ? 700 : 500,
                       }}
@@ -634,10 +713,7 @@ const ProfileMember = () => {
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-fullname"
-                              >
+                              <label className="form-control-label" htmlFor="input-fullname">
                                 👤 Họ tên
                               </label>
                               <Input
@@ -645,38 +721,23 @@ const ProfileMember = () => {
                                 id="input-fullname"
                                 value={userInfo.fullName}
                                 type="text"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    fullName: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, fullName: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-birthday-visible"
-                              >
+                              <label className="form-control-label" htmlFor="input-birthday-visible">
                                 🎂 Ngày sinh
                               </label>
 
-                              <div
-                                style={{ position: "relative", width: "100%" }}
-                              >
+                              <div style={{ position: "relative", width: "100%" }}>
                                 <DatePicker
                                   id="birthday-picker"
-                                  selected={toDateFromDDMMYYYY(
-                                    userInfo.birthday
-                                  )}
+                                  selected={toDateFromDDMMYYYY(userInfo.birthday)}
                                   onChange={(date) =>
-                                    setUserInfo({
-                                      ...userInfo,
-                                      birthday: date ? toDDMMYYYY(date) : "",
-                                    })
+                                    setUserInfo({ ...userInfo, birthday: date ? toDDMMYYYY(date) : "" })
                                   }
                                   dateFormat="dd/MM/yyyy"
                                   placeholderText="dd/mm/yyyy"
@@ -690,27 +751,18 @@ const ProfileMember = () => {
                                 />
                               </div>
 
-                              {/* Hiển thị tuổi dưới Birthday */}
-                              <div
-                                className="mt-1"
-                                style={{
-                                  color: "#ffd700",
-                                  fontStyle: "italic",
-                                }}
-                              >
+                              <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
                                 Tuổi: {age !== "" ? age : "--"}
                               </div>
                             </FormGroup>
                           </Col>
                         </Row>
 
+                        {/* ✅ Email + SĐT cùng 1 hàng */}
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-email"
-                              >
+                              <label className="form-control-label" htmlFor="input-email">
                                 ✉️ Email
                               </label>
                               <Input
@@ -718,35 +770,29 @@ const ProfileMember = () => {
                                 id="input-email"
                                 value={userInfo.email}
                                 type="email"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    email: e.target.value,
-                                  })
-                                }
+                                placeholder="vd: ten@gmail.com"
+                                onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
+                                onBlur={() => {
+                                  if (userInfo.email && !isValidEmail(userInfo.email)) {
+                                    message.warning("Email chưa đúng định dạng.");
+                                  }
+                                }}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-phone"
-                              >
-                                <FcPhone /> SDT
+                              <label className="form-control-label" htmlFor="input-phone">
+                                <FcPhone /> Số điện thoại
                               </label>
                               <Input
                                 className="form-control-alternative"
                                 id="input-phone"
                                 type="tel"
                                 value={userInfo.phone}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    phone: e.target.value,
-                                  })
-                                }
+                                placeholder="vd: 0901234567"
+                                onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -755,10 +801,7 @@ const ProfileMember = () => {
                         <Row>
                           <Col lg="12">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-address"
-                              >
+                              <label className="form-control-label" htmlFor="input-address">
                                 🏠 Địa chỉ
                               </label>
                               <Input
@@ -766,12 +809,7 @@ const ProfileMember = () => {
                                 id="input-address"
                                 type="text"
                                 value={userInfo.address}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    address: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, address: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -779,31 +817,21 @@ const ProfileMember = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleUpdateUserInfo}
-                        >
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleUpdateUserInfo}>
                           Cập nhật thông tin cá nhân
                         </Button>
                       </Col>
                     </>
                   )}
 
-                  {/* ====== TAB 2: PHYSICAL & HEALTH INFORMATION ====== */}
+                  {/* ====== TAB 2: HEALTH INFORMATION ====== */}
                   {activeSection === "health" && (
                     <>
                       <div className="pl-lg-4">
                         <Row>
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-weight"
-                              >
+                              <Label className="form-control-label" htmlFor="input-weight">
                                 ⚖️ Cân nặng (kg)
                               </Label>
                               <Input
@@ -811,22 +839,14 @@ const ProfileMember = () => {
                                 id="input-weight"
                                 type="number"
                                 value={userInfo.canNang}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    canNang: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, canNang: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-height"
-                              >
+                              <Label className="form-control-label" htmlFor="input-height">
                                 📏 Chiều cao (cm)
                               </Label>
                               <Input
@@ -834,22 +854,14 @@ const ProfileMember = () => {
                                 id="input-height"
                                 type="number"
                                 value={userInfo.chieuCao}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    chieuCao: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, chieuCao: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-gender"
-                              >
+                              <Label className="form-control-label" htmlFor="input-gender">
                                 🚻 Giới tính
                               </Label>
                               <Input
@@ -857,12 +869,7 @@ const ProfileMember = () => {
                                 id="input-gender"
                                 className="form-control-alternative"
                                 value={userInfo.gioiTinh}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    gioiTinh: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, gioiTinh: e.target.value })}
                               >
                                 <option value="">-- Chọn giới tính --</option>
                                 <option value="Nam">♂️ Nam</option>
@@ -873,14 +880,10 @@ const ProfileMember = () => {
                           </Col>
                         </Row>
 
-                        {/* Hàng 2 */}
                         <Row>
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-bmi"
-                              >
+                              <Label className="form-control-label" htmlFor="input-bmi">
                                 🧍 BMI
                               </Label>
                               <Input
@@ -895,10 +898,7 @@ const ProfileMember = () => {
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-goal"
-                              >
+                              <Label className="form-control-label" htmlFor="input-goal">
                                 💪 Mục tiêu
                               </Label>
                               <Input
@@ -906,22 +906,14 @@ const ProfileMember = () => {
                                 id="input-goal"
                                 type="text"
                                 value={userInfo.mucTieu}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    mucTieu: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, mucTieu: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="4">
                             <FormGroup>
-                              <Label
-                                className="form-control-label"
-                                htmlFor="input-health"
-                              >
+                              <Label className="form-control-label" htmlFor="input-health">
                                 ❤️ Tình trạng sức khỏe
                               </Label>
                               <Input
@@ -929,12 +921,7 @@ const ProfileMember = () => {
                                 id="input-health"
                                 type="text"
                                 value={userInfo.sucKhoe}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    sucKhoe: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, sucKhoe: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -942,14 +929,7 @@ const ProfileMember = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleUpdateHealthInfo}
-                        >
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleUpdateHealthInfo}>
                           Cập nhật thông tin sức khỏe
                         </Button>
                       </Col>
@@ -960,30 +940,17 @@ const ProfileMember = () => {
                   {activeSection === "password" && (
                     <>
                       <div className="pl-lg-4">
-                        {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
-                          <Label className="form-control-label">
-                            🔐 Mật khẩu hiện tại
-                          </Label>
+                          <Label className="form-control-label">🔐 Mật khẩu hiện tại</Label>
                           <Input
                             className="form-control-alternative"
                             type={showPassword.current ? "text" : "password"}
                             value={passwordData.currentPassword}
                             style={{ paddingRight: "40px" }}
-                            onChange={(e) =>
-                              setPasswordData({
-                                ...passwordData,
-                                currentPassword: e.target.value,
-                              })
-                            }
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                           />
                           <span
-                            onClick={() =>
-                              setShowPassword({
-                                ...showPassword,
-                                current: !showPassword.current,
-                              })
-                            }
+                            onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
                             style={{
                               position: "absolute",
                               right: "12px",
@@ -997,33 +964,19 @@ const ProfileMember = () => {
                           </span>
                         </FormGroup>
 
-                        {/* NEW PASSWORD + CONFIRM */}
                         <Row>
-                          {/* NEW PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔑 Mật khẩu mới
-                              </Label>
+                              <Label className="form-control-label">🔑 Mật khẩu mới</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.new ? "text" : "password"}
                                 value={passwordData.newPassword}
                                 style={{ paddingRight: "40px" }}
-                                onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    newPassword: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    new: !showPassword.new,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -1038,31 +991,18 @@ const ProfileMember = () => {
                             </FormGroup>
                           </Col>
 
-                          {/* CONFIRM PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔁 Xác nhận mật khẩu
-                              </Label>
+                              <Label className="form-control-label">🔁 Xác nhận mật khẩu</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.confirm ? "text" : "password"}
                                 value={passwordData.confirmNewPassword}
                                 style={{ paddingRight: "40px" }}
-                                onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    confirmNewPassword: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setPasswordData({ ...passwordData, confirmNewPassword: e.target.value })}
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    confirm: !showPassword.confirm,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -1080,14 +1020,7 @@ const ProfileMember = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleChangePassword}
-                        >
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleChangePassword}>
                           Thay đổi mật khẩu
                         </Button>
                       </Col>
