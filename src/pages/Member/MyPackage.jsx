@@ -1336,12 +1336,11 @@ export default function MyPackage() {
                       </strong>
                     </div>
                     <div>
-                      <span className="text-muted">% được hoàn: </span>
+                      <span className="text-muted">Tỷ lệ được hoàn: </span>
                       <strong>
                         {typeof refundInfo.refundPercentage === "number"
                           ? refundInfo.refundPercentage.toFixed(2)
                           : refundInfo.refundPercentage}
-                        %
                       </strong>
                     </div>
                     <div className="mt-1">

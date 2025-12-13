@@ -899,12 +899,6 @@ export default function ManageSchedule() {
                               })}
                               {staffList.length === 0 && <div className="text-muted">Chưa có staff từ API.</div>}
                             </div>
-
-                            <div className="mt-2 text-muted">
-                              <small>
-                                Nếu bỏ chọn hết staff → hệ thống gửi status <b>Off</b>.
-                              </small>
-                            </div>
                           </>
                         )}
                       </div>
