@@ -1,6 +1,12 @@
 import { BsArrowUp } from "react-icons/bs";
 import FloatingChatWidget from "./FloatingChatWidget";
+import { useEffect } from "react";
 export default function Footer() {
+
+  const user = JSON.parse(localStorage.getItem("user")) || {roleName: "guest"};
+  useEffect(() => {
+    console.log("Footer user role:", user.roleName);
+  }, [user.role]);
   return (
     <>
       {/* Footer */}
@@ -125,7 +131,10 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      <FloatingChatWidget />
+      {(user.roleName === "Member" || user.roleName === "guest") &&(
+        <FloatingChatWidget />
+      )}
+      
       {/* Back to Top */}
       <div className="back-to-top">
         <button
