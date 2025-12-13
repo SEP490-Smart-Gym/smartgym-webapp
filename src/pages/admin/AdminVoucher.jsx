@@ -132,17 +132,33 @@ export default function AdminVoucher() {
   };
 
   // ===== Xóa =====
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa voucher này?")) return;
-    try {
-      await api.delete(`/discountcode/${id}`);
-      message.success("Xóa thành công.");
-      fetchList();
-    } catch (err) {
-      console.error(err);
-      message.error("Xóa thất bại.");
-    }
-  };
+
+const handleDelete = (record) => {
+  Modal.confirm({
+    title: "Xác nhận xoá voucher",
+    content: (
+      <>
+        <p>
+          Bạn có chắc chắn muốn xoá voucher:
+          <strong> {record.code || record.name}</strong>?
+        </p>
+      </>
+    ),
+    okText: "Xoá",
+    okType: "danger",
+    cancelText: "Huỷ",
+    async onOk() {
+      try {
+        await api.delete(`/discountcode/${record.id}`);
+        message.success("Xóa voucher thành công.");
+        fetchList();
+      } catch (err) {
+        console.error(err);
+        message.error("Xóa voucher thất bại.");
+      }
+    },
+  });
+};
 
   // ===== Bảng =====
   const columns = [
@@ -179,7 +195,7 @@ export default function AdminVoucher() {
           <Button size="small" onClick={() => openEdit(record)}>
             Sửa
           </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+          <Button size="small" danger onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
