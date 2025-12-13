@@ -27,14 +27,6 @@ function loadScript(src) {
   });
 }
 
-/** Date -> yyyy-mm-dd (nếu sau này cần) */
-function dateObjToISO(d) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 /** format HH:MM từ Date */
 function hhmm(d) {
   if (!d) return "";
@@ -52,36 +44,58 @@ function toDDMMYYYY(date) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/** "HH:mm:ss" | "HH:mm" -> "HH:mm" */
+function toHHmmFromApiTime(apiTime) {
+  if (!apiTime) return "";
+  const parts = String(apiTime).split(":");
+  const hh = (parts[0] || "00").padStart(2, "0");
+  const mm = (parts[1] || "00").padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** Map status backend -> tiếng Việt */
+function mapStatusVi(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  if (!s) return "Không rõ";
+  if (s === "scheduled" || s === "booked") return "Đã đặt";
+  if (s === "completed" || s === "done" || s === "present") return "Đã hoàn thành";
+  if (s === "cancelled" || s === "canceled") return "Đã hủy";
+  if (s === "absent" || s === "missed") return "Vắng";
+  if (s === "pending") return "Chờ xử lý";
+  if (s === "approved") return "Đã duyệt";
+  return raw; // fallback giữ nguyên
+}
+
+function badgeClassByStatus(raw) {
+  const s = String(raw || "").trim().toLowerCase();
+  if (s === "scheduled" || s === "booked") return "bg-primary";
+  if (s === "completed" || s === "done" || s === "present") return "bg-success";
+  if (s === "cancelled" || s === "canceled" || s === "absent" || s === "missed") return "bg-danger";
+  return "bg-secondary";
+}
+
 /**
- * Chuẩn hóa dữ liệu từ API /TrainerSchedule/my-schedules
- * (lịch làm việc của trainer, không phải lịch học của member)
+ * Chuẩn hóa dữ liệu từ API /TrainingSession/trainer/pt-calendar
  * -> gom theo ngày, mỗi event chứa mảng sessions để show detail trong modal
  *
  * API mẫu:
  * {
- *   "id": 0,
- *   "trainerId": 0,
- *   "trainerName": "string",
- *   "trainerEmail": "string",
- *   "scheduleDate": "2025-12-09",
- *   "timeSlotId": 0,
- *   "timeSlotName": "string",
- *   "startTime": "string",
- *   "endTime": "string",
- *   "isAvailable": true,
- *   "maxCapacity": 0,
- *   "notes": "string",
- *   "assignmentType": "string"
+ *  sessionId, sessionDate, timeSlotId, timeSlotName, startTime, endTime,
+ *  memberId, memberName, memberEmail, memberPackageId, packageName,
+ *  sessionType, notes, bookingDate, status
  * }
  */
-function normalizeScheduleData(apiList) {
+function normalizePtCalendarData(apiList) {
   const today = startOfDay(new Date());
   const map = new Map();
 
   (apiList || []).forEach((item) => {
-    if (!item.scheduleDate) return;
+    const dateStr = (item.sessionDate || "").slice(0, 10);
+    if (!dateStr) return;
 
-    const d = new Date(item.scheduleDate);
+    const d = new Date(dateStr); // yyyy-mm-dd
+    if (isNaN(d.getTime())) return;
+
     const dateKey = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
     let sh = 0,
@@ -89,15 +103,14 @@ function normalizeScheduleData(apiList) {
       eh = 0,
       em = 0;
 
-    if (item.timeSlotName && item.timeSlotName.includes("-")) {
-      // timeSlotName dạng "09:00-10:00" thì ưu tiên parse luôn
-      [sh, sm, eh, em] = parseTimeRange(item.timeSlotName);
-    } else if (item.startTime) {
-      // fallback dùng startTime / endTime (HH:mm)
-      const [h1, m1] = (item.startTime || "00:00").split(":").map((v) => +v || 0);
-      const [h2, m2] = (item.endTime || item.startTime || "00:00")
-        .split(":")
-        .map((v) => +v || 0);
+    // ưu tiên parse từ timeSlotName nếu có dạng "09:00-10:00"
+    if (item.timeSlotName && String(item.timeSlotName).includes("-")) {
+      [sh, sm, eh, em] = parseTimeRange(String(item.timeSlotName));
+    } else {
+      const st = toHHmmFromApiTime(item.startTime);
+      const et = toHHmmFromApiTime(item.endTime);
+      const [h1, m1] = (st || "00:00").split(":").map((v) => +v || 0);
+      const [h2, m2] = (et || st || "00:00").split(":").map((v) => +v || 0);
       sh = h1;
       sm = m1;
       eh = h2;
@@ -105,28 +118,24 @@ function normalizeScheduleData(apiList) {
     }
 
     const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh || 0, sm || 0, 0, 0);
-    const end = new Date(
-      d.getFullYear(),
-      d.getMonth(),
-      d.getDate(),
-      eh || sh || 0,
-      em || sm || 0,
-      0,
-      0
-    );
+    const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh || sh || 0, em || sm || 0, 0, 0);
 
-    const scheduleInfo = {
-      id: item.id,
-      timeSlotName:
-        item.timeSlotName && item.timeSlotName.trim()
-          ? item.timeSlotName
-          : `${hhmm(start)}${end ? ` - ${hhmm(end)}` : ""}`,
+    const timeLabel = item.timeSlotName?.trim()
+      ? item.timeSlotName
+      : `${hhmm(start)}${end ? ` - ${hhmm(end)}` : ""}`;
+
+    const sessionInfo = {
+      sessionId: item.sessionId,
+      memberName: item.memberName || "",
+      memberEmail: item.memberEmail || "",
+      packageName: item.packageName || "",
+      sessionType: item.sessionType || "",
+      notes: item.notes || "",
+      statusRaw: item.status || "",
+      statusVi: mapStatusVi(item.status),
+      timeLabel,
       start,
       end,
-      isAvailable: !!item.isAvailable,
-      maxCapacity: item.maxCapacity,
-      notes: item.notes || "",
-      assignmentType: item.assignmentType || "",
       raw: item,
     };
 
@@ -135,11 +144,11 @@ function normalizeScheduleData(apiList) {
         date: startOfDay(d),
         start,
         end,
-        sessions: [scheduleInfo],
+        sessions: [sessionInfo],
       });
     } else {
       const g = map.get(dateKey);
-      g.sessions.push(scheduleInfo);
+      g.sessions.push(sessionInfo);
       if (start < g.start) g.start = start;
       if (end && (!g.end || end > g.end)) g.end = end;
     }
@@ -147,9 +156,10 @@ function normalizeScheduleData(apiList) {
 
   const out = [];
   for (const [, g] of map.entries()) {
+    // title hiển thị trên calendar (chip) – chỉ dùng count
     const status = g.date.getTime() > today.getTime() ? "upcoming" : "past";
     out.push({
-      title: `${g.sessions.length} ca làm việc`,
+      title: `${g.sessions.length} buổi`,
       start: g.start,
       end: g.end,
       allDay: false,
@@ -166,7 +176,6 @@ function TrainerSchedule() {
   const holderRef = useRef(null);
   const tmplRef = useRef(null);
 
-  // state lưu dữ liệu ngày đang xem chi tiết
   const [selectedDay, setSelectedDay] = useState(null);
   const eventModalRef = useRef(null);
 
@@ -341,7 +350,7 @@ function TrainerSchedule() {
             draw();
           });
 
-        // CLICK CHIP EVENT → mở modal detail
+        // CLICK CHIP EVENT → mở modal
         $el.on("click", ".event-chip", function (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -353,15 +362,13 @@ function TrainerSchedule() {
         });
 
         // CLICK Ô NGÀY có event → mở modal
-        $el.on("click", ".calendar-day.has-event", function (e) {
+        $el.on("click", ".calendar-day.has-event", function () {
           const dateStr = this.getAttribute("data-date");
           if (!dateStr || !options.data) return;
           const d = new Date(dateStr);
           const cssClass = d.toDateCssClass();
           const ev = options.data.find((x) => x.date && x.date.toDateCssClass() === cssClass);
-          if (ev && options.onOpenEvent) {
-            options.onOpenEvent(ev);
-          }
+          if (ev && options.onOpenEvent) options.onOpenEvent(ev);
         });
 
         // render icon 👥 cho ngày có lịch
@@ -369,23 +376,18 @@ function TrainerSchedule() {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
           if (!dayCell.length || dayCell.hasClass("has-event")) return;
+
           const count = (event.sessions && event.sessions.length) || 0;
           const $chip = $(
             `
-            <div class="event-chip status-has" data-index="${index}" title="${count} ca làm việc">
+            <div class="event-chip status-has" data-index="${index}" title="${count} buổi PT">
               <span class="event-chip-icon">👥</span>
-              ${
-                count > 1
-                  ? `<span class="event-chip-count">x${count}</span>`
-                  : ""
-              }
+              ${count > 1 ? `<span class="event-chip-count">x${count}</span>` : ""}
             </div>
           `
           );
-          dayCell
-            .addClass("has-event")
-            .attr("data-date", e.toISOString())
-            .append($chip);
+
+          dayCell.addClass("has-event").attr("data-date", e.toISOString()).append($chip);
         }
 
         function yearAddEvents(events, year) {
@@ -404,8 +406,7 @@ function TrainerSchedule() {
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
             if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week")
-              $.each(options.data, monthAddEvent);
+            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -456,17 +457,17 @@ function TrainerSchedule() {
         document
       );
 
-      // ==== CALL API LẤY LỊCH LÀM VIỆC CỦA TRAINER ====
+      // ==== CALL API LẤY PT CALENDAR CỦA TRAINER ====
       let apiData = [];
       try {
-        const res = await api.get("/TrainerSchedule/my-schedules");
-        apiData = res.data || [];
+        const res = await api.get("/TrainingSession/trainer/pt-calendar");
+        apiData = Array.isArray(res.data) ? res.data : [];
       } catch (err) {
-        console.error("Failed to load trainer schedules:", err);
+        console.error("Failed to load PT calendar:", err);
       }
       if (!isMounted) return;
 
-      const normalized = normalizeScheduleData(apiData);
+      const normalized = normalizePtCalendarData(apiData);
 
       window.jQuery(holderRef.current).calendar({
         data: normalized,
@@ -475,13 +476,12 @@ function TrainerSchedule() {
             date: ev.date || ev.start,
             sessions: ev.sessions || [],
           });
+
           try {
             const ModalClass =
               (window.bootstrap && window.bootstrap.Modal) || (BootstrapBundle && BootstrapBundle.Modal);
             if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(
-                document.getElementById("eventDetailModal")
-              );
+              const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
               inst.show();
             }
           } catch (e) {
@@ -510,7 +510,6 @@ function TrainerSchedule() {
   cursor:pointer;
 }
 .nav-arrow:focus{ outline:none; }
-
 .btn-link.no-underline{ text-decoration:none !important; }
 .btn-link.bold{ font-weight:700 !important; }
 
@@ -545,7 +544,6 @@ function TrainerSchedule() {
 }
 .event-chip-icon{ font-size:14px; line-height:1; }
 .event-chip-count{ font-size:11px; font-weight:600; }
-
 .event-chip.status-has{ background:#fef2ff; border-color:#e9d5ff; }
 
 /* ===== YEAR VIEW ===== */
@@ -560,7 +558,6 @@ function TrainerSchedule() {
 .popover{ z-index:1080; max-width:320px; }
 .popover .list-group-item{ text-align:left; }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 576px){
   .calendar-day{ min-height:90px; padding:6px; }
   .event-chip{ font-size:11px; }
@@ -568,26 +565,17 @@ function TrainerSchedule() {
 }
       `}</style>
 
-      {/* TIÊU ĐỀ: LỊCH LÀM VIỆC (trainer view) */}
       <div className="d-flex justify-content-center align-items-center mb-3">
-        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Lịch làm việc</h1>
+        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Lịch PT</h1>
       </div>
 
-      {/* MODAL CHI TIẾT LỊCH LÀM VIỆC TRONG 1 NGÀY */}
-      <div
-        className="modal fade"
-        id="eventDetailModal"
-        tabIndex="-1"
-        aria-hidden="true"
-        ref={eventModalRef}
-      >
+      {/* MODAL CHI TIẾT LỊCH PT TRONG 1 NGÀY */}
+      <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
         <div className="modal-dialog modal-dialog-scrollable">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">
-                {selectedDay
-                  ? `Lịch làm việc ngày ${toDDMMYYYY(selectedDay.date)}`
-                  : "Chi tiết lịch làm việc"}
+                {selectedDay ? `Lịch ngày ${toDDMMYYYY(selectedDay.date)}` : "Chi tiết lịch"}
               </h5>
               <button
                 type="button"
@@ -597,50 +585,51 @@ function TrainerSchedule() {
                 onClick={() => setSelectedDay(null)}
               />
             </div>
+
             <div className="modal-body">
-              {selectedDay && selectedDay.sessions && selectedDay.sessions.length ? (
+              {selectedDay?.sessions?.length ? (
                 <div className="list-group">
-                  {selectedDay.sessions.map((s, idx) => (
-                    <div key={s.id || idx} className="list-group-item">
-                      <div className="fw-bold">
-                        {s.assignmentType || "Ca làm việc"}
-                      </div>
-                      <div className="small text-muted">
-                        Khung giờ:{" "}
-                        <strong>
-                          {s.timeSlotName ||
-                            `${hhmm(s.start)}${s.end ? ` - ${hhmm(s.end)}` : ""}`}
-                        </strong>
-                      </div>
-                      <div className="mt-1">
-                        <span className={`badge ${s.isAvailable ? "bg-success" : "bg-secondary"}`}>
-                          {s.isAvailable ? "Còn trống" : "Đã kín"}
-                        </span>
-                        {typeof s.maxCapacity === "number" && s.maxCapacity > 0 && (
-                          <span className="badge bg-light text-muted border ms-2">
-                            Tối đa: {s.maxCapacity}
+                  {selectedDay.sessions
+                    .slice()
+                    .sort((a, b) => +a.start - +b.start)
+                    .map((s, idx) => (
+                      <div key={s.sessionId ?? idx} className="list-group-item">
+                        <div className="d-flex justify-content-between align-items-start gap-2">
+                          <div className="fw-bold">
+                            {s.memberName || "Hội viên"}
+                            {s.memberEmail ? (
+                              <div className="small text-muted">{s.memberEmail}</div>
+                            ) : null}
+                          </div>
+
+                          <span className={`badge ${badgeClassByStatus(s.statusRaw)}`} style={{ whiteSpace: "nowrap" }}>
+                            {s.statusVi}
                           </span>
-                        )}
-                      </div>
-                      {s.notes && (
-                        <div className="small text-muted mt-1">
-                          Ghi chú: {s.notes}
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        <div className="small text-muted mt-1">
+                          Khung giờ: <strong>{s.timeLabel}</strong>
+                        </div>
+
+                        <div className="small text-muted mt-1">
+                          Gói: <strong>{s.packageName || "—"}</strong>
+                        </div>
+
+                        {s.notes ? (
+                          <div className="small text-muted mt-2">
+                            Ghi chú: <span>{s.notes}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
                 </div>
               ) : (
-                <div className="text-muted">Không có ca làm việc trong ngày này.</div>
+                <div className="text-muted">Không có lịch trong ngày này.</div>
               )}
             </div>
+
             <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-light"
-                data-bs-dismiss="modal"
-                onClick={() => setSelectedDay(null)}
-              >
+              <button type="button" className="btn btn-light" data-bs-dismiss="modal" onClick={() => setSelectedDay(null)}>
                 Đóng
               </button>
             </div>

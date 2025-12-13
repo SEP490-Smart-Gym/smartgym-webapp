@@ -12,6 +12,7 @@ import {
   Col,
   Label,
 } from "reactstrap";
+
 // core components
 import React, { useEffect, useState, useRef } from "react";
 import DatePicker from "react-datepicker";
@@ -23,6 +24,8 @@ import { useNavigate } from "react-router-dom";
 
 import { storage } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+import { message } from "antd"; // ✅ ADD
 
 const ProfileManager = () => {
   const [user, setUser] = useState(null);
@@ -104,9 +107,7 @@ const ProfileManager = () => {
   };
 
   const handleButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   // ===== Upload avatar lên Firebase + lưu link vào DB + sync navbar =====
@@ -114,17 +115,18 @@ const ProfileManager = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const loadingKey = "upload-avatar-manager";
+
     // Preview tạm tại client
     const localUrl = URL.createObjectURL(file);
     setPreview(localUrl);
 
+    message.loading({ content: "Đang upload ảnh...", key: loadingKey, duration: 0 });
+
     try {
       // Tạo đường dẫn lưu file trong Storage
       const uid = user?.id || user?.userId || "anonymous";
-      const imageRef = ref(
-        storage,
-        `avatars/${uid}_${Date.now()}_${file.name}`
-      );
+      const imageRef = ref(storage, `avatars/${uid}_${Date.now()}_${file.name}`);
 
       // Upload file lên Firebase Storage
       await uploadBytes(imageRef, file);
@@ -157,12 +159,14 @@ const ProfileManager = () => {
       window.dispatchEvent(new Event("app-auth-changed"));
 
       setPreview(newUrl);
-      alert("Cập nhật ảnh đại diện thành công!");
+      message.success({ content: "Cập nhật ảnh đại diện thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error uploading avatar:", err);
-      alert(
-        `Upload ảnh thất bại (HTTP ${err?.response?.status || "?"}). Vui lòng thử lại!`
-      );
+      message.error({
+        content: `Upload ảnh thất bại (HTTP ${err?.response?.status || "?"}). Vui lòng thử lại!`,
+        key: loadingKey,
+        duration: 3,
+      });
     }
   };
 
@@ -178,9 +182,7 @@ const ProfileManager = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || ""} ${
-          data.firstName || ""
-        }`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${data.firstName || ""}`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
@@ -212,10 +214,12 @@ const ProfileManager = () => {
       } catch (err) {
         if (err.response?.status === 401) {
           console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
+          message.warning("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
           navigate("/login");
           return;
         }
         console.error("Error fetching /UserAccount/me:", err);
+        message.error("Không thể tải thông tin tài khoản. Vui lòng thử lại!");
       }
     };
 
@@ -225,14 +229,14 @@ const ProfileManager = () => {
   // ⚙️ HANDLE UPDATE TAB USER INFORMATION + sync navbar
   const handleUpdateUserInfo = async (e) => {
     e && e.preventDefault();
+
+    const loadingKey = "update-user-info-manager";
+    message.loading({ content: "Đang cập nhật thông tin...", key: loadingKey, duration: 0 });
+
     try {
-      const nameParts = (userInfo.fullName || "")
-        .trim()
-        .split(" ")
-        .filter(Boolean);
+      const nameParts = (userInfo.fullName || "").trim().split(" ").filter(Boolean);
       const lastName = nameParts.length > 0 ? nameParts[0] : "";
-      const firstName =
-        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
       // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
       const dateOfBirthApi = toApiDate(userInfo.birthday);
@@ -276,18 +280,18 @@ const ProfileManager = () => {
       // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      alert("Cập nhật thông tin cá nhân thành công!");
+      message.success({ content: "Cập nhật thông tin cá nhân thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
 
       const serverData = err.response?.data;
-      let msg =
+      const msg =
         serverData?.title ||
         serverData?.message ||
-        JSON.stringify(serverData) ||
+        (serverData ? JSON.stringify(serverData) : "") ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
 
-      alert(msg);
+      message.error({ content: msg, key: loadingKey, duration: 3 });
     }
   };
 
@@ -298,19 +302,22 @@ const ProfileManager = () => {
     const { currentPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      alert("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
+      message.warning("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      message.error("Mật khẩu mới và xác nhận mật khẩu không khớp!");
       return;
     }
 
     if (newPassword.length < 6) {
-      alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
+
+    const loadingKey = "change-password-manager";
+    message.loading({ content: "Đang đổi mật khẩu...", key: loadingKey, duration: 0 });
 
     try {
       const payload = {
@@ -320,7 +327,8 @@ const ProfileManager = () => {
       };
 
       await api.put("/UserAccount/change-password", payload);
-      alert("Đổi mật khẩu thành công!");
+
+      message.success({ content: "Đổi mật khẩu thành công!", key: loadingKey, duration: 2 });
 
       setPasswordData({
         currentPassword: "",
@@ -330,15 +338,18 @@ const ProfileManager = () => {
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
-        alert(
-          err.response.data?.message ||
-            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
-        );
+        message.error({
+          content:
+            err.response.data?.message ||
+            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!",
+          key: loadingKey,
+          duration: 3,
+        });
       } else if (err.response?.status === 401) {
-        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        message.warning({ content: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!", key: loadingKey, duration: 3 });
         navigate("/login");
       } else {
-        alert("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+        message.error({ content: "Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!", key: loadingKey, duration: 3 });
       }
     }
   };
@@ -350,10 +361,7 @@ const ProfileManager = () => {
         <Row>
           <Col className="mb-5 mb-xl-0" xl="4">
             <Row className="justify-content-center mt-2 mb-2">
-              <Col
-                lg="3"
-                className="d-flex flex-column justify-content-center align-items-center text-center"
-              >
+              <Col lg="3" className="d-flex flex-column justify-content-center align-items-center text-center">
                 {/* Ảnh đại diện */}
                 <div className="card-profile-image mb-3">
                   <a href="#pablo" onClick={(e) => e.preventDefault()}>
@@ -413,10 +421,7 @@ const ProfileManager = () => {
           </Col>
 
           <Col xl="8">
-            <Card
-              className="bg-secondary shadow"
-              style={{ marginRight: "5%", marginLeft: "5%" }}
-            >
+            <Card className="bg-secondary shadow" style={{ marginRight: "5%", marginLeft: "5%" }}>
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
                   <Col>
@@ -437,41 +442,32 @@ const ProfileManager = () => {
               >
                 <Form>
                   {/* Tabs chọn section */}
-                  <div
-                    className="d-flex mb-4 justify-content-center"
-                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
-                  >
+                  <div className="d-flex mb-4 justify-content-center" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "user" ? "#ffffff" : "transparent",
-                        color:
-                          activeSection === "user" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "user" ? "#ffffff" : "transparent",
+                        color: activeSection === "user" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "user" ? 700 : 500,
                       }}
                       onClick={() => setActiveSection("user")}
                     >
-                      User Information
+                      Thông tin cá nhân
                     </Button>
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "password"
-                            ? "#ffffff"
-                            : "transparent",
-                        color:
-                          activeSection === "password" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "password" ? "#ffffff" : "transparent",
+                        color: activeSection === "password" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "password" ? 700 : 500,
                       }}
                       onClick={() => setActiveSection("password")}
                     >
-                      Reset Password
+                      Đổi mật khẩu
                     </Button>
                   </div>
 
@@ -482,10 +478,7 @@ const ProfileManager = () => {
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-fullname"
-                              >
+                              <label className="form-control-label" htmlFor="input-fullname">
                                 👤 Full Name
                               </label>
                               <Input
@@ -493,38 +486,23 @@ const ProfileManager = () => {
                                 id="input-fullname"
                                 value={userInfo.fullName}
                                 type="text"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    fullName: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, fullName: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-birthday-visible"
-                              >
+                              <label className="form-control-label" htmlFor="input-birthday-visible">
                                 🎂 Birthday
                               </label>
 
-                              <div
-                                style={{ position: "relative", width: "100%" }}
-                              >
+                              <div style={{ position: "relative", width: "100%" }}>
                                 <DatePicker
                                   id="birthday-picker"
-                                  selected={toDateFromDDMMYYYY(
-                                    userInfo.birthday
-                                  )}
+                                  selected={toDateFromDDMMYYYY(userInfo.birthday)}
                                   onChange={(date) =>
-                                    setUserInfo({
-                                      ...userInfo,
-                                      birthday: date ? toDDMMYYYY(date) : "",
-                                    })
+                                    setUserInfo({ ...userInfo, birthday: date ? toDDMMYYYY(date) : "" })
                                   }
                                   dateFormat="dd/MM/yyyy"
                                   placeholderText="dd/mm/yyyy"
@@ -538,14 +516,7 @@ const ProfileManager = () => {
                                 />
                               </div>
 
-                              {/* Hiển thị tuổi dưới Birthday */}
-                              <div
-                                className="mt-1"
-                                style={{
-                                  color: "#ffd700",
-                                  fontStyle: "italic",
-                                }}
-                              >
+                              <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
                                 Tuổi: {age !== "" ? age : "--"}
                               </div>
                             </FormGroup>
@@ -555,10 +526,7 @@ const ProfileManager = () => {
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-email"
-                              >
+                              <label className="form-control-label" htmlFor="input-email">
                                 ✉️ Email Address
                               </label>
                               <Input
@@ -566,22 +534,14 @@ const ProfileManager = () => {
                                 id="input-email"
                                 value={userInfo.email}
                                 type="email"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    email: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-phone"
-                              >
+                              <label className="form-control-label" htmlFor="input-phone">
                                 <FcPhone /> Phone Number
                               </label>
                               <Input
@@ -589,12 +549,7 @@ const ProfileManager = () => {
                                 id="input-phone"
                                 type="tel"
                                 value={userInfo.phone}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    phone: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -603,10 +558,7 @@ const ProfileManager = () => {
                         <Row>
                           <Col lg="12">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-address"
-                              >
+                              <label className="form-control-label" htmlFor="input-address">
                                 🏠 Address
                               </label>
                               <Input
@@ -614,12 +566,7 @@ const ProfileManager = () => {
                                 id="input-address"
                                 type="text"
                                 value={userInfo.address}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    address: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, address: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -627,15 +574,8 @@ const ProfileManager = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleUpdateUserInfo}
-                        >
-                          Update User Information
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleUpdateUserInfo}>
+                          Cập nhật thông tin
                         </Button>
                       </Col>
                     </>
@@ -645,30 +585,17 @@ const ProfileManager = () => {
                   {activeSection === "password" && (
                     <>
                       <div className="pl-lg-4">
-                        {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
-                          <Label className="form-control-label">
-                            🔐 Current Password
-                          </Label>
+                          <Label className="form-control-label">🔐 Current Password</Label>
                           <Input
                             className="form-control-alternative"
                             type={showPassword.current ? "text" : "password"}
                             value={passwordData.currentPassword}
                             style={{ paddingRight: "40px" }}
-                            onChange={(e) =>
-                              setPasswordData({
-                                ...passwordData,
-                                currentPassword: e.target.value,
-                              })
-                            }
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                           />
                           <span
-                            onClick={() =>
-                              setShowPassword({
-                                ...showPassword,
-                                current: !showPassword.current,
-                              })
-                            }
+                            onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
                             style={{
                               position: "absolute",
                               right: "12px",
@@ -682,33 +609,19 @@ const ProfileManager = () => {
                           </span>
                         </FormGroup>
 
-                        {/* NEW PASSWORD + CONFIRM */}
                         <Row>
-                          {/* NEW PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔑 New Password
-                              </Label>
+                              <Label className="form-control-label">🔑 New Password</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.new ? "text" : "password"}
                                 value={passwordData.newPassword}
                                 style={{ paddingRight: "40px" }}
-                                onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    newPassword: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    new: !showPassword.new,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -723,31 +636,20 @@ const ProfileManager = () => {
                             </FormGroup>
                           </Col>
 
-                          {/* CONFIRM PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔁 Confirm New Password
-                              </Label>
+                              <Label className="form-control-label">🔁 Confirm New Password</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.confirm ? "text" : "password"}
                                 value={passwordData.confirmNewPassword}
                                 style={{ paddingRight: "40px" }}
                                 onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    confirmNewPassword: e.target.value,
-                                  })
+                                  setPasswordData({ ...passwordData, confirmNewPassword: e.target.value })
                                 }
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    confirm: !showPassword.confirm,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -765,15 +667,8 @@ const ProfileManager = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleChangePassword}
-                        >
-                          Change Password
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleChangePassword}>
+                          Đổi mật khẩu
                         </Button>
                       </Col>
                     </>

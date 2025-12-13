@@ -9,22 +9,17 @@ function parseTimeRange(timeStr) {
   const [eh, em] = end ? end.split(":").map((v) => +v) : [sh, sm];
   return [sh, sm, eh, em];
 }
-
 function startOfDay(d) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
 }
-
-/** Date -> yyyy-mm-dd */
 function dateObjToISO(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
-
-/** dd/mm/yyyy cho UI */
 function toDDMMYYYY(date) {
   if (!date) return "";
   const dd = String(date.getDate()).padStart(2, "0");
@@ -32,95 +27,13 @@ function toDDMMYYYY(date) {
   const yyyy = date.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
-
-/** Chuẩn hoá dữ liệu lịch -> events cho calendar 
- * allSchedule item dạng:
- * {
- *   date: "2025-12-10",
- *   title: "Lịch trực",
- *   status: "Scheduled" | "Off",
- *   scheduleId?: number,
- *   shifts: [
- *     {
- *       name: "Ca sáng",
- *       time: "05:00-13:00",
- *       timeSlotId: 17,
- *       staff: [{ staffId, status }]
- *     }
- *   ]
- * }
- */
-function normalizeScheduleData(arr) {
-  const today = startOfDay(new Date());
-  const out = [];
-
-  (arr || []).forEach((item) => {
-    if (!item.date) return;
-    const d = new Date(item.date);
-
-    let start, end;
-    if (Array.isArray(item.shifts) && item.shifts.length > 0) {
-      let minH = 23,
-        minM = 59,
-        maxH = 0,
-        maxM = 0;
-
-      item.shifts.forEach((shift) => {
-        if (!shift.time) return;
-        const [sh, sm, eh, em] = parseTimeRange(shift.time);
-        if (sh < minH || (sh === minH && sm < minM)) {
-          minH = sh;
-          minM = sm;
-        }
-        if (eh > maxH || (eh === maxH && em > maxM)) {
-          maxH = eh;
-          maxM = em;
-        }
-      });
-
-      if (minH === 23 && maxH === 0) {
-        start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-        end = null;
-      } else {
-        start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), minH, minM, 0, 0);
-        end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), maxH, maxM, 0, 0);
-      }
-    } else {
-      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-      end = null;
-    }
-
-    const dateOnly = startOfDay(d);
-
-    let statusRaw = item.status || "Scheduled";
-    // status Off là nghỉ, Scheduled là làm việc
-    let status =
-      statusRaw.toLowerCase() === "off"
-        ? "Off"
-        : "Scheduled";
-
-    // nếu cần thêm logic quá khứ/tương lai thì chỉnh thêm ở đây
-    if (dateOnly.getTime() > today.getTime()) {
-      status = status; // hiện giữ nguyên
-    }
-
-    out.push({
-      title: item.title || "Lịch trực",
-      start,
-      end,
-      allDay: false,
-      status,
-      shifts: item.shifts || [],
-      rawDate: item.date,
-      scheduleId: item.scheduleId, // nếu có id từ BE
-    });
-  });
-
-  out.sort((a, b) => +a.start - +b.start);
-  return out;
+function toHHmmFromApiTime(apiTime) {
+  if (!apiTime) return "";
+  const parts = String(apiTime).split(":");
+  const hh = (parts[0] || "00").padStart(2, "0");
+  const mm = (parts[1] || "00").padStart(2, "0");
+  return `${hh}:${mm}`;
 }
-
-/** load script jQuery */
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src*="${src}"]`)) return resolve();
@@ -143,29 +56,158 @@ function getPersonInitials(name = "") {
     .slice(0, 2)
     .toUpperCase();
 }
-
 function statusBadgeClass(status) {
   const st = (status || "").toLowerCase();
   if (st === "scheduled" || st === "present") return "badge bg-success";
-  if (st === "off") return "badge bg-secondary"; // nghỉ
+  if (st === "off") return "badge bg-secondary";
   if (st === "absent") return "badge bg-danger";
   if (st === "not yet") return "badge bg-secondary";
   return "badge bg-secondary";
 }
 
-/** PUT update lịch làm việc /staff-schedule/{id} */
-async function updateScheduleStatus(scheduleId, status, notes = "") {
-  if (!scheduleId) return false;
-  try {
-    await api.put(`/staff-schedule/${scheduleId}`, {
-      status,
-      notes,
+/** ===== API ===== */
+async function apiGetScheduleDay(isoDate) {
+  // GET /staff-schedule/day?date=YYYY-MM-DD
+  const res = await api.get("/staff-schedule/day", { params: { date: isoDate } });
+  return res.data;
+}
+
+async function apiAssignStaffToSlot({ scheduleDate, timeSlotId, staffIds, status, notes }) {
+  // POST /staff-schedule/assign
+  await api.post("/staff-schedule/assign", {
+    scheduleDate,
+    timeSlotId,
+    staffIds,
+    status,
+    notes,
+  });
+}
+
+/**
+ * Convert BE day -> FE event format
+ * BE:
+ * {
+ *   date: "2025-12-12",
+ *   slots: [
+ *     {
+ *       timeSlotId, slotName, startTime, endTime,
+ *       staffs: [{staffId, name, status, notes}]
+ *     }
+ *   ]
+ * }
+ *
+ * FE event:
+ * {
+ *   date, title, status, shifts:[{name,time,timeSlotId,staff:[{staffId,status,notes}]}]
+ * }
+ */
+function dayDtoToEvent(dayDto) {
+  const isoDate = (dayDto?.date || "").slice(0, 10);
+  const d = new Date(isoDate);
+  const slots = Array.isArray(dayDto?.slots) ? dayDto.slots : [];
+
+  const shifts = slots.map((sl) => {
+    const start = toHHmmFromApiTime(sl.startTime);
+    const end = toHHmmFromApiTime(sl.endTime);
+    const time = start && end ? `${start}-${end}` : "";
+
+    return {
+      name: sl.slotName || "Ca",
+      time,
+      timeSlotId: sl.timeSlotId,
+      staff: (sl.staffs || []).map((st) => ({
+        staffId: st.staffId,
+        name: st.name,
+        status: st.status || "Scheduled",
+        notes: st.notes || "",
+      })),
+    };
+  });
+
+  // status ở mức ngày: nếu tất cả slot không có staff -> Off, ngược lại Scheduled
+  const totalStaff = shifts.reduce((sum, sh) => sum + ((sh.staff || []).length || 0), 0);
+  const dayStatus = totalStaff === 0 ? "Off" : "Scheduled";
+
+  // tính start/end để calendar sort
+  let startTime = "00:00";
+  let endTime = "00:00";
+  if (shifts.length) {
+    let minH = 23, minM = 59, maxH = 0, maxM = 0;
+    shifts.forEach((sh) => {
+      if (!sh.time) return;
+      const [shh, smm, ehh, emm] = parseTimeRange(sh.time);
+      if (shh < minH || (shh === minH && smm < minM)) {
+        minH = shh; minM = smm;
+      }
+      if (ehh > maxH || (ehh === maxH && emm > maxM)) {
+        maxH = ehh; maxM = emm;
+      }
     });
-    return true;
-  } catch (err) {
-    console.error("PUT /staff-schedule/{id} failed:", err);
-    return false;
+    if (!(minH === 23 && maxH === 0)) {
+      startTime = `${String(minH).padStart(2, "0")}:${String(minM).padStart(2, "0")}`;
+      endTime = `${String(maxH).padStart(2, "0")}:${String(maxM).padStart(2, "0")}`;
+    }
   }
+
+  const [shh, smm] = startTime.split(":").map((v) => +v || 0);
+  const [ehh, emm] = endTime.split(":").map((v) => +v || 0);
+
+  return {
+    date: isoDate,
+    rawDate: isoDate,
+    title: "Lịch trực",
+    status: dayStatus,
+    start: new Date(d.getFullYear(), d.getMonth(), d.getDate(), shh, smm, 0, 0),
+    end: new Date(d.getFullYear(), d.getMonth(), d.getDate(), ehh, emm, 0, 0),
+    shifts,
+    isNew: false,
+    scheduleId: null,
+  };
+}
+
+/** Chuẩn hoá FE events cho calendar renderer */
+function normalizeScheduleData(arr) {
+  const today = startOfDay(new Date());
+  const out = [];
+
+  (arr || []).forEach((item) => {
+    if (!item.date && !item.rawDate) return;
+    const iso = item.rawDate || item.date;
+    const d = new Date(iso);
+
+    let start = item.start;
+    let end = item.end;
+
+    if (!start || isNaN(new Date(start).getTime())) {
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    }
+    if (end && isNaN(new Date(end).getTime())) end = null;
+
+    const dateOnly = startOfDay(d);
+    let statusRaw = item.status || "Scheduled";
+    let status = statusRaw.toLowerCase() === "off" ? "Off" : "Scheduled";
+    if (dateOnly.getTime() > today.getTime()) status = status;
+
+    out.push({
+      title: item.title || "Lịch trực",
+      start,
+      end,
+      allDay: false,
+      status,
+      shifts: item.shifts || [],
+      rawDate: iso,
+      scheduleId: item.scheduleId,
+    });
+  });
+
+  out.sort((a, b) => +a.start - +b.start);
+  return out;
+}
+
+/** Lấy list staffIds hiện tại của 1 ca */
+function shiftStaffIds(shift) {
+  const arr = Array.isArray(shift?.staff) ? shift.staff : [];
+  return arr.map((x) => x.staffId).filter((x) => x != null);
 }
 
 export default function ManageSchedule() {
@@ -174,11 +216,10 @@ export default function ManageSchedule() {
   const eventModalRef = useRef(null);
   const personModalRef = useRef(null);
 
-  /** staff từ API */
   const [staffList, setStaffList] = useState([]);
   const staffListRef = useRef([]);
 
-  /** allSchedule: [{ date, title, status, scheduleId?, shifts: [...] }] */
+  /** cache lịch theo ngày (event list) */
   const [allSchedule, setAllSchedule] = useState([]);
   const dataRef = useRef([]);
 
@@ -188,7 +229,6 @@ export default function ManageSchedule() {
   const [editingShiftIndex, setEditingShiftIndex] = useState(null);
   const [editingStaffIds, setEditingStaffIds] = useState([]);
 
-  // ngày quá khứ + hôm nay không được sửa
   const isPastOrToday = (() => {
     if (!selectedEvent) return false;
     const d = new Date(selectedEvent.date || selectedEvent.start);
@@ -198,52 +238,47 @@ export default function ManageSchedule() {
     return d.getTime() <= today.getTime();
   })();
 
-  const handleCancelEvent = (event) => {
-    if (!event) return;
-    if (!window.confirm(`Bạn có chắc muốn xoá lịch trực ngày này?`)) return;
-
-    const eventDate = event.start || event.date;
-    const isoDate = dateObjToISO(eventDate);
-
-    const newSchedule = allSchedule.filter((ev) => ev.date !== isoDate);
-    setAllSchedule(newSchedule);
-    dataRef.current = newSchedule;
-
+  const rerenderCalendar = (events) => {
     if (window.jQuery && holderRef.current) {
       window.jQuery(holderRef.current).calendar({
-        data: normalizeScheduleData(dataRef.current),
+        data: normalizeScheduleData(events),
+        onOpenEvent: onOpenEventFromCalendar,
       });
-    }
-
-    setSelectedEvent(null);
-    try {
-      const ModalClass = window.bootstrap && window.bootstrap.Modal;
-      if (ModalClass && eventModalRef.current) {
-        const inst =
-          ModalClass.getInstance(eventModalRef.current) ||
-          new ModalClass(eventModalRef.current);
-        inst.hide();
-      }
-    } catch (e) {
-      console.warn("Cannot close event modal:", e);
     }
   };
 
-  /** mở modal info staff */
+  const upsertEventToCache = (ev) => {
+    const iso = ev.rawDate || ev.date || dateObjToISO(ev.start);
+    const next = [...dataRef.current];
+    const idx = next.findIndex((x) => (x.rawDate || x.date) === iso);
+    if (idx >= 0) next[idx] = { ...next[idx], ...ev, rawDate: iso, date: iso };
+    else next.push({ ...ev, rawDate: iso, date: iso });
+    dataRef.current = next;
+    setAllSchedule(next);
+    rerenderCalendar(next);
+    return next;
+  };
+
+  const fetchDayAndCache = async (isoDate) => {
+    try {
+      const dayDto = await apiGetScheduleDay(isoDate);
+      const ev = dayDtoToEvent(dayDto);
+      upsertEventToCache(ev);
+      return ev;
+    } catch (e) {
+      console.error("GET /staff-schedule/day failed:", e);
+      return null;
+    }
+  };
+
   const openPersonModal = (staff, status) => {
     if (!staff) return;
-    setSelectedPerson({
-      ...staff,
-      status: status || "Scheduled",
-    });
+    setSelectedPerson({ ...staff, status: status || "Scheduled" });
   };
 
   const startEditShift = (shift, index) => {
     setEditingShiftIndex(index);
-    const staffIds = Array.isArray(shift.staff)
-      ? shift.staff.map((s) => s.staffId)
-      : [];
-    setEditingStaffIds(staffIds);
+    setEditingStaffIds(shiftStaffIds(shift));
   };
 
   const cancelEditShift = () => {
@@ -252,122 +287,80 @@ export default function ManageSchedule() {
   };
 
   const saveEditShift = async () => {
-    if (selectedEvent == null || editingShiftIndex == null) return;
+    if (!selectedEvent || editingShiftIndex == null) return;
 
-    const isoDate =
-      selectedEvent.rawDate || dateObjToISO(selectedEvent.date || selectedEvent.start);
+    const isoDate = selectedEvent.rawDate || dateObjToISO(selectedEvent.date || selectedEvent.start);
+    const baseShifts = selectedEvent.shifts || [];
+    const shiftEditing = baseShifts[editingShiftIndex];
 
-    const dayIndex = allSchedule.findIndex((d) => d.date === isoDate);
-    const baseShifts =
-      dayIndex >= 0
-        ? allSchedule[dayIndex].shifts || []
-        : selectedEvent.shifts || [];
+    if (!shiftEditing) return;
 
     // chặn trùng staff giữa 2 ca
     const otherStaffIds = baseShifts
       .filter((_, idx) => idx !== editingShiftIndex)
-      .flatMap((sh) => (sh.staff || []).map((s) => s.staffId));
+      .flatMap((sh) => shiftStaffIds(sh));
 
-    const duplicatedStaff = editingStaffIds.filter((id) =>
-      otherStaffIds.includes(id)
-    );
-    if (duplicatedStaff.length) {
-      alert(
-        "❌ Một số nhân viên đã được phân ca khác trong ngày. Không thể cho trực 2 ca cùng ngày."
-      );
+    const duplicated = editingStaffIds.filter((id) => otherStaffIds.includes(id));
+    if (duplicated.length) {
+      alert("❌ Một số nhân viên đã được phân ca khác trong ngày. Không thể trực 2 ca cùng ngày.");
       return;
     }
 
-    const newShifts = baseShifts.map((sh, idx) => {
-      if (idx !== editingShiftIndex) return sh;
-      return {
-        ...sh,
-        staff: editingStaffIds.map((id) => ({
-          staffId: id,
-          status: "Scheduled",
-        })),
-      };
-    });
+    const timeSlotId = shiftEditing.timeSlotId || (editingShiftIndex === 0 ? 17 : 18);
+    const isOff = editingStaffIds.length === 0;
 
-    const newSchedule = [...allSchedule];
-    if (dayIndex >= 0) {
-      newSchedule[dayIndex] = {
-        ...newSchedule[dayIndex],
-        shifts: newShifts,
-      };
-    } else {
-      newSchedule.push({
-        date: isoDate,
-        title: selectedEvent.title || "Lịch trực",
-        status: "Scheduled",
-        shifts: newShifts,
-        scheduleId: selectedEvent.scheduleId, // nếu sau này có
-      });
-    }
+    // status: nếu chọn rỗng thì Off, ngược lại Scheduled
+    const payloadStatus = isOff ? "Off" : "Scheduled";
 
-    setAllSchedule(newSchedule);
-    dataRef.current = newSchedule;
-
-    setSelectedEvent((prev) =>
-      prev
-        ? {
-            ...prev,
-            shifts: newShifts,
-            rawDate: isoDate,
-            isNew: false,
-          }
-        : prev
-    );
-
-    if (window.jQuery && holderRef.current) {
-      window.jQuery(holderRef.current).calendar({
-        data: normalizeScheduleData(newSchedule),
-      });
-    }
-
-    /** 👉 Gọi API assign cho ca đang chỉnh + update status (Scheduled / Off) */
     try {
-      const shiftAssigned = newShifts[editingShiftIndex];
-      let timeSlotId = shiftAssigned.timeSlotId;
-
-      // set cứng timeSlotId: 17 = ca sáng, 18 = ca chiều
-      if (!timeSlotId) {
-        timeSlotId = editingShiftIndex === 0 ? 17 : 18;
-      }
-
-      const staffIds = editingStaffIds;
-      const isOff = staffIds.length === 0;
-      const newStatus = isOff ? "Off" : "Scheduled";
-
-      console.log("POST /staff-schedule/assign payload = ", {
+      await apiAssignStaffToSlot({
         scheduleDate: isoDate,
         timeSlotId,
-        staffIds,
-        status: "Scheduled",
+        staffIds: editingStaffIds,
+        status: payloadStatus,
         notes: "",
       });
 
-      // chỉ assign nếu có nhân viên
-      if (!isOff && timeSlotId && staffIds.length > 0) {
-        await api.post("/staff-schedule/assign", {
-          scheduleDate: isoDate,
-          timeSlotId,
-          staffIds,
-          status: "Scheduled",
-          notes: "",
-        });
-      }
+      // reload day từ BE để chắc chắn đúng data
+      const fresh = await fetchDayAndCache(isoDate);
 
-      // Nếu có scheduleId (lấy từ BE), update trạng thái làm việc / nghỉ
-      if (selectedEvent && selectedEvent.scheduleId) {
-        await updateScheduleStatus(selectedEvent.scheduleId, newStatus, "");
-      }
+      // update selectedEvent theo data mới (giữ modal đang mở)
+      if (fresh) setSelectedEvent(fresh);
+
+      cancelEditShift();
     } catch (err) {
-      console.error("Error calling /staff-schedule/assign or PUT schedule:", err);
+      console.error("POST /staff-schedule/assign failed:", err);
+      alert("❌ Lưu ca thất bại. Vui lòng thử lại.");
     }
+  };
 
-    // ❗ Sau khi lưu: chỉ thoát chế độ edit, KHÔNG đóng modal
-    cancelEditShift();
+  const onOpenEventFromCalendar = async (ev) => {
+    setEditingShiftIndex(null);
+    setEditingStaffIds([]);
+
+    const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || ev.date);
+
+    // Nếu có trong cache -> mở nhanh, đồng thời refresh BE để update mới nhất
+    const cached = dataRef.current.find((x) => (x.rawDate || x.date) === isoDate);
+    if (cached) setSelectedEvent(cached);
+    else setSelectedEvent({ ...ev, rawDate: isoDate, date: isoDate });
+
+    // luôn fetch ngày từ BE để đồng bộ
+    const fresh = await fetchDayAndCache(isoDate);
+    if (fresh) setSelectedEvent(fresh);
+
+    try {
+      const ModalClass =
+        (window.bootstrap && window.bootstrap.Modal) ||
+        (window.bootstrap?.Modal) ||
+        null;
+      if (ModalClass) {
+        const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
+        inst.show();
+      }
+    } catch (e) {
+      console.warn("Cannot open event modal:", e);
+    }
   };
 
   useEffect(() => {
@@ -384,6 +377,7 @@ export default function ManageSchedule() {
       const $ = window.jQuery;
       if (!$) return;
 
+      // quicktmpl
       $.extend({
         quicktmpl: function (template) {
           return new Function(
@@ -406,24 +400,13 @@ export default function ManageSchedule() {
         },
       });
 
+      // Date helpers
       $.extend(Date.prototype, {
         toDateCssClass: function () {
-          return (
-            "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate()
-          );
+          return "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate();
         },
         toDateInt: function () {
           return (this.getFullYear() * 12 + this.getMonth()) * 32 + this.getDate();
-        },
-        toTimeString: function () {
-          const h = this.getHours(),
-            m = this.getMinutes();
-          const hh = h > 12 ? h - 12 : h;
-          const ampm = h >= 12 ? " CH" : " SA";
-          if (h === 0 && m === 0) return "";
-          return m > 0
-            ? `${hh}:${String(m).padStart(2, "0")}${ampm}`
-            : `${hh}${ampm}`;
         },
       });
 
@@ -438,6 +421,7 @@ export default function ManageSchedule() {
         trigger: "manual",
         sanitize: false,
       };
+
       function getOrCreatePopover(elem, opts) {
         const PopCtor =
           (window.bootstrap && window.bootstrap.Popover) ||
@@ -447,6 +431,7 @@ export default function ManageSchedule() {
         if (!instance) instance = new PopCtor(elem, { ...POPOVER_OPTS, ...opts });
         return instance;
       }
+
       function hideCurrent() {
         if (currentPopover) {
           try {
@@ -455,38 +440,25 @@ export default function ManageSchedule() {
           currentPopover = null;
         }
       }
-      $(document).on("click", (e) => {
-        if (
-          !$(e.target).closest(
-            ".popover, .js-cal-years, .js-cal-months, .event-chip"
-          ).length
-        )
-          hideCurrent();
-      });
 
-      const getStaffByIdRef = (id) =>
-        (staffListRef.current || []).find((s) => s.staffId === id) || null;
+      $(document).on("click", (e) => {
+        if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event-chip").length) hideCurrent();
+      });
 
       function calendar($el, options) {
         $el
           .on("click", ".js-cal-prev", function () {
-            if (options.mode === "year")
-              options.date.setFullYear(options.date.getFullYear() - 1);
-            else if (options.mode === "month")
-              options.date.setMonth(options.date.getMonth() - 1);
-            else if (options.mode === "week")
-              options.date.setDate(options.date.getDate() - 7);
+            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() - 1);
+            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() - 1);
+            else if (options.mode === "week") options.date.setDate(options.date.getDate() - 7);
             else options.date.setDate(options.date.getDate() - 1);
             hideCurrent();
             draw();
           })
           .on("click", ".js-cal-next", function () {
-            if (options.mode === "year")
-              options.date.setFullYear(options.date.getFullYear() + 1);
-            else if (options.mode === "month")
-              options.date.setMonth(options.date.getMonth() + 1);
-            else if (options.mode === "week")
-              options.date.setDate(options.date.getDate() + 7);
+            if (options.mode === "year") options.date.setFullYear(options.date.getFullYear() + 1);
+            else if (options.mode === "month") options.date.setMonth(options.date.getMonth() + 1);
+            else if (options.mode === "week") options.date.setDate(options.date.getDate() + 7);
             else options.date.setDate(options.date.getDate() + 1);
             hideCurrent();
             draw();
@@ -499,11 +471,7 @@ export default function ManageSchedule() {
             for (let m = 0; m < 12; m++) {
               const label = `${options.months[m]}`;
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(
-                           options.date.getFullYear(),
-                           m,
-                           1
-                         ).toISOString()}"
+                         data-date="${new Date(options.date.getFullYear(), m, 1).toISOString()}"
                          data-mode="month">${label}</button>`;
             }
             s += "</div>";
@@ -529,11 +497,7 @@ export default function ManageSchedule() {
             let s = '<div class="list-group">';
             for (let y = start; y <= end; y++) {
               s += `<button type="button" class="list-group-item list-group-item-action js-cal-option"
-                         data-date="${new Date(
-                           y,
-                           options.date.getMonth(),
-                           1
-                         ).toISOString()}"
+                         data-date="${new Date(y, options.date.getMonth(), 1).toISOString()}"
                          data-mode="month">${y}</button>`;
             }
             s += "</div>";
@@ -564,7 +528,7 @@ export default function ManageSchedule() {
             draw();
           });
 
-        // CLICK CHIP EVENT → mở modal detail
+        // CLICK CHIP EVENT
         $el.on("click", ".event-chip", function (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -575,24 +539,15 @@ export default function ManageSchedule() {
           return false;
         });
 
-        // CLICK NGÀY
+        // CLICK NGÀY: mở modal (và GET lịch từ BE)
         $el.on("click", ".calendar-day", function (e) {
           e.preventDefault();
           e.stopPropagation();
+
           const dateStr = this.getAttribute("data-date");
           if (!dateStr) return;
           const clickedDate = new Date(dateStr);
-          const dayIso = dateObjToISO(clickedDate);
-
-          const existingEvent = (options.data || []).find((ev) => {
-            const evDateIso = dateObjToISO(ev.start || ev.date);
-            return evDateIso === dayIso;
-          });
-
-          if (existingEvent) {
-            options.onOpenEvent && options.onOpenEvent(existingEvent);
-            return false;
-          }
+          const iso = dateObjToISO(clickedDate);
 
           // chặn ngày quá khứ + hôm nay
           const today = new Date();
@@ -600,77 +555,63 @@ export default function ManageSchedule() {
           const clickedNorm = new Date(clickedDate);
           clickedNorm.setHours(0, 0, 0, 0);
           if (clickedNorm.getTime() <= today.getTime()) {
-            alert("Không thể thêm lịch cho ngày đã qua hoặc hôm nay.");
+            alert("Không thể thêm/chỉnh lịch cho ngày đã qua hoặc hôm nay.");
             return false;
           }
 
-          const newEvent = {
-            title: "Lịch trực",
-            start: clickedDate,
-            end: null,
-            status: "Scheduled",
-            shifts: [
-              {
-                name: "Ca sáng",
-                time: "05:00-13:00",
-                timeSlotId: 17,
-                staff: [],
-              },
-              {
-                name: "Ca chiều",
-                time: "13:00-21:00",
-                timeSlotId: 18,
-                staff: [],
-              },
-            ],
-            rawDate: dayIso,
-            isNew: true,
-            scheduleId: null,
-          };
-          options.onOpenEvent && options.onOpenEvent(newEvent);
+          // mở event stub (sẽ được fetch BE thay)
+          options.onOpenEvent &&
+            options.onOpenEvent({
+              title: "Lịch trực",
+              start: clickedDate,
+              end: null,
+              status: "Scheduled",
+              shifts: [],
+              rawDate: iso,
+              date: iso,
+            });
+
           return false;
         });
 
         function monthAddEvent(index, event) {
           const e = new Date(event.start);
           const dayCell = $("." + e.toDateCssClass());
-          if (!dayCell.length || dayCell.hasEvent) return;
+          if (!dayCell.length || dayCell.hasClass("has-event")) return;
 
-          let staffIds = [];
+          // gom staffIds từ shifts
+          let staffs = [];
           (event.shifts || []).forEach((shift) => {
-            if (Array.isArray(shift.staff)) {
-              staffIds.push(...shift.staff.map((s) => s.staffId));
-            }
+            (shift.staff || []).forEach((s) => staffs.push(s));
           });
-          staffIds = [...new Set(staffIds)];
-          const totalStaff = staffIds.length;
+
+          // unique theo staffId
+          const map = new Map();
+          staffs.forEach((s) => {
+            if (s?.staffId == null) return;
+            if (!map.has(s.staffId)) map.set(s.staffId, s);
+          });
+          const uniqueStaffs = [...map.values()];
+          const totalStaff = uniqueStaffs.length;
 
           const $chip = $(`
             <div class="event-chip" data-index="${index}" title="${event.title}">
               <div class="event-chip-avatars"></div>
               <div class="event-chip-title">${event.title}</div>
-              <div class="event-chip-time">
-                ${totalStaff} Staff
-              </div>
+              <div class="event-chip-time">${totalStaff} Staff</div>
             </div>
           `);
 
           const $avatarWrap = $chip.find(".event-chip-avatars");
           const maxShow = 4;
-
-          staffIds.slice(0, maxShow).forEach((id) => {
-            const staff = getStaffByIdRef(id);
-            const name = staff?.name || "?";
+          uniqueStaffs.slice(0, maxShow).forEach((st) => {
+            const name = st?.name || "?";
             const initials = getPersonInitials(name);
-            $avatarWrap.append(
-              `<div class="avatar-circle staff-avatar">${initials}</div>`
-            );
+            $avatarWrap.append(`<div class="avatar-circle staff-avatar">${initials}</div>`);
           });
-          if (staffIds.length > maxShow) {
-            const more = staffIds.length - maxShow;
-            $avatarWrap.append(
-              `<div class="avatar-circle more-avatar">+${more}</div>`
-            );
+          if (uniqueStaffs.length > maxShow) {
+            const more = uniqueStaffs.length - maxShow;
+            $avatarWrap.append(`<div class="avatar-circle more-avatar">+${more}</div>`);
           }
 
           dayCell.addClass("has-event").append($chip);
@@ -682,10 +623,7 @@ export default function ManageSchedule() {
             if (v.start.getFullYear() === year) counts[v.start.getMonth()]++;
           });
           $.each(counts, (i, v) => {
-            if (v !== 0)
-              $(".month-" + i).append(
-                '<span class="badge bg-info ms-2">' + v + "</span>"
-              );
+            if (v !== 0) $(".month-" + i).append('<span class="badge bg-info ms-2">' + v + "</span>");
           });
         }
 
@@ -693,10 +631,8 @@ export default function ManageSchedule() {
           $el.html(t(options));
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
-            if (options.mode === "year")
-              yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week")
-              $.each(options.data, monthAddEvent);
+            if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
+            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -717,43 +653,9 @@ export default function ManageSchedule() {
         });
       })(
         {
-          days: [
-            "Thứ hai",
-            "Thứ ba",
-            "Thứ tư",
-            "Thứ năm",
-            "Thứ sáu",
-            "Thứ bảy",
-            "Chủ nhật",
-          ],
-          months: [
-            "Tháng 1",
-            "Tháng 2",
-            "Tháng 3",
-            "Tháng 4",
-            "Tháng 5",
-            "Tháng 6",
-            "Tháng 7",
-            "Tháng 8",
-            "Tháng 9",
-            "Tháng 10",
-            "Tháng 11",
-            "Tháng 12",
-          ],
-          shortMonths: [
-            "Th1",
-            "Th2",
-            "Th3",
-            "Th4",
-            "Th5",
-            "Th6",
-            "Th7",
-            "Th8",
-            "Th9",
-            "Th10",
-            "Th11",
-            "Th12",
-          ],
+          days: ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"],
+          months: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"],
+          shortMonths: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"],
           date: new Date(),
           daycss: ["", "", "", "", "", "c-saturday", "c-sunday"],
           thismonthcss: "current",
@@ -778,41 +680,12 @@ export default function ManageSchedule() {
         console.error("Failed to load staff list:", e);
       }
 
-      // hiện tại chưa GET schedule từ BE → allSchedule = []
+      // khởi tạo calendar với cache rỗng
       dataRef.current = [];
-      const normalized = normalizeScheduleData(dataRef.current);
-
+      setAllSchedule([]);
       window.jQuery(holderRef.current).calendar({
-        data: normalized,
-        onOpenEvent: (ev) => {
-          setEditingShiftIndex(null);
-          setEditingStaffIds([]);
-
-          setSelectedEvent({
-            title: ev.title,
-            date: ev.start,
-            start: ev.start,
-            end: ev.end,
-            status: ev.status || "Scheduled",
-            shifts: ev.shifts || [],
-            rawDate: ev.rawDate,
-            isNew: ev.isNew || false,
-            scheduleId: ev.scheduleId, // nếu có từ BE
-          });
-          try {
-            const ModalClass =
-              (window.bootstrap && window.bootstrap.Modal) ||
-              (BootstrapBundle && BootstrapBundle.Modal);
-            if (ModalClass) {
-              const inst = ModalClass.getOrCreateInstance(
-                document.getElementById("eventDetailModal")
-              );
-              inst.show();
-            }
-          } catch (e) {
-            console.warn("Cannot open event modal:", e);
-          }
-        },
+        data: normalizeScheduleData([]),
+        onOpenEvent: onOpenEventFromCalendar,
       });
     })();
   }, []);
@@ -820,27 +693,15 @@ export default function ManageSchedule() {
   return (
     <div className="container mt-5 mb-5">
       <style>{`
-/* ===== NAV & TITLES ===== */
-.nav-arrow{
-  font-weight:800;
-  font-size:22px;
-  line-height:1;
-  padding:2px 10px;
-  border:none;
-  background:transparent;
-  cursor:pointer;
-}
+.nav-arrow{ font-weight:800;font-size:22px;line-height:1;padding:2px 10px;border:none;background:transparent;cursor:pointer; }
 .nav-arrow:focus{ outline:none; }
-
 .btn-link.no-underline{ text-decoration:none !important; }
 .btn-link.bold{ font-weight:700 !important; }
 
-/* ===== CALENDAR TABLE ===== */
 .calendar-table{ width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0; }
 .calendar-table th, .calendar-table td{ vertical-align:top; }
 .calendar-table thead .c-weeks th, .calendar-table tbody td.calendar-day{ width:14.285714%; }
 
-/* ===== DAY CELL ===== */
 .calendar-day{
   position:relative; padding:8px; min-height:120px; background:#fff; border:1px solid #e5e7eb;
   overflow:hidden; word-wrap:break-word; transition:background-color .15s ease, border-color .15s ease;
@@ -848,25 +709,18 @@ export default function ManageSchedule() {
 .calendar-day .date{ font-weight:600; margin-bottom:6px; }
 .current{ background:#fff; }
 .prev-month, .next-month{ background:#f4f5f7 !important; color:#9aa0a6; opacity:.9; }
-.prev-month .date, .next-month .date{ color:#9aa0a6; font-weight:600; }
 
-/* ===== TODAY ===== */
 .calendar-day.today{ background:#fff7cc !important; border:1px solid #ffd24d !important; box-shadow:inset 0 0 0 2px #ffe58a; }
 .calendar-day.today .date{ font-weight:800; color:#b45309; }
 
-/* ===== HAS EVENT ===== */
 .calendar-day.has-event{ background:#fff3f5 !important; border:1px solid #ffc7d2 !important; }
 .calendar-day.has-event .date{ font-weight:700; color:#c80036; }
-.calendar-day.has-event.today{ background:#ffe9a8 !important; border-color:#ffcc66 !important; }
 
-/* ===== EVENT CHIP ===== */
 .event-chip{
   margin-top:6px; padding:6px 8px; border-radius:10px; background:#ffdbe3; border:1px dashed #ff9eb2;
   cursor:pointer; font-size:12px; line-height:1.25; display:grid; gap:3px; max-width:100%;
 }
-.event-chip-avatars{
-  display:flex; gap:4px; flex-wrap:wrap; margin-bottom:2px;
-}
+.event-chip-avatars{ display:flex; gap:4px; flex-wrap:wrap; margin-bottom:2px; }
 .avatar-circle{
   width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-size:11px; font-weight:600; color:#fff;
@@ -877,19 +731,8 @@ export default function ManageSchedule() {
 .event-chip-title{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .event-chip-time{ opacity:.9; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-/* ===== YEAR VIEW ===== */
-.calendar-table td.calendar-month{
-  width:25%; padding:12px; cursor:pointer; border:1px solid #e5e7eb; background:#fff;
-  transition:background-color .15s ease, border-color .15s ease;
-}
-.calendar-table td.calendar-month:hover{ background:#fafafa; }
-.calendar-table td.calendar-month .badge{ margin-left:.5rem; vertical-align:middle; }
-
-/* ===== POPOVER ===== */
 .popover{ z-index:1080; max-width:320px; }
-.popover .list-group-item{ text-align:left; }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 576px){
   .calendar-day{ min-height:100px; padding:6px; }
   .event-chip{ font-size:11px; }
@@ -898,7 +741,6 @@ export default function ManageSchedule() {
 }
       `}</style>
 
-      {/* TIÊU ĐỀ CĂN GIỮA */}
       <div className="mb-3 text-center">
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
           Quản lý lịch trực Staff
@@ -906,19 +748,11 @@ export default function ManageSchedule() {
       </div>
 
       {/* MODAL CHI TIẾT LỊCH */}
-      <div
-        className="modal fade"
-        id="eventDetailModal"
-        tabIndex="-1"
-        aria-hidden="true"
-        ref={eventModalRef}
-      >
+      <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title">
-                {selectedEvent?.title || "Chi tiết lịch trực"}
-              </h5>
+              <h5 className="modal-title">{selectedEvent?.title || "Chi tiết lịch trực"}</h5>
               <button
                 type="button"
                 className="btn-close"
@@ -930,36 +764,33 @@ export default function ManageSchedule() {
                 }}
               />
             </div>
+
             <div className="modal-body">
               {selectedEvent ? (
                 <>
                   <div className="mb-3 text-muted">
-                    Ngày:{" "}
-                    <strong>{toDDMMYYYY(selectedEvent.date || selectedEvent.start)}</strong>
+                    Ngày: <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
                   </div>
+
+                  {(selectedEvent.shifts || []).length === 0 ? (
+                    <div className="text-muted">
+                      Ngày này chưa có dữ liệu ca từ BE (slots rỗng). Hãy kiểm tra API /staff-schedule/day.
+                    </div>
+                  ) : null}
 
                   {(selectedEvent.shifts || []).map((shift, idx) => {
                     const isEditing = editingShiftIndex === idx;
-
                     const allShiftsForDay = selectedEvent.shifts || [];
                     const otherStaffIds = allShiftsForDay
                       .filter((_, i) => i !== idx)
-                      .flatMap((sh) => (sh.staff || []).map((s) => s.staffId));
+                      .flatMap((sh) => shiftStaffIds(sh));
 
                     return (
-                      <div
-                        key={idx}
-                        className="border rounded-3 p-3 mb-3"
-                        style={{ background: "#fafafa" }}
-                      >
+                      <div key={idx} className="border rounded-3 p-3 mb-3" style={{ background: "#fafafa" }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <h6 className="mb-0">
                             Ca {idx + 1}: {shift.name || ""}{" "}
-                            {shift.time && (
-                              <span className="text-muted ms-2">
-                                ({shift.time})
-                              </span>
-                            )}
+                            {shift.time && <span className="text-muted ms-2">({shift.time})</span>}
                           </h6>
 
                           {!isEditing && !isPastOrToday ? (
@@ -972,18 +803,10 @@ export default function ManageSchedule() {
                             </button>
                           ) : isEditing && !isPastOrToday ? (
                             <div className="d-flex gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-secondary"
-                                onClick={cancelEditShift}
-                              >
+                              <button type="button" className="btn btn-sm btn-secondary" onClick={cancelEditShift}>
                                 Hủy
                               </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-success"
-                                onClick={saveEditShift}
-                              >
+                              <button type="button" className="btn btn-sm btn-success" onClick={saveEditShift}>
                                 Lưu ca này
                               </button>
                             </div>
@@ -992,123 +815,72 @@ export default function ManageSchedule() {
 
                         {/* VIEW MODE */}
                         {!isEditing && (
-                          <>
-                            <div className="mb-2">
-                              <div className="fw-semibold mb-1">
-                                Staff trực:
+                          <div className="mb-2">
+                            <div className="fw-semibold mb-1">Staff trực:</div>
+                            {Array.isArray(shift.staff) && shift.staff.length > 0 ? (
+                              <div className="d-flex flex-wrap gap-2">
+                                {shift.staff.map((s, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#personDetailModal"
+                                    onClick={() => openPersonModal(s, s.status)}
+                                  >
+                                    {s.name || `Staff #${s.staffId}`}
+                                    <span className={statusBadgeClass(s.status)}>{s.status}</span>
+                                  </button>
+                                ))}
                               </div>
-                              {Array.isArray(shift.staff) &&
-                              shift.staff.length > 0 ? (
-                                <div className="d-flex flex-wrap gap-2">
-                                  {shift.staff.map((s, i) => {
-                                    const staff = staffList.find(
-                                      (st) => st.staffId === s.staffId
-                                    );
-                                    if (!staff) return null;
-                                    return (
-                                      <button
-                                        key={i}
-                                        type="button"
-                                        className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#personDetailModal"
-                                        onClick={() =>
-                                          openPersonModal(staff, s.status)
-                                        }
-                                      >
-                                        {staff.name}
-                                        <span
-                                          className={statusBadgeClass(
-                                            s.status
-                                          )}
-                                        >
-                                          {s.status}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <div className="text-muted">
-                                  Chưa phân công staff.
-                                </div>
-                              )}
-                            </div>
-                          </>
+                            ) : (
+                              <div className="text-muted">Chưa phân công staff.</div>
+                            )}
+                          </div>
                         )}
 
-                        {/* EDIT MODE – chỉ cho ngày tương lai */}
+                        {/* EDIT MODE */}
                         {isEditing && !isPastOrToday && (
                           <>
                             <div className="mb-2">
                               <small className="text-muted">
-                                Chọn bằng checkbox, mỗi ca có thể nhiều staff.  
-                                Staff đã trực ca khác trong ngày sẽ bị khóa.
+                                Chọn bằng checkbox. Staff đã trực ca khác trong ngày sẽ bị khóa.
                               </small>
                             </div>
-                            <div className="row g-3">
-                              <div className="col-12">
-                                <label className="form-label">
-                                  Chọn Staff
-                                </label>
-                                <div
-                                  className="border rounded-3 p-2"
-                                  style={{ maxHeight: 260, overflowY: "auto" }}
-                                >
-                                  {staffList.map((s) => {
-                                    const alreadyInOther = otherStaffIds.includes(
-                                      s.staffId
-                                    );
-                                    return (
-                                      <div
-                                        className="form-check"
-                                        key={s.staffId}
-                                      >
-                                        <input
-                                          className="form-check-input"
-                                          type="checkbox"
-                                          id={`shift-${idx}-staff-${s.staffId}`}
-                                          checked={editingStaffIds.includes(
-                                            s.staffId
-                                          )}
-                                          disabled={alreadyInOther}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setEditingStaffIds((prev) =>
-                                                prev.includes(s.staffId)
-                                                  ? prev
-                                                  : [...prev, s.staffId]
-                                              );
-                                            } else {
-                                              setEditingStaffIds((prev) =>
-                                                prev.filter(
-                                                  (x) => x !== s.staffId
-                                                )
-                                              );
-                                            }
-                                          }}
-                                        />
-                                        <label
-                                          className="form-check-label"
-                                          htmlFor={`shift-${idx}-staff-${s.staffId}`}
-                                        >
-                                          {s.name}{" "}
-                                          {alreadyInOther && (
-                                            <span className="text-danger ms-1">
-                                              (đã trực ca khác)
-                                            </span>
-                                          )}
-                                        </label>
-                                      </div>
-                                    );
-                                  })}
-                                  {staffList.length === 0 && (
-                                    <div className="text-muted">
-                                      Chưa có staff từ API.
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+
+                            <div className="border rounded-3 p-2" style={{ maxHeight: 260, overflowY: "auto" }}>
+                              {staffList.map((s) => {
+                                const alreadyInOther = otherStaffIds.includes(s.staffId);
+                                return (
+                                  <div className="form-check" key={s.staffId}>
+                                    <input
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      id={`shift-${idx}-staff-${s.staffId}`}
+                                      checked={editingStaffIds.includes(s.staffId)}
+                                      disabled={alreadyInOther}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setEditingStaffIds((prev) => (prev.includes(s.staffId) ? prev : [...prev, s.staffId]));
+                                        } else {
+                                          setEditingStaffIds((prev) => prev.filter((x) => x !== s.staffId));
+                                        }
+                                      }}
+                                    />
+                                    <label className="form-check-label" htmlFor={`shift-${idx}-staff-${s.staffId}`}>
+                                      {s.name}{" "}
+                                      {alreadyInOther && <span className="text-danger ms-1">(đã trực ca khác)</span>}
+                                    </label>
+                                  </div>
+                                );
+                              })}
+                              {staffList.length === 0 && <div className="text-muted">Chưa có staff từ API.</div>}
+                            </div>
+
+                            <div className="mt-2 text-muted">
+                              <small>
+                                Nếu bỏ chọn hết staff → hệ thống sẽ gửi status <b>Off</b> cho ca này.
+                              </small>
                             </div>
                           </>
                         )}
@@ -1120,19 +892,8 @@ export default function ManageSchedule() {
                 <div className="text-muted">Không có dữ liệu sự kiện.</div>
               )}
             </div>
-            <div className="modal-footer">
-              {selectedEvent &&
-                new Date(selectedEvent.start || selectedEvent.date) >
-                  new Date() && (
-                  <button
-                    type="button"
-                    className="btn btn-danger me-auto"
-                    onClick={() => handleCancelEvent(selectedEvent)}
-                  >
-                    Xoá lịch trực ngày này
-                  </button>
-                )}
 
+            <div className="modal-footer">
               <button
                 type="button"
                 className="btn btn-light"
@@ -1150,76 +911,40 @@ export default function ManageSchedule() {
       </div>
 
       {/* MODAL THÔNG TIN STAFF */}
-      <div
-        className="modal fade"
-        id="personDetailModal"
-        tabIndex="-1"
-        aria-hidden="true"
-        ref={personModalRef}
-      >
+      <div className="modal fade" id="personDetailModal" tabIndex="-1" aria-hidden="true" ref={personModalRef}>
         <div className="modal-dialog">
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">
-                {selectedPerson
-                  ? `Staff: ${selectedPerson.name}`
-                  : "Thông tin staff"}
+                {selectedPerson ? `Staff: ${selectedPerson.name || selectedPerson.staffId}` : "Thông tin staff"}
               </h5>
               <button
                 type="button"
                 className="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
-                onClick={() => {
-                  setSelectedPerson(null);
-                  try {
-                    const ModalClass =
-                      window.bootstrap && window.bootstrap.Modal;
-                    if (ModalClass && eventModalRef.current) {
-                      const inst =
-                        ModalClass.getInstance(eventModalRef.current) ||
-                        new ModalClass(eventModalRef.current);
-                      inst.show();
-                    }
-                  } catch (e) {
-                    console.warn("Cannot re-open event modal:", e);
-                  }
-                }}
+                onClick={() => setSelectedPerson(null)}
               />
             </div>
             <div className="modal-body">
               {selectedPerson ? (
                 <>
                   <div className="d-flex align-items-center mb-3">
-                    <div
-                      className="avatar-circle staff-avatar"
-                      style={{ width: 40, height: 40, fontSize: 16 }}
-                    >
-                      {getPersonInitials(selectedPerson.name)}
+                    <div className="avatar-circle staff-avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
+                      {getPersonInitials(selectedPerson.name || "")}
                     </div>
                     <div className="ms-3">
-                      <div className="fw-semibold">{selectedPerson.name}</div>
-                      <div className="text-muted">
-                        {selectedPerson.role || "Staff"}
-                      </div>
+                      <div className="fw-semibold">{selectedPerson.name || `Staff #${selectedPerson.staffId}`}</div>
+                      <div className="text-muted">{selectedPerson.role || "Staff"}</div>
                     </div>
                   </div>
+
                   <p className="mb-1">
-                    <strong>Điện thoại:</strong>{" "}
-                    {selectedPerson.phoneNumber || "—"}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Email:</strong> {selectedPerson.email || "—"}
+                    <strong>Ghi chú:</strong> {selectedPerson.notes || "—"}
                   </p>
                   <p className="mb-0">
                     <strong>Trạng thái:</strong>{" "}
-                    <span
-                      className={statusBadgeClass(
-                        selectedPerson.status
-                      )}
-                    >
-                      {selectedPerson.status}
-                    </span>
+                    <span className={statusBadgeClass(selectedPerson.status)}>{selectedPerson.status}</span>
                   </p>
                 </>
               ) : (
@@ -1227,26 +952,7 @@ export default function ManageSchedule() {
               )}
             </div>
             <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-light"
-                data-bs-dismiss="modal"
-                onClick={() => {
-                  setSelectedPerson(null);
-                  try {
-                    const ModalClass =
-                      window.bootstrap && window.bootstrap.Modal;
-                    if (ModalClass && eventModalRef.current) {
-                      const inst =
-                        ModalClass.getInstance(eventModalRef.current) ||
-                        new ModalClass(eventModalRef.current);
-                      inst.show();
-                    }
-                  } catch (e) {
-                    console.warn("Cannot re-open event modal:", e);
-                  }
-                }}
-              >
+              <button type="button" className="btn btn-light" data-bs-dismiss="modal" onClick={() => setSelectedPerson(null)}>
                 Đóng
               </button>
             </div>
@@ -1266,20 +972,7 @@ export default function ManageSchedule() {
       startingDay = (first.getDay()+6)%7, 
       thedate = new Date(year, month, 1 - startingDay),
       dayclass = lastmonthcss,
-      today = new Date(),
       i, j; 
-  if (mode === 'week') {
-    thedate = new Date(date);
-    thedate.setDate(date.getDate() - ((date.getDay()+6)%7));
-    first = new Date(thedate);
-    last = new Date(thedate);
-    last.setDate(thedate.getDate()+6);
-  } else if (mode === 'day') {
-    thedate = new Date(date);
-    first = new Date(thedate);
-    last = new Date(thedate);
-    last.setDate(thedate.getDate() + 1);
-  }
   }}
   <table class="calendar-table table table-sm">
     <thead>
@@ -1305,22 +998,6 @@ export default function ManageSchedule() {
       </tr>
     </thead>
 
-    {{ if (mode ==='year') { month = 0; }}
-    <tbody>
-      {{ for (j = 0; j < 3; j++) { }}
-      <tr>
-        {{ for (i = 0; i < 4; i++) { }}
-        <td class="calendar-month month-{{:month}} js-cal-option" data-date="{{: new Date(year, month, 1).toISOString() }}" data-mode="month">
-          {{: months[month] }}
-          {{ month++;}}
-        </td>
-        {{ } }}
-      </tr>
-      {{ } }}
-    </tbody>
-    {{ } }}
-
-    {{ if (mode ==='month' || mode ==='week') { }}
     <thead>
       <tr class="c-weeks">
         {{ for (i = 0; i < 7; i++) { }}
@@ -1328,12 +1005,13 @@ export default function ManageSchedule() {
         {{ } }}
       </tr>
     </thead>
+
     <tbody>
-      {{ for (j = 0; j < 6 && (j < 1 || mode === 'month'); j++) { }}
+      {{ for (j = 0; j < 6; j++) { }}
       <tr>
         {{ for (i = 0; i < 7; i++) { }}
         {{ if (thedate > last) { dayclass = nextmonthcss; } else if (thedate >= first) { dayclass = thismonthcss; } }}
-        <td class="calendar-day {{: dayclass }} {{: thedate.toDateCssClass() }} {{: date.toDateCssClass() === thedate.toDateCssClass() ? 'selected':'' }} {{: daycss[i] }} js-cal-option" data-date="{{: thedate.toISOString() }}">
+        <td class="calendar-day {{: dayclass }} {{: thedate.toDateCssClass() }} js-cal-option" data-date="{{: thedate.toISOString() }}">
           <div class="date">{{: thedate.getDate() }}</div>
           {{ thedate.setDate(thedate.getDate() + 1);}}
         </td>
@@ -1341,33 +1019,6 @@ export default function ManageSchedule() {
       </tr>
       {{ } }}
     </tbody>
-    {{ } }}
-
-    {{ if (mode ==='day') { }}
-    <tbody>
-      <tr>
-        <td colSpan="7">
-          <table class="table table-striped table-sm">
-            <thead>
-              <tr>
-                <th> </th>
-                <th style="text-align:center; width: 100%">{{: days[(date.getDay()+6)%7] }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><th class="timetitle">Cả ngày</th><td class="{{: date.toDateCssClass() }}"></td></tr>
-              <tr><th class="timetitle">Trước 6 giờ sáng</th><td class="time-0-0"></td></tr>
-              {{ for (i = 6; i < 22; i++) { }}
-              <tr><th class="timetitle">{{: i <= 12 ? i : i - 12 }} {{: i < 12 ? "SA" : "CH"}}</th><td class="time-{{: i}}-0"></td></tr>
-              <tr><th class="timetitle">{{: i <= 12 ? i : i - 12 }}:30 {{: i < 12 ? "SA" : "CH"}}</th><td class="time-{{: i}}-30"></td></tr>
-              {{ } }}
-              <tr><th class="timetitle">Sau 10 giờ tối</th><td class="time-22-0"></td></tr>
-            </tbody>
-          </table>
-        </td>
-      </tr>
-    </tbody>
-    {{ } }}
   </table>
         `}
       </script>
