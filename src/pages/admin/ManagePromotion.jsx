@@ -97,10 +97,37 @@ export default function AdminPromotionGifts() {
 
   // Xóa quà
   const handleDelete = (record) => {
-    // Sau này đổi thành API DELETE
-    setPromotions((prev) => prev.filter((p) => p.id !== record.id));
-    message.success("Đã xóa quà tặng khuyến mãi.");
+    Modal.confirm({
+      title: "Xác nhận xoá quà tặng",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá quà tặng:
+            <strong> {record.name}</strong>?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
+        try {
+          // 👉 Sau này đổi thành API DELETE
+          // await api.delete(`/PromotionGift/${record.id}`);
+
+          setPromotions((prev) =>
+            prev.filter((p) => p.id !== record.id)
+          );
+
+          message.success("Đã xoá quà tặng khuyến mãi");
+        } catch (err) {
+          console.error(err);
+          message.error("Xoá quà tặng thất bại");
+        }
+      },
+    });
   };
+
 
   // Submit form thêm / sửa
   const handleSubmitForm = (values) => {
@@ -126,121 +153,118 @@ export default function AdminPromotionGifts() {
   };
 
   const columns = [
-  {
-    title: "Ảnh quà",
-    dataIndex: "imageUrl",
-    key: "imageUrl",
-    width: 140,
-    render: (url, record) => (
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <img
-          src={url}
-          alt={record.name}
-          style={{
-            width: 80,
-            height: 80,
-            objectFit: "cover",
-            borderRadius: 8,
-          }}
-          onError={(e) => {
-            e.currentTarget.src =
-              "https://via.placeholder.com/100x100?text=Gift";
-          }}
-        />
-      </div>
-    ),
-  },
-  {
-    title: "Tên phần quà",
-    dataIndex: "name",
-    key: "name",
-    width: 260,
-    render: (text) => (
-      <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
-        <Text strong>{text}</Text>
-      </div>
-    ),
-  },
-  {
-    title: "Mô tả",
-    dataIndex: "description",
-    key: "description",
-    width: 350,
-    render: (text) => (
-      <div
-        style={{
-          whiteSpace: "normal",
-          wordWrap: "break-word",
-        }}
-      >
-        {text}
-      </div>
-    ),
-  },
-  {
-    title: "Điểm cần để đổi",
-    dataIndex: "pointsRequired",
-    key: "pointsRequired",
-    width: 150,
-    align: "right",
-    render: (val) => (
-      <Text strong>{val.toLocaleString("vi-VN")} điểm</Text>
-    ),
-  },
-  {
-    title: "Số lượng",
-    dataIndex: "quantity",
-    key: "quantity",
-    width: 120,
-    align: "right",
-    render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
-  },
-  {
-    title: "Trạng thái",
-    dataIndex: "status",
-    key: "status",
-    width: 120,
-    align: "center",
-    render: (status) => {
-      let color = "default";
-      if (status === "Active") color = "green";
-      if (status === "Inactive") color = "red";
-      if (status === "Expired") color = "orange";
-      return <Tag color={color}>{status}</Tag>;
+    {
+      title: "Ảnh quà",
+      dataIndex: "imageUrl",
+      key: "imageUrl",
+      width: 140,
+      render: (url, record) => (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <img
+            src={url}
+            alt={record.name}
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              borderRadius: 8,
+            }}
+            onError={(e) => {
+              e.currentTarget.src =
+                "https://via.placeholder.com/100x100?text=Gift";
+            }}
+          />
+        </div>
+      ),
     },
-  },
-  {
-    title: "Thao tác",
-    key: "actions",
-    width: 180,
-    fixed: "right",
-    align: "center",
-    render: (_, record) => (
-      <Space>
-        <Button
-          size="small"
-          type="primary"
-          icon={<EditOutlined />}
-          onClick={() => handleOpenEdit(record)}
+    {
+      title: "Tên phần quà",
+      dataIndex: "name",
+      key: "name",
+      width: 260,
+      render: (text) => (
+        <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
+          <Text strong>{text}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      width: 350,
+      render: (text) => (
+        <div
+          style={{
+            whiteSpace: "normal",
+            wordWrap: "break-word",
+          }}
         >
-          Cập nhật
-        </Button>
-        <Popconfirm
-          title="Xóa quà tặng"
-          description={`Bạn chắc chắn muốn xóa "${record.name}"?`}
-          okText="Xóa"
-          cancelText="Hủy"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => handleDelete(record)}
-        >
-          <Button size="small" danger icon={<DeleteOutlined />}>
+          {text}
+        </div>
+      ),
+    },
+    {
+      title: "Điểm cần để đổi",
+      dataIndex: "pointsRequired",
+      key: "pointsRequired",
+      width: 150,
+      align: "right",
+      render: (val) => (
+        <Text strong>{val.toLocaleString("vi-VN")} điểm</Text>
+      ),
+    },
+    {
+      title: "Số lượng",
+      dataIndex: "quantity",
+      key: "quantity",
+      width: 120,
+      align: "right",
+      render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+      align: "center",
+      render: (status) => {
+        let color = "default";
+        if (status === "Active") color = "green";
+        if (status === "Inactive") color = "red";
+        if (status === "Expired") color = "orange";
+        return <Tag color={color}>{status}</Tag>;
+      },
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 180,
+      fixed: "right",
+      align: "center",
+      render: (_, record) => (
+        <Space>
+          <Button
+            size="small"
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEdit(record)}
+          >
+            Cập nhật
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+          >
             Xóa
           </Button>
-        </Popconfirm>
-      </Space>
-    ),
-  },
-];
+
+        </Space>
+      ),
+    },
+  ];
 
 
   return (
