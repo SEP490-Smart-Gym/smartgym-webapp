@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import api from "../../config/axios";
+import { message } from "antd"; // ✅ ADD
 
 /** ===== Helpers thời gian & format ===== */
 function parseTimeRange(timeStr) {
@@ -253,13 +254,17 @@ export default function ManageSchedule() {
   };
 
   const fetchDayAndCache = async (isoDate) => {
+    const key = `fetch-day-${isoDate}`;
+    message.loading({ content: "Đang tải lịch trong ngày...", key, duration: 0 });
     try {
       const dayDto = await apiGetScheduleDay(isoDate);
       const ev = dayDtoToEvent(dayDto);
       upsertEventToCache(ev);
+      message.success({ content: "Đã tải lịch.", key, duration: 1.2 });
       return ev;
     } catch (e) {
       console.error("GET /staff-schedule/day failed:", e);
+      message.error({ content: "Không thể tải lịch trong ngày.", key, duration: 2 });
       return null;
     }
   };
@@ -297,9 +302,8 @@ export default function ManageSchedule() {
   const assignScheduleForEditingShift = async () => {
     if (!selectedEvent || editingShiftIndex == null) return;
 
-    // ✅ chặn cứng: quá khứ/hôm nay chỉ xem
     if (readOnly) {
-      alert("Ngày quá khứ hoặc hôm nay chỉ xem lịch, không thể chỉnh sửa/xếp lịch.");
+      message.warning("Ngày quá khứ hoặc hôm nay chỉ xem lịch, không thể chỉnh sửa/xếp lịch.");
       return;
     }
 
@@ -314,13 +318,16 @@ export default function ManageSchedule() {
 
     const duplicated = editingStaffIds.filter((id) => otherStaffIds.includes(id));
     if (duplicated.length) {
-      alert("❌ Một số nhân viên đã được phân ca khác trong ngày. Không thể trực 2 ca cùng ngày.");
+      message.error("Một số nhân viên đã được phân ca khác trong ngày. Không thể trực 2 ca cùng ngày.");
       return;
     }
 
     const timeSlotId = shiftEditing.timeSlotId || (editingShiftIndex === 0 ? 17 : 18);
     const isOff = editingStaffIds.length === 0;
     const payloadStatus = isOff ? "Off" : "Scheduled";
+
+    const loadingKey = "assign-staff-schedule";
+    message.loading({ content: "Đang xếp lịch...", key: loadingKey, duration: 0 });
 
     try {
       await apiAssignStaffToSlot({
@@ -335,10 +342,10 @@ export default function ManageSchedule() {
       if (fresh) setSelectedEvent(fresh);
 
       cancelEditShift();
-      alert("✅ Xếp lịch thành công!");
+      message.success({ content: "Xếp lịch thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("POST /staff-schedule/assign failed:", err);
-      alert("❌ Xếp lịch thất bại. Vui lòng thử lại.");
+      message.error({ content: "Xếp lịch thất bại. Vui lòng thử lại.", key: loadingKey, duration: 3 });
     }
   };
 
@@ -348,12 +355,10 @@ export default function ManageSchedule() {
 
     const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || ev.date);
 
-    // mở cache
     const cached = dataRef.current.find((x) => (x.rawDate || x.date) === isoDate);
     if (cached) setSelectedEvent(cached);
     else setSelectedEvent({ ...ev, rawDate: isoDate, date: isoDate });
 
-    // fetch BE
     const fresh = await fetchDayAndCache(isoDate);
     if (fresh) setSelectedEvent(fresh);
 
@@ -644,11 +649,15 @@ export default function ManageSchedule() {
       );
 
       // staff list
+      const staffKey = "load-staff-list";
+      message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
       try {
         const res = await api.get("/staff-schedule/staffs");
         setStaffList(res.data || []);
+        message.success({ content: "Đã tải danh sách staff.", key: staffKey, duration: 1.2 });
       } catch (e) {
         console.error("Failed to load staff list:", e);
+        message.error({ content: "Không thể tải danh sách staff.", key: staffKey, duration: 2 });
       }
 
       // init calendar
@@ -659,6 +668,7 @@ export default function ManageSchedule() {
         onOpenEvent: onOpenEventFromCalendar,
       });
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -723,7 +733,7 @@ export default function ManageSchedule() {
           className="btn btn-outline-primary"
           onClick={() => {
             if (!selectedEvent) {
-              alert("Bạn hãy nhấn vào ngày hoặc chip để mở lịch.");
+              message.info("Bạn hãy nhấn vào ngày hoặc chip để mở lịch.");
               return;
             }
             showEventModal();
@@ -739,12 +749,12 @@ export default function ManageSchedule() {
           onClick={() => {
             if (!selectedEvent) return;
             if (readOnly) {
-              alert("Ngày quá khứ/hôm nay chỉ xem lịch, không thể xếp lịch.");
+              message.warning("Ngày quá khứ/hôm nay chỉ xem lịch, không thể xếp lịch.");
               showEventModal();
               return;
             }
             if (editingShiftIndex == null) {
-              alert("Hãy bấm 'Chỉnh sửa ca này' trong modal trước.");
+              message.info("Hãy bấm 'Chỉnh sửa ca này' trong modal trước.");
               showEventModal();
               return;
             }
@@ -790,7 +800,6 @@ export default function ManageSchedule() {
                     <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
                   </div>
 
-                  {/* ✅ cảnh báo readOnly */}
                   {readOnly && (
                     <div className="alert alert-warning py-2">
                       Ngày này là <b>hôm nay</b> hoặc <b>đã qua</b> → chỉ được <b>xem lịch</b>, không thể chỉnh sửa/xếp lịch.
@@ -818,13 +827,8 @@ export default function ManageSchedule() {
                             {shift.time && <span className="text-muted ms-2">({shift.time})</span>}
                           </h6>
 
-                          {/* ✅ readOnly thì không hiện nút edit */}
                           {!isEditing && !readOnly ? (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() => startEditShift(shift, idx)}
-                            >
+                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditShift(shift, idx)}>
                               Chỉnh sửa ca này
                             </button>
                           ) : isEditing && !readOnly ? (
@@ -839,7 +843,6 @@ export default function ManageSchedule() {
                           ) : null}
                         </div>
 
-                        {/* VIEW MODE */}
                         {!isEditing && (
                           <div className="mb-2">
                             <div className="fw-semibold mb-1">Staff trực:</div>
@@ -865,7 +868,6 @@ export default function ManageSchedule() {
                           </div>
                         )}
 
-                        {/* EDIT MODE */}
                         {isEditing && !readOnly && (
                           <>
                             <div className="mb-2">
@@ -923,7 +925,6 @@ export default function ManageSchedule() {
                 Đóng
               </button>
 
-              {/* ✅ readOnly thì không hiện nút xếp lịch */}
               {!readOnly && editingShiftIndex != null ? (
                 <button type="button" className="btn btn-danger" onClick={assignScheduleForEditingShift}>
                   Xếp lịch
@@ -961,7 +962,8 @@ export default function ManageSchedule() {
                     <strong>Ghi chú:</strong> {selectedPerson.notes || "—"}
                   </p>
                   <p className="mb-0">
-                    <strong>Trạng thái:</strong> <span className={statusBadgeClass(selectedPerson.status)}>{selectedPerson.status}</span>
+                    <strong>Trạng thái:</strong>{" "}
+                    <span className={statusBadgeClass(selectedPerson.status)}>{selectedPerson.status}</span>
                   </p>
                 </>
               ) : (
