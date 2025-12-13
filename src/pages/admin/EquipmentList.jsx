@@ -66,7 +66,7 @@ export default function EquipmentList() {
     try {
       const res = await api.get("/Equipment");
       const raw = Array.isArray(res.data) ? res.data : res.data?.data || [];
-      setEquipments(raw); 
+      setEquipments(raw);
     } catch (err) {
       message.error("Lấy danh sách thất bại");
     } finally {
@@ -121,17 +121,31 @@ export default function EquipmentList() {
   /* =====================================
      DELETE
   ===================================== */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa thiết bị này?")) return;
-
-    try {
-      await api.delete(`/Equipment/${id}`);
-      message.success("Xóa thành công");
-      fetchEquipments();
-    } catch (err) {
-      console.error(err);
-      message.error("Xóa thất bại");
-    }
+  const handleDelete = (equipment) => {
+    Modal.confirm({
+      title: "Xác nhận xoá thiết bị",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá thiết bị:
+            <strong> {equipment.equipmentName || "Thiết bị này"}</strong>?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
+        try {
+          await api.delete(`/Equipment/${equipment.id}`);
+          message.success("Xoá thiết bị thành công");
+          fetchEquipments();
+        } catch (err) {
+          console.error(err);
+          message.error("Xoá thiết bị thất bại");
+        }
+      },
+    });
   };
 
   /* =====================================
@@ -282,7 +296,7 @@ export default function EquipmentList() {
           <Button size="small" onClick={() => openEditModal(record)}>
             Sửa
           </Button>
-          <Button danger size="small" onClick={() => handleDelete(record.id)}>
+          <Button danger size="small" onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
