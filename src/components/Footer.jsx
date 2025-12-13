@@ -3,7 +3,7 @@ import FloatingChatWidget from "./FloatingChatWidget";
 import { useEffect } from "react";
 export default function Footer() {
 
-  const user = JSON.parse(localStorage.getItem("user")) || {roleName: "guest"};
+  const user = JSON.parse(localStorage.getItem("user")) || { roleName: "guest" };
   useEffect(() => {
     console.log("Footer user role:", user.roleName);
   }, [user.role]);
@@ -131,20 +131,23 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      {(user.roleName === "Member" || user.roleName === "guest") &&(
+      {(user.roleName === "Member" || user.roleName === "guest") && (
         <FloatingChatWidget />
       )}
-      
+
       {/* Back to Top */}
-      <div className="back-to-top">
-        <button
-          className="btn"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Back to top"
-        >
-          <BsArrowUp />
-        </button>
-      </div>
+      {user.roleName != "Admin" && (
+        <div className="back-to-top">
+          <button
+            className="btn"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            aria-label="Back to top"
+          >
+            <BsArrowUp />
+          </button>
+        </div>
+      )}
+
     </>
   );
 }
