@@ -454,7 +454,7 @@ const ProfileManager = () => {
                       }}
                       onClick={() => setActiveSection("user")}
                     >
-                      User Information
+                      Thông tin cá nhân
                     </Button>
                     <Button
                       size="sm"
@@ -471,7 +471,7 @@ const ProfileManager = () => {
                       }}
                       onClick={() => setActiveSection("password")}
                     >
-                      Reset Password
+                      Đổi mật khẩu
                     </Button>
                   </div>
 
@@ -635,7 +635,7 @@ const ProfileManager = () => {
                           type="button"
                           onClick={handleUpdateUserInfo}
                         >
-                          Update User Information
+                          Cập nhật thông tin
                         </Button>
                       </Col>
                     </>
@@ -773,7 +773,7 @@ const ProfileManager = () => {
                           type="button"
                           onClick={handleChangePassword}
                         >
-                          Change Password
+                          Đổi mật khẩu
                         </Button>
                       </Col>
                     </>
