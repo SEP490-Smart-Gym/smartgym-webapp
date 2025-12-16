@@ -74,7 +74,7 @@ import ManageMember from "../pages/Trainer/ManageMember.jsx";
 import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
-
+import ManagerDashboard from "../pages/Manager/ManagerDashboard.jsx";
 function Layout() {
   return (
     <>
@@ -200,7 +200,7 @@ export default function AppRoutes() {
           <Route path="/profile/manager" element={<ProfileManager />} />
           <Route path="/manager/schedule" element={<ManageSchedule />} />
           <Route path="/manager/manager-refund" element={<RefundManagement />} />
-          <Route path="/manager/dashboard" element={<AdminDashboard />} />
+          <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}

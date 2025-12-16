@@ -92,7 +92,7 @@ export default function StaffUpcomingMaintenance() {
   };
 
   return (
-    <div className="container py-5">
+    <div className="container-fluid py-5">
       <div className="row g-4">
         {/* SIDEBAR */}
         <div className="col-lg-3">

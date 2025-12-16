@@ -33,6 +33,7 @@ ChartJS.register(
 
 export default function AdminDashboard() {
     const [loading, setLoading] = useState(false);
+
     const [stats, setStats] = useState({
         totalMembers: 0,
         totalPaidPackages: 0,
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
             <div className="row g-4">
                 {/* ===== SIDEBAR ===== */}
                 <div className="col-lg-3">
-                        <Sidebar role="Admin" />
+                    <Sidebar role="Manager" />
                 </div>
 
                 {/* ===== MAIN CONTENT ===== */}

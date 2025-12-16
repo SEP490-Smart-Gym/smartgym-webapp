@@ -65,7 +65,7 @@ export default function ManagerCreateMaintenanceSchedule() {
   };
 
   return (
-    <div className="container py-5">
+    <div className="container-fluid py-5">
       <div className="row g-4">
 
         <div className="col-lg-3">

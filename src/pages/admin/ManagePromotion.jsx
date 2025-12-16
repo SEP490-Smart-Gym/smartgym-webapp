@@ -1,6 +1,6 @@
 // src/views/Admin/AdminPromotionGifts.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
+import Sidebar from "../../components/Sidebar";
 import {
   Card,
   Table,
@@ -389,7 +389,7 @@ export default function AdminPromotionGifts() {
       <div className="row g-4">
         {/* Sidebar */}
         <div className="col-lg-3 col-md-4 mb-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         {/* Content */}
