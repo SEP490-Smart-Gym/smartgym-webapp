@@ -1,17 +1,24 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HashLink } from "react-router-hash-link";
 import { FaSearch } from "react-icons/fa";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
-import api from "../config/axios"; // ✅ chỉnh path nếu file Navbar nằm chỗ khác
+import api from "../config/axios";
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  // dropdown "Các Trang"
   const [isOpen, setIsOpen] = useState(false);
 
   // ✅ points state lấy từ API
   const [availablePoints, setAvailablePoints] = useState(0);
+
+  // ✅ collapse state (mobile)
+  const [isNavCollapsed, setIsNavCollapsed] = useState(true);
+
+  const safeId = user?.id || user?.uid || "me";
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -23,7 +30,8 @@ export default function Navbar() {
     };
 
     window.addEventListener("app-auth-changed", handleAuthChange);
-    return () => window.removeEventListener("app-auth-changed", handleAuthChange);
+    return () =>
+      window.removeEventListener("app-auth-changed", handleAuthChange);
   }, []);
 
   useEffect(() => {
@@ -63,13 +71,14 @@ export default function Navbar() {
         }
 
         const res = await api.get("/Loyalty/balance", {
-          params: { memberId }, // ✅ backend đang trả theo memberId
+          params: { memberId },
         });
 
         const data = res?.data || {};
         const points = Number(data.availablePoints ?? 0);
 
-        if (!cancelled) setAvailablePoints(Number.isFinite(points) ? points : 0);
+        if (!cancelled)
+          setAvailablePoints(Number.isFinite(points) ? points : 0);
       } catch (err) {
         console.error("Fetch loyalty balance error:", err);
         if (!cancelled) setAvailablePoints(0);
@@ -77,27 +86,42 @@ export default function Navbar() {
     };
 
     fetchPoints();
-
     return () => {
       cancelled = true;
     };
   }, [user?.roleName, user?.id, user?.memberId, user?.uid]);
+
+  const closeMobileMenu = () => {
+    setIsNavCollapsed(true);
+    setIsOpen(false);
+  };
+
+  const handleToggleNavbar = () => {
+    setIsNavCollapsed((prev) => !prev);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     setUser(null);
     setAvailablePoints(0);
+    closeMobileMenu();
     navigate("/");
   };
 
-  const safeId = user?.id || user?.uid || "me";
-
-  // route tới trang lịch sử điểm thưởng
   const goToPointsHistory = (e) => {
     e.stopPropagation();
+    closeMobileMenu();
     navigate("/member/points-history");
   };
+
+  // ✅ responsive dropdown behavior:
+  // - desktop (>= lg): hover
+  // - mobile: click
+  const isDesktop = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(min-width: 992px)").matches;
+  }, []);
 
   return (
     <div className="container-fluid header-top">
@@ -144,7 +168,11 @@ export default function Navbar() {
                       >
                         <span>Đăng nhập</span>
                       </NavLink>
-                      <NavLink to="/register" className=" me-3" style={{ color: "white" }}>
+                      <NavLink
+                        to="/register"
+                        className=" me-3"
+                        style={{ color: "white" }}
+                      >
                         Đăng ký
                       </NavLink>
                     </>
@@ -156,6 +184,7 @@ export default function Navbar() {
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
                         type="button"
+                        style={{ maxWidth: 360 }}
                       >
                         <img
                           src={user?.photo || "/img/useravt.jpg"}
@@ -172,16 +201,30 @@ export default function Navbar() {
                             objectFit: "cover",
                             border: "1px solid #ddd",
                             background: "#f8f9fa",
+                            flexShrink: 0,
                           }}
                         />
 
                         {/* username + điểm thưởng */}
-                        <div className="d-flex align-items-center">
-                          <span className="user-name-text" style={{ color: "white" }}>
-                            {user.lastName && user.firstName ? `${user.lastName} ${user.firstName}` : "User"}
+                        <div
+                          className="d-flex align-items-center"
+                          style={{ minWidth: 0 }}
+                        >
+                          <span
+                            className="user-name-text"
+                            style={{
+                              color: "white",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: 180,
+                            }}
+                          >
+                            {user.lastName && user.firstName
+                              ? `${user.lastName} ${user.firstName}`
+                              : "User"}
                           </span>
 
-                          {/* ✅ availablePoints from API */}
                           {user.roleName === "Member" && (
                             <span
                               className="d-inline-flex align-items-center reward-points-badge"
@@ -190,133 +233,213 @@ export default function Navbar() {
                                 fontWeight: 600,
                                 fontSize: "0.9rem",
                                 cursor: "pointer",
-                                marginLeft: "20px",
+                                marginLeft: 12,
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
                               }}
                               onClick={goToPointsHistory}
                               title="Xem lịch sử điểm thưởng"
                             >
-                              {(Number(availablePoints) || 0).toLocaleString("vi-VN")} điểm
+                              {(Number(availablePoints) || 0).toLocaleString(
+                                "vi-VN"
+                              )}{" "}
+                              điểm
                             </span>
                           )}
                         </div>
                       </button>
 
-                      <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                      <ul
+                        className="dropdown-menu dropdown-menu-end"
+                        aria-labelledby="userMenu"
+                      >
                         {user.email && (
                           <li>
-                            <span className="dropdown-item-text">{user.email}</span>
+                            <span className="dropdown-item-text">
+                              {user.email}
+                            </span>
                           </li>
                         )}
                         <li>
                           <hr className="dropdown-divider" />
                         </li>
 
-                        {/* Admin */}
                         {user.roleName === "Admin" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/admin/packages")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/packages")}
+                            >
                               Quản lý
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/admin/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/admin/profile")}
+                            >
                               Hồ sơ cá nhân
                             </button>
                           </li>
                         )}
 
-                        {/* Member */}
                         {user.roleName === "Member" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/member/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/profile")}
+                            >
                               Hồ sơ cá nhân
                             </button>
-
                             <hr className="dropdown-divider" />
-
-                            <button className="dropdown-item" onClick={() => navigate(`/member/${safeId}/schedule`)}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate(`/member/${safeId}/schedule`)
+                              }
+                            >
                               Lịch tập
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/workout-meal-plan")}>
-                              Kế hoạch tập luyện & dinh dưỡng
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/member/workout-meal-plan")
+                              }
+                            >
+                              Kế hoạch tập luyện &amp; dinh dưỡng
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/mypackages")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/mypackages")}
+                            >
                               Gói tập của tôi
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/my-payments")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/my-payments")}
+                            >
                               Lịch sử thanh toán
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/reward-gifts")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/reward-gifts")}
+                            >
                               Đổi quà
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/member/voucher")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/member/voucher")}
+                            >
                               Mã giảm giá
                             </button>
                           </li>
                         )}
 
-                        {/* Staff */}
                         {user.roleName === "Staff" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/profile/staff")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/profile/staff")}
+                            >
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate(`/staff/chat-list`)}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate(`/staff/chat-list`)}
+                            >
                               Chat với Học viên
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/staff/reward-redemption")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/staff/reward-redemption")
+                              }
+                            >
                               Quản lý đổi quà
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("staff/equipmentlist")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/staff/equipmentlist")
+                              }
+                            >
                               Quản lý thiết bị
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/staff/schedule")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/staff/schedule")}
+                            >
                               Lịch làm việc
                             </button>
                           </li>
                         )}
 
-                        {/* Manager */}
                         {user.roleName === "Manager" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/profile/manager")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/profile/manager")}
+                            >
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/manager/manager-refund")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/manager/manager-refund")
+                              }
+                            >
                               Quản lý Hoàn tiền
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/manager/schedule")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/manager/schedule")}
+                            >
                               Quản lý lịch làm việc
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate("/manager/equipment-report-all")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate("/manager/equipment-report-all")
+                              }
+                            >
                               Quản lý thiết bị
                             </button>
                           </li>
                         )}
 
-                        {/* Trainer */}
                         {user.roleName === "Trainer" && (
                           <li>
-                            <button className="dropdown-item" onClick={() => navigate("/trainer/profile")}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate("/trainer/profile")}
+                            >
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate(`/trainer/${safeId}/schedule`)}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() =>
+                                navigate(`/trainer/${safeId}/schedule`)
+                              }
+                            >
                               Lịch làm việc
                             </button>
                             <hr className="dropdown-divider" />
-                            <button className="dropdown-item" onClick={() => navigate(`/trainer/member-list`)}>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => navigate(`/trainer/member-list`)}
+                            >
                               Quản lý học viên
                             </button>
                           </li>
@@ -324,7 +447,10 @@ export default function Navbar() {
 
                         <hr className="dropdown-divider" />
                         <li>
-                          <button className="dropdown-item" onClick={handleLogout}>
+                          <button
+                            className="dropdown-item"
+                            onClick={handleLogout}
+                          >
                             Đăng xuất
                           </button>
                         </li>
@@ -360,102 +486,112 @@ export default function Navbar() {
                 </h1>
               </NavLink>
 
-              <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+              {/* ✅ toggler controlled */}
+              <button
+                className="navbar-toggler"
+                type="button"
+                aria-controls="navbarCollapse"
+                aria-expanded={!isNavCollapsed}
+                aria-label="Toggle navigation"
+                onClick={handleToggleNavbar}
+              >
                 <span className="fa fa-bars"></span>
               </button>
 
-              <div className="collapse navbar-collapse" id="navbarCollapse">
-                <div className="navbar-nav mx-0 mx-lg-auto nav-chip">
-                  <NavLink end to="/" className="nav-item nav-link">
+              {/* ✅ collapse controlled */}
+              <div
+                className={`collapse navbar-collapse ${
+                  isNavCollapsed ? "" : "show"
+                }`}
+                id="navbarCollapse"
+              >
+                <div className="navbar-nav mx-0 mx-lg-auto nav-chip w-100">
+                  <NavLink end to="/" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Trang chủ
                   </NavLink>
-                  <HashLink
-                    smooth
-                    to="/#about-section"
-                    className="nav-item nav-link"
-                  >
+
+                  <HashLink smooth to="/#about-section" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Về Chúng Tôi
                   </HashLink>
 
-                  <HashLink smooth to="/#package-section" className="nav-item nav-link">
+                  <HashLink smooth to="/#package-section" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Gói tập
                   </HashLink>
 
-                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link">
+                  <HashLink smooth to="/#blogs-section" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Blogs
                   </HashLink>
 
-                  {user?.roleName == "Trainer" && (
-                    <NavLink to="/trainer/chatlist" className="nav-item nav-link">
+                  {user?.roleName === "Trainer" && (
+                    <NavLink to="/trainer/chatlist" className="nav-item nav-link" onClick={closeMobileMenu}>
                       Chat
                     </NavLink>
                   )}
-                  {user?.roleName == "Member" &&(
-                    <NavLink to="/chat" className="nav-item nav-link">
+                  {user?.roleName === "Member" && (
+                    <NavLink to="/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
+                      Chat
+                    </NavLink>
+                  )}
+                  {user?.roleName === "Staff" && (
+                    <NavLink to="/staff/chatlist" className="nav-item nav-link" onClick={closeMobileMenu}>
                       Chat
                     </NavLink>
                   )}
 
-                  {user?.roleName == "Staff" &&(
-                    <NavLink to="/staff/chatlist" className="nav-item nav-link">
-                      Chat
-                    </NavLink>
-                  )}
-
+                  {/* ✅ dropdown responsive */}
                   <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}
-                    onMouseEnter={() => setIsOpen(true)}
-                    onMouseLeave={() => setIsOpen(false)}
+                    onMouseEnter={() => isDesktop && setIsOpen(true)}
+                    onMouseLeave={() => isDesktop && setIsOpen(false)}
                   >
                     <button
-                      className="nav-link btn btn-link p-0 text-decoration-none"
-                      data-bs-toggle="dropdown"
-                      aria-expanded={isOpen}
+                      className="nav-link btn btn-link p-0 text-decoration-none d-flex align-items-center"
                       type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => !isDesktop && setIsOpen((v) => !v)}
                     >
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
+                      <span style={{ display: "flex", alignItems: "center" }}>
                         Các Trang {isOpen ? <HiChevronUp /> : <HiChevronDown />}
                       </span>
                     </button>
 
-                    <div
-                      className={`dropdown-menu${isOpen ? " show" : ""}`}
-                    >
+                    <div className={`dropdown-menu${isOpen ? " show" : ""}`}>
                       <HashLink
                         smooth
                         to="/#features-section"
                         className="dropdown-item"
+                        onClick={closeMobileMenu}
                       >
-                        Tính Năng 
+                        Tính Năng
                       </HashLink>
-                      <HashLink smooth to="/#trainers-section" className="dropdown-item">
+                      <HashLink
+                        smooth
+                        to="/#trainers-section"
+                        className="dropdown-item"
+                        onClick={closeMobileMenu}
+                      >
                         Huấn luyện viên
                       </HashLink>
                     </div>
                   </div>
 
-                  <HashLink smooth to="/#feedback-section" className="nav-item nav-link">
+                  <HashLink smooth to="/#feedback-section" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Đánh giá
                   </HashLink>
 
-                  <NavLink to="/contact" className="nav-item nav-link">
+                  <NavLink to="/contact" className="nav-item nav-link" onClick={closeMobileMenu}>
                     Liên hệ
-                   </NavLink>
+                  </NavLink>
 
-                  <div className="nav-btn ps-3 d-flex align-items-center" style={{ marginLeft: 300 }}>
+                  {/* ✅ Search button responsive: push to right on lg, normal flow on mobile */}
+                  <div className="nav-btn d-flex align-items-center mt-3 mt-lg-0 ms-lg-auto">
                     <button
-                      className="btn-search btn btn-primary btn-md-square mt-2 mt-lg-0 mb-4 mb-lg-0 flex-shrink-0"
+                      className="btn-search btn btn-primary btn-md-square flex-shrink-0"
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
+                      onClick={closeMobileMenu}
                     >
-                      <i className="fas fa-search">
-                        <FaSearch />
-                      </i>
+                      <FaSearch />
                     </button>
                   </div>
 
@@ -466,6 +602,22 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* ✅ tiny css fix inline */}
+      <style>{`
+        /* tránh dropdown bị che khi collapse */
+        .nav-bar .dropdown-menu { z-index: 2000; }
+
+        /* mobile: menu full width đẹp hơn */
+        @media (max-width: 991.98px) {
+          .nav-bar { height: auto !important; }
+          .navbar-nav.nav-chip { padding-bottom: 12px; }
+          .navbar-nav .nav-item { width: 100%; }
+          .navbar-nav .nav-link, .navbar-nav .dropdown-item { padding: 10px 14px; }
+          .nav-btn { width: 100%; }
+          .nav-btn .btn-search { width: 44px; height: 44px; }
+        }
+      `}</style>
     </div>
   );
 }
