@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../config/axios";
 import dayjs from "dayjs";
 import { Spin, message, Modal, Descriptions, Button, Image, Tag } from "antd";
-import StaffSidebar from "../../components/StaffSidebar";
+import Sidebar from "../../components/Sidebar";
 
 export default function StaffUpcomingMaintenance() {
   const [list, setList] = useState([]);
@@ -96,7 +96,7 @@ export default function StaffUpcomingMaintenance() {
       <div className="row g-4">
         {/* SIDEBAR */}
         <div className="col-lg-3">
-          <StaffSidebar />
+          <Sidebar role="Staff" />
         </div>
 
         {/* CONTENT */}

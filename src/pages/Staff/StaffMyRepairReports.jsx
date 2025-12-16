@@ -12,7 +12,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import api from "../../config/axios";
-import StaffSidebar from "../../components/StaffSidebar";
+import Sidebar from "../../components/Sidebar";
 
 export default function StaffMyRepairReports() {
   const [loading, setLoading] = useState(false);
@@ -223,7 +223,7 @@ export default function StaffMyRepairReports() {
         
         {/* SIDEBAR */}
         <div className="col-lg-3">
-          <StaffSidebar />
+          <Sidebar role="Staff" />
         </div>
 
         {/* MAIN */}

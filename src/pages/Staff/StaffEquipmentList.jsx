@@ -3,7 +3,7 @@ import api from "../../config/axios";
 import { Modal, Descriptions, Image, Tag, Button, Spin, message } from "antd";
 import dayjs from "dayjs";
 
-import StaffSidebar from "../../components/StaffSidebar";
+import Sidebar from "../../components/Sidebar";
 
 const STATUS_OPTIONS = ["Tất cả", "Đang Hoạt Động", "Đang Bảo Trì"];
 
@@ -257,7 +257,7 @@ export default function StaffEquipmentList() {
     <div className="container py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <StaffSidebar />
+          <Sidebar role="Staff" />
         </div>
 
         <div className="col-lg-9">
