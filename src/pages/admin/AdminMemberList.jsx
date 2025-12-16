@@ -10,22 +10,29 @@ export default function AdminMemberList() {
 
   // fetch danh sách từ API
   const fetchMembers = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/Admin/users");
-      const data = Array.isArray(res.data) ? res.data : res.data.items || [];
-      const memberList = data.filter(
-        (u) => u.roleName && u.roleName.toLowerCase() === "member"
-      );
+  setLoading(true);
+  try {
+    const res = await api.get("/Admin/users");
+    const data = Array.isArray(res.data) ? res.data : res.data.items || [];
 
-      setMembers(memberList);
-    } catch (err) {
-      console.error(err);
-      message.error("Lấy danh sách hội viên thất bại");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const memberList = data
+      .filter(
+        (u) => u.roleName && u.roleName.toLowerCase() === "member"
+      )
+      .map((u) => ({
+        ...u,
+        photo: u.profileImageUrl || "/img/useravt.jpg",
+      }));
+
+    setMembers(memberList);
+  } catch (err) {
+    console.error(err);
+    message.error("Lấy danh sách hội viên thất bại");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
   useEffect(() => {
@@ -81,7 +88,7 @@ export default function AdminMemberList() {
       render: (_, r) => {
         const first = r.firstName || "";
         const last = r.lastName || "";
-        return (first || last) ? `${first} ${last}`.trim() : (r.name || "—");
+        return (first || last) ? `${last} ${first} `.trim() : (r.name || "—");
       },
     },
     {

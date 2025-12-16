@@ -134,19 +134,24 @@ export default function Footer() {
       {(user.roleName === "Member" || user.roleName === "guest") && (
         <FloatingChatWidget />
       )}
-
-      {/* Back to Top */}
-      {user.roleName != "Admin" && (
-        <div className="back-to-top">
-          <button
-            className="btn"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            aria-label="Back to top"
-          >
-            <BsArrowUp />
-          </button>
-        </div>
+      {(user.roleName === "Member" || user.roleName === "guest") && (
+        <>
+          {/* Back to Top */}
+          {user.roleName != "Admin" && (
+            <div className="back-to-top">
+              <button
+                className="btn"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                aria-label="Back to top"
+              >
+                <BsArrowUp />
+              </button>
+            </div>
+          )}
+        </>
       )}
+
+
 
     </>
   );
