@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../config/axios";
+import { Modal, Descriptions, Image, Tag, Button, Spin } from "antd";
 import dayjs from "dayjs";
-import { message, Spin } from "antd";
+
 import StaffSidebar from "../../components/StaffSidebar";
 
 const STATUS_OPTIONS = ["Tất cả", "Đang Hoạt Động", "Đang Bảo Trì"];
@@ -113,24 +114,24 @@ export default function StaffEquipmentList() {
       DETAIL HANDLING
   ======================================================= */
   const openDetail = (it) => {
-  setSelected(it);
+    setSelected(it);
 
-  // Nếu task đã accept → vẫn show panel khi mở lại modal
-  if (activeTask[it.id]) {
-    setShowMaintenanceLog(true);
-  } else {
-    // reset khi chưa có nhiệm vụ
-    setShowMaintenanceLog(false);
-  }
+    // Nếu task đã accept → vẫn show panel khi mở lại modal
+    if (activeTask[it.id]) {
+      setShowMaintenanceLog(true);
+    } else {
+      // reset khi chưa có nhiệm vụ
+      setShowMaintenanceLog(false);
+    }
 
-  setShowDamageReport(false);
-  setShowReturnLog(false);
-  setMaintenanceLogText("");
-  setDamageText("");
-  setReturnLogText("");
-  setSeverity("Medium");
-  setReturnFromStatus(null);
-};
+    setShowDamageReport(false);
+    setShowReturnLog(false);
+    setMaintenanceLogText("");
+    setDamageText("");
+    setReturnLogText("");
+    setSeverity("Medium");
+    setReturnFromStatus(null);
+  };
 
 
   const closeDetail = () => setSelected(null);
@@ -139,77 +140,77 @@ export default function StaffEquipmentList() {
       START MAINTENANCE
   ======================================================= */
   const handleStartMaintenance = async () => {
-  const today = dayjs().format("YYYY-MM-DD");
+    const today = dayjs().format("YYYY-MM-DD");
 
-  const task = schedule.find(
-    (s) =>
-      s.equipmentId === selected.id &&
-      dayjs(s.scheduledDate).format("YYYY-MM-DD") === today &&
-      s.status === "Pending" &&
-      !s.isCompleted
-  );
+    const task = schedule.find(
+      (s) =>
+        s.equipmentId === selected.id &&
+        dayjs(s.scheduledDate).format("YYYY-MM-DD") === today &&
+        s.status === "Pending" &&
+        !s.isCompleted
+    );
 
-  if (!task) {
-    return message.error("Thiết bị này không có lịch bảo trì vào hôm nay");
-  }
+    if (!task) {
+      return message.error("Thiết bị này không có lịch bảo trì vào hôm nay");
+    }
 
-  try {
-    await api.post(`/MaintenanceSchedule/${task.id}/accept`);
-    message.success("Đã nhận nhiệm vụ bảo trì");
+    try {
+      await api.post(`/MaintenanceSchedule/${task.id}/accept`);
+      message.success("Đã nhận nhiệm vụ bảo trì");
 
-    // 👉 Lưu nhiệm vụ ở cấp component
-    setActiveTask((prev) => ({
-      ...prev,
-      [selected.id]: {
-        ...task,
-        status: "Accepted",
-      },
-    }));
+      // 👉 Lưu nhiệm vụ ở cấp component
+      setActiveTask((prev) => ({
+        ...prev,
+        [selected.id]: {
+          ...task,
+          status: "Accepted",
+        },
+      }));
 
-    // mở panel log
-    setShowMaintenanceLog(true);
-    setMaintenanceLogText("");
+      // mở panel log
+      setShowMaintenanceLog(true);
+      setMaintenanceLogText("");
 
-  } catch (err) {
-    message.error("Không thể nhận nhiệm vụ bảo trì");
-  }
-};
+    } catch (err) {
+      message.error("Không thể nhận nhiệm vụ bảo trì");
+    }
+  };
 
- /* =======================================================
-      SAVE MAINTENANCE LOG
-  ======================================================= */
-  
-  
-const saveMaintenanceLog = async () => {
-  const text = maintenanceLogText.trim();
-  if (!text) return message.warning("Nhập nội dung log!");
+  /* =======================================================
+       SAVE MAINTENANCE LOG
+   ======================================================= */
 
-  const task = activeTask[selected.id];
-  if (!task) return message.error("Không tìm thấy nhiệm vụ bảo trì.");
 
-  try {
-    await api.post(`/MaintenanceSchedule/${task.id}/complete`, {
-      notes: text,
-    });
+  const saveMaintenanceLog = async () => {
+    const text = maintenanceLogText.trim();
+    if (!text) return message.warning("Nhập nội dung log!");
 
-    message.success("Hoàn tất bảo trì");
+    const task = activeTask[selected.id];
+    if (!task) return message.error("Không tìm thấy nhiệm vụ bảo trì.");
 
-    // Xóa nhiệm vụ khỏi bộ nhớ
-    setActiveTask((prev) => {
-      const newState = { ...prev };
-      delete newState[selected.id];
-      return newState;
-    });
+    try {
+      await api.post(`/MaintenanceSchedule/${task.id}/complete`, {
+        notes: text,
+      });
 
-    setShowMaintenanceLog(false);
-    closeDetail();
-    fetchMaintenanceSchedule();
-    fetchEquipments();
+      message.success("Hoàn tất bảo trì");
 
-  } catch (err) {
-    message.error("Không thể hoàn tất bảo trì");
-  }
-};
+      // Xóa nhiệm vụ khỏi bộ nhớ
+      setActiveTask((prev) => {
+        const newState = { ...prev };
+        delete newState[selected.id];
+        return newState;
+      });
+
+      setShowMaintenanceLog(false);
+      closeDetail();
+      fetchMaintenanceSchedule();
+      fetchEquipments();
+
+    } catch (err) {
+      message.error("Không thể hoàn tất bảo trì");
+    }
+  };
 
 
 
@@ -351,7 +352,7 @@ const saveMaintenanceLog = async () => {
                       <p className="card-text text-muted small mb-3">
                         Mẫu máy: <strong>{it.model}</strong>
                         <br />
-                        Mua: {formatDate(it.purchaseDate)} 
+                        Mua: {formatDate(it.purchaseDate)}
                         <br />
                         Giá:{" "}
                         {it.purchaseCost
@@ -384,157 +385,164 @@ const saveMaintenanceLog = async () => {
       </div>
 
       {/* =============== DETAIL MODAL =============== */}
-      {selected && (
-        <>
-          <div className="modal fade show" style={{ display: "block", background: "rgba(0,0,0,.4)" }}>
-            <div className="modal-dialog modal-lg modal-dialog-centered">
-              <div className="modal-content">
-
-                <div className="modal-header">
-                  <h5 className="modal-title">Chi tiết thiết bị</h5>
-                  <button className="btn-close" onClick={closeDetail}></button>
-                </div>
-
-                <div className="modal-body">
-                  <div className="row g-3">
-
-                    {/* IMAGE */}
-                    <div className="col-md-6">
-                      <div className="ratio ratio-4x3 border rounded">
-                        <img
-                          src={selected.photo || "/img/noimg.jpg"}
-                          className="w-100 h-100"
-                          onError={(e) =>
-                            (e.currentTarget.src = "/img/noimg.jpg")
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {/* INFO */}
-                    <div className="col-md-6">
-                      <h4>{selected.equipmentName}</h4>
-                      <span className={`badge ${statusBadgeClass(selected.status)}`}>
-                        {selected.status}
-                      </span>
-
-                      <ul className="list-unstyled small mt-2">
-                        <li><strong>Mã máy:</strong> {selected.code}</li>
-                        <li><strong>Mẫu máy:</strong> {selected.model}</li>
-                        <li><strong>Ngày mua:</strong> {formatDate(selected.purchaseDate)}</li>
-                        <li><strong>Vị trí:</strong> {selected.location}</li>
-                      </ul>
-
-                      {/* ACTION BUTTONS */}
-                      <div className="d-flex flex-wrap gap-2">
-
-                        {selected.status === "Đang Hoạt Động" && (
-                          <>
-                            <button className="btn btn-warning text-dark" onClick={handleStartMaintenance}>
-                              <i className="fa fa-tools me-1" /> Bảo trì
-                            </button>
-
-                            <button className="btn btn-danger" onClick={handleReportDamage}>
-                              <i className="fa fa-exclamation-triangle me-1" /> Báo cáo thiệt hại
-                            </button>
-                          </>
-                        )}
-
-                        {selected.status === "Đang Bảo Trì" && (
-                          <button className="btn btn-success" onClick={handleBackToActive}>
-                            <i className="fa fa-check me-1" /> Trở về hoạt động
-                          </button>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* PANELS */}
-                  {showMaintenanceLog && (
-                    <div className="mt-4">
-                      <h6>Ghi log bảo trì</h6>
-                      <textarea
-                        className="form-control mb-2"
-                        rows={3}
-                        value={maintenanceLogText}
-                        onChange={(e) => setMaintenanceLogText(e.target.value)}
-                      />
-                      <button className="btn btn-primary me-2" onClick={saveMaintenanceLog}>
-                        Ghi log
-                      </button>
-                      <button className="btn btn-outline-secondary" onClick={() => setShowMaintenanceLog(false)}>
-                        Huỷ
-                      </button>
-                    </div>
-                  )}
-
-                  {showDamageReport && (
-                    <div className="mt-4">
-                      <h6>Báo cáo thiệt hại</h6>
-
-                      <label className="form-label fw-bold">Mức độ nghiêm trọng</label>
-                      <select
-                        className="form-select mb-3"
-                        value={severity}
-                        onChange={(e) => setSeverity(e.target.value)}
-                      >
-                        <option value="Low">Thấp</option>
-                        <option value="Medium">Trung bình</option>
-                        <option value="High">Cao</option>
-                        <option value="Critical">Nghiêm trọng</option>
-                      </select>
-
-                      <textarea
-                        className="form-control mb-2"
-                        rows={3}
-                        value={damageText}
-                        onChange={(e) => setDamageText(e.target.value)}
-                      />
-
-                      <button className="btn btn-danger me-2" onClick={saveDamageReport}>
-                        Gửi báo cáo
-                      </button>
-                      <button className="btn btn-outline-secondary" onClick={() => setShowDamageReport(false)}>
-                        Huỷ
-                      </button>
-                    </div>
-                  )}
-
-                  {showReturnLog && (
-                    <div className="mt-4">
-                      <h6>{returnFromStatus === "Đang Bảo Trì" ? "Ghi log hoàn tất bảo trì" : "Ghi log hoàn tất sửa chữa"}</h6>
-
-                      <textarea
-                        className="form-control mb-2"
-                        rows={3}
-                        value={returnLogText}
-                        onChange={(e) => setReturnLogText(e.target.value)}
-                      />
-
-                      <button className="btn btn-success me-2" onClick={saveReturnLog}>
-                        Lưu log & về hoạt động
-                      </button>
-                      <button className="btn btn-outline-secondary" onClick={() => setShowReturnLog(false)}>
-                        Huỷ
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="modal-footer">
-                  <button className="btn btn-secondary" onClick={closeDetail}>
-                    Đóng
-                  </button>
-                </div>
-
-              </div>
-            </div>
+      <Modal
+        open={!!selected}
+        title="Chi tiết thiết bị"
+        onCancel={closeDetail}
+        width={800}
+        footer={[
+          <Button key="close" onClick={closeDetail}>
+            Đóng
+          </Button>,
+        ]}
+      >
+        {/* ===== MAIN INFO ===== */}
+        <div className="row g-4">
+          {/* IMAGE */}
+          <div className="col-md-5 text-center">
+            <Image
+              src={selected?.photo || "/img/noimg.jpg"}
+              fallback="/img/noimg.jpg"
+              style={{ borderRadius: 10 }}
+            />
           </div>
 
-          <div className="modal-backdrop fade show" onClick={closeDetail}></div>
-        </>
-      )}
+          {/* INFO */}
+          <div className="col-md-7">
+            <h4 className="mb-1">{selected?.equipmentName}</h4>
+
+            <Tag
+              color={
+                selected?.status === "Đang Hoạt Động"
+                  ? "green"
+                  : selected?.status === "Đang Bảo Trì"
+                    ? "orange"
+                    : "red"
+              }
+            >
+              {selected?.status}
+            </Tag>
+
+            <Descriptions bordered column={1} size="small" className="mt-3">
+              <Descriptions.Item label="Mã máy">
+                {selected?.code || selected?.serialNumber || "—"}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Model">
+                {selected?.model || "—"}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Ngày mua">
+                {selected?.purchaseDate
+                  ? dayjs(selected.purchaseDate).format("DD/MM/YYYY")
+                  : "—"}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Vị trí">
+                {selected?.location || "—"}
+              </Descriptions.Item>
+            </Descriptions>
+
+            {/* ===== ACTION BUTTONS ===== */}
+            <div className="d-flex flex-wrap gap-2 mt-3">
+              {selected?.status === "Đang Hoạt Động" && (
+                <>
+                  <Button type="primary" onClick={handleStartMaintenance}>
+                    🛠 Bảo trì
+                  </Button>
+
+                  <Button danger onClick={handleReportDamage}>
+                    ⚠ Báo cáo thiệt hại
+                  </Button>
+                </>
+              )}
+
+              {selected?.status === "Đang Bảo Trì" && (
+                <Button type="primary" onClick={handleBackToActive}>
+                  ✔ Trở về hoạt động
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== MAINTENANCE LOG ===== */}
+        {showMaintenanceLog && (
+          <div className="mt-4">
+            <h6>Ghi log bảo trì</h6>
+            <textarea
+              className="form-control mb-2"
+              rows={3}
+              value={maintenanceLogText}
+              onChange={(e) => setMaintenanceLogText(e.target.value)}
+            />
+            <div className="d-flex gap-2">
+              <Button type="primary" onClick={saveMaintenanceLog}>
+                Ghi log
+              </Button>
+              <Button onClick={() => setShowMaintenanceLog(false)}>Huỷ</Button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== DAMAGE REPORT ===== */}
+        {showDamageReport && (
+          <div className="mt-4">
+            <h6>Báo cáo thiệt hại</h6>
+
+            <label className="form-label fw-bold">Mức độ nghiêm trọng</label>
+            <select
+              className="form-select mb-3"
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value)}
+            >
+              <option value="Low">Thấp</option>
+              <option value="Medium">Trung bình</option>
+              <option value="High">Cao</option>
+              <option value="Critical">Nghiêm trọng</option>
+            </select>
+
+            <textarea
+              className="form-control mb-2"
+              rows={3}
+              value={damageText}
+              onChange={(e) => setDamageText(e.target.value)}
+            />
+
+            <div className="d-flex gap-2">
+              <Button danger onClick={saveDamageReport}>
+                Gửi báo cáo
+              </Button>
+              <Button onClick={() => setShowDamageReport(false)}>Huỷ</Button>
+            </div>
+          </div>
+        )}
+
+        {/* ===== RETURN LOG ===== */}
+        {showReturnLog && (
+          <div className="mt-4">
+            <h6>
+              {returnFromStatus === "Đang Bảo Trì"
+                ? "Ghi log hoàn tất bảo trì"
+                : "Ghi log hoàn tất sửa chữa"}
+            </h6>
+
+            <textarea
+              className="form-control mb-2"
+              rows={3}
+              value={returnLogText}
+              onChange={(e) => setReturnLogText(e.target.value)}
+            />
+
+            <div className="d-flex gap-2">
+              <Button type="primary" onClick={saveReturnLog}>
+                Lưu log & về hoạt động
+              </Button>
+              <Button onClick={() => setShowReturnLog(false)}>Huỷ</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
     </div>
   );
