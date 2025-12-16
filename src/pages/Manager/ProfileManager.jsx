@@ -25,7 +25,7 @@ import { useNavigate } from "react-router-dom";
 import { storage } from "../../config/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-import { message } from "antd"; // ✅ ADD
+import { message } from "antd";
 
 const ProfileManager = () => {
   const [user, setUser] = useState(null);
@@ -38,9 +38,7 @@ const ProfileManager = () => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   // State cho thông tin cá nhân
@@ -50,7 +48,7 @@ const ProfileManager = () => {
     email: "",
     phone: "",
     address: "",
-    gioiTinh: "",
+    gioiTinh: "", // ✅ thêm giới tính
   });
 
   // 👉 State cho Reset Password
@@ -66,113 +64,182 @@ const ProfileManager = () => {
     confirm: false,
   });
 
-  // 👉 Chuyển string dd/MM/yyyy -> Date (cho react-datepicker)
+  /** ================== HELPERS ================== */
+
+  // dd/MM/yyyy -> Date
   const toDateFromDDMMYYYY = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-    return isNaN(d) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  // 👉 Chuyển Date -> string dd/MM/yyyy (lưu state)
+  // Date -> dd/MM/yyyy
   const toDDMMYYYY = (d) => {
-    if (!(d instanceof Date) || isNaN(d)) return "";
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  // dd/MM/yyyy -> yyyy-MM-dd
   const toApiDate = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
+  // tính tuổi từ dd/MM/yyyy
   const calculateAge = (birthdayString) => {
-    if (!birthdayString) return "";
-    const [day, month, year] = birthdayString.split("/").map(Number);
-    if (!day || !month || !year) return "";
+    if (!birthdayString) return null;
+    const [day, month, year] = String(birthdayString).split("/").map(Number);
+    if (!day || !month || !year) return null;
+
     const today = new Date();
     let age = today.getFullYear() - year;
     const hasHadBirthday =
       today.getMonth() + 1 > month ||
       (today.getMonth() + 1 === month && today.getDate() >= day);
+
     if (!hasHadBirthday) age--;
-    return age >= 0 ? age : "";
+    return age >= 0 ? age : null;
+  };
+
+  // ✅ validate email: cho phép @admin.com, @gmail.com..., KHÔNG cho TLD ".co"
+  const isValidEmail = (email) => {
+    const s = String(email || "").trim();
+    if (!s) return false;
+    // basic structure
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return false;
+
+    // lấy TLD
+    const domain = s.split("@")[1] || "";
+    const tld = domain.split(".").pop()?.toLowerCase() || "";
+    if (tld === "co") return false; // ❌ chặn .co
+    return true;
+  };
+
+  // ✅ validate phone (VN phổ biến): 10-11 số, bắt đầu 0
+  const isValidPhone = (phone) => {
+    const p = String(phone || "").trim();
+    if (!p) return false;
+    return /^0\d{9,10}$/.test(p);
+  };
+
+  // ✅ validate toàn bộ input khi cập nhật
+  const validateUserInfo = () => {
+    const fullName = String(userInfo.fullName || "").trim();
+    const email = String(userInfo.email || "").trim();
+    const phone = String(userInfo.phone || "").trim();
+    const address = String(userInfo.address || "").trim();
+    const gender = String(userInfo.gioiTinh || "").trim();
+    const birthday = String(userInfo.birthday || "").trim();
+
+    if (!fullName) return { ok: false, msg: "Vui lòng nhập họ tên." };
+    if (fullName.length < 2) return { ok: false, msg: "Họ tên quá ngắn." };
+
+    if (!birthday) return { ok: false, msg: "Vui lòng chọn ngày sinh." };
+    const d = toDateFromDDMMYYYY(birthday);
+    if (!d) return { ok: false, msg: "Ngày sinh không hợp lệ." };
+
+    const age = calculateAge(birthday);
+    if (age == null) return { ok: false, msg: "Ngày sinh không hợp lệ." };
+    if (age < 18) return { ok: false, msg: "Tuổi phải từ 18 trở lên." };
+
+    if (!email) return { ok: false, msg: "Vui lòng nhập email." };
+    if (!isValidEmail(email))
+      return { ok: false, msg: "Email không hợp lệ (không chấp nhận đuôi .co)." };
+
+    if (!phone) return { ok: false, msg: "Vui lòng nhập số điện thoại." };
+    if (!isValidPhone(phone))
+      return { ok: false, msg: "Số điện thoại không hợp lệ (ví dụ: 0xxxxxxxxx)." };
+
+    if (!gender) return { ok: false, msg: "Vui lòng chọn giới tính." };
+
+    if (!address) return { ok: false, msg: "Vui lòng nhập địa chỉ." };
+    if (address.length < 3) return { ok: false, msg: "Địa chỉ quá ngắn." };
+
+    return { ok: true };
   };
 
   const handleButtonClick = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
 
-  // ===== Upload avatar lên Firebase + lưu link vào DB + sync navbar =====
+  /** ================== AVATAR UPLOAD (FIREBASE) ================== */
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const loadingKey = "upload-avatar-manager";
+    const loadingKey = "upload-avatar";
 
-    // Preview tạm tại client
+    // Preview tạm
     const localUrl = URL.createObjectURL(file);
     setPreview(localUrl);
 
-    message.loading({ content: "Đang upload ảnh...", key: loadingKey, duration: 0 });
+    message.loading({
+      content: "Đang tải ảnh lên...",
+      key: loadingKey,
+      duration: 0,
+    });
 
     try {
-      // Tạo đường dẫn lưu file trong Storage
-      const uid = user?.id || user?.userId || "anonymous";
-      const imageRef = ref(storage, `avatars/${uid}_${Date.now()}_${file.name}`);
+      const formData = new FormData();
 
-      // Upload file lên Firebase Storage
-      await uploadBytes(imageRef, file);
+      // ✅ Swagger: File string($binary) => field name thường là "File"
+      formData.append("File", file);
 
-      // Lấy URL public
-      const downloadUrl = await getDownloadURL(imageRef);
+      const res = await api.post("/UserAccount/avatar/upload", formData, {
+        // ✅ để axios tự set Content-Type + boundary
+        // headers: { "Content-Type": "multipart/form-data" },
+      });
 
-      // Gửi JSON lên API backend để lưu link vào database
-      const payload = {
-        profileImageUrl: downloadUrl,
-      };
+      const newAvatarUrl =
+        res.data?.profileImageUrl ||
+        res.data?.url ||
+        res.data?.data?.profileImageUrl ||
+        localUrl;
 
-      const res = await api.put("/UserAccount/avatar", payload);
-      const newUrl = res.data?.profileImageUrl || downloadUrl;
-
-      // Cập nhật state user + localStorage
-      setUser((prev) => ({
-        ...(prev || {}),
-        photo: newUrl,
-      }));
+      setUser((prev) => ({ ...(prev || {}), photo: newAvatarUrl }));
 
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
-        parsed.photo = newUrl;
+        parsed.photo = newAvatarUrl;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
 
-      // 👉 Bắn event cho Navbar biết user đã đổi avatar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      setPreview(newUrl);
-      message.success({ content: "Cập nhật ảnh đại diện thành công!", key: loadingKey, duration: 2 });
+      message.success({
+        content: "Cập nhật ảnh đại diện thành công!",
+        key: loadingKey,
+        duration: 2,
+      });
     } catch (err) {
-      console.error("Error uploading avatar:", err);
+      console.error("Upload avatar failed:", err.response?.data || err);
+
+      // fallback preview nếu fail
+      setPreview(null);
+
       message.error({
-        content: `Upload ảnh thất bại (HTTP ${err?.response?.status || "?"}). Vui lòng thử lại!`,
+        content: "Không thể tải ảnh lên, vui lòng thử lại!",
         key: loadingKey,
         duration: 3,
       });
+    } finally {
+      // ✅ cho phép chọn lại cùng 1 file (nếu user chọn y hệt)
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const age = calculateAge(userInfo.birthday);
 
-  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER
+  const age = calculateAge(userInfo.birthday) ?? "";
+
+  /** ================== FETCH ME ================== */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
@@ -186,12 +253,9 @@ const ProfileManager = () => {
 
         let birthday = "";
         if (data.dateOfBirth) {
-          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
           const datePart = String(data.dateOfBirth).split("T")[0];
           const [yyyy, mm, dd] = datePart.split("-");
-          if (dd && mm && yyyy) {
-            birthday = `${dd}/${mm}/${yyyy}`;
-          }
+          if (dd && mm && yyyy) birthday = `${dd}/${mm}/${yyyy}`;
         }
 
         let gioiTinh = "";
@@ -213,7 +277,6 @@ const ProfileManager = () => {
         }));
       } catch (err) {
         if (err.response?.status === 401) {
-          console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
           message.warning("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
           navigate("/login");
           return;
@@ -226,76 +289,72 @@ const ProfileManager = () => {
     fetchUserInfoFromApi();
   }, [navigate]);
 
-  // ⚙️ HANDLE UPDATE TAB USER INFORMATION + sync navbar
+  /** ================== UPDATE USER INFO ================== */
   const handleUpdateUserInfo = async (e) => {
     e && e.preventDefault();
+
+    const check = validateUserInfo();
+    if (!check.ok) {
+      message.warning(check.msg);
+      return;
+    }
 
     const loadingKey = "update-user-info-manager";
     message.loading({ content: "Đang cập nhật thông tin...", key: loadingKey, duration: 0 });
 
     try {
-      const nameParts = (userInfo.fullName || "").trim().split(" ").filter(Boolean);
+      const nameParts = String(userInfo.fullName || "")
+        .trim()
+        .split(" ")
+        .filter(Boolean);
       const lastName = nameParts.length > 0 ? nameParts[0] : "";
       const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
       const dateOfBirthApi = toApiDate(userInfo.birthday);
 
-      // map giới tính đúng enum backend: Male / Female / Other
-      const genderMapApi = {
-        Nam: "Male",
-        Nữ: "Female",
-        Khác: "Other",
-      };
+      const genderMapApi = { Nam: "Male", Nữ: "Female", Khác: "Other" };
 
       const payload = {
         firstName,
         lastName,
-        email: userInfo.email || "",
-        phoneNumber: userInfo.phone || "",
+        email: String(userInfo.email || "").trim(),
+        phoneNumber: String(userInfo.phone || "").trim(),
         gender: genderMapApi[userInfo.gioiTinh] || null,
-        address: userInfo.address || "",
+        address: String(userInfo.address || "").trim(),
         dateOfBirth: dateOfBirthApi,
       };
 
-      console.log("UPDATE /UserAccount/update payload:", payload);
-
       await api.put("/UserAccount/update", payload);
 
-      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
       const storedUser = localStorage.getItem("user");
       let newUser = user || {};
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         parsed.firstName = firstName;
         parsed.lastName = lastName;
-        parsed.email = userInfo.email || parsed.email;
-        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-        parsed.address = userInfo.address || parsed.address;
+        parsed.email = payload.email || parsed.email;
+        parsed.phoneNumber = payload.phoneNumber || parsed.phoneNumber;
+        parsed.address = payload.address || parsed.address;
         newUser = parsed;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
       setUser(newUser);
-
-      // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
       message.success({ content: "Cập nhật thông tin cá nhân thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
-
       const serverData = err.response?.data;
       const msg =
         serverData?.title ||
         serverData?.message ||
         (serverData ? JSON.stringify(serverData) : "") ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-
       message.error({ content: msg, key: loadingKey, duration: 3 });
     }
   };
 
-  // ⚙️ HANDLE CHANGE PASSWORD
+  /** ================== CHANGE PASSWORD ================== */
   const handleChangePassword = async (e) => {
     e && e.preventDefault();
 
@@ -305,12 +364,10 @@ const ProfileManager = () => {
       message.warning("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
       return;
     }
-
     if (newPassword !== confirmNewPassword) {
       message.error("Mật khẩu mới và xác nhận mật khẩu không khớp!");
       return;
     }
-
     if (newPassword.length < 6) {
       message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
@@ -320,28 +377,20 @@ const ProfileManager = () => {
     message.loading({ content: "Đang đổi mật khẩu...", key: loadingKey, duration: 0 });
 
     try {
-      const payload = {
+      await api.put("/UserAccount/change-password", {
         currentPassword,
         newPassword,
         confirmNewPassword,
-      };
-
-      await api.put("/UserAccount/change-password", payload);
+      });
 
       message.success({ content: "Đổi mật khẩu thành công!", key: loadingKey, duration: 2 });
 
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
-      });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
         message.error({
-          content:
-            err.response.data?.message ||
-            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!",
+          content: err.response.data?.message || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!",
           key: loadingKey,
           duration: 3,
         });
@@ -353,6 +402,13 @@ const ProfileManager = () => {
       }
     }
   };
+
+  /** ================== DATE LIMIT (>=18) ================== */
+  const maxDobDate18 = new Date(
+    new Date().getFullYear() - 18,
+    new Date().getMonth(),
+    new Date().getDate()
+  );
 
   return (
     <>
@@ -405,17 +461,11 @@ const ProfileManager = () => {
                   }}
                   onClick={handleButtonClick}
                 >
-                  Upload Image <HiArrowUpTray />
+                  Thay đổi ảnh đại diện <HiArrowUpTray />
                 </Button>
 
                 {/* Input ẩn */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  style={{ display: "none" }}
-                />
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
               </Col>
             </Row>
           </Col>
@@ -426,7 +476,7 @@ const ProfileManager = () => {
                 <Row className="align-items-center">
                   <Col>
                     <h3 className="mb-0" style={{ fontWeight: "bold" }}>
-                      My account
+                      Tài khoản của tôi
                     </h3>
                   </Col>
                 </Row>
@@ -479,7 +529,7 @@ const ProfileManager = () => {
                           <Col lg="6">
                             <FormGroup>
                               <label className="form-control-label" htmlFor="input-fullname">
-                                👤 Full Name
+                                👤 Họ tên
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -494,7 +544,7 @@ const ProfileManager = () => {
                           <Col lg="6">
                             <FormGroup>
                               <label className="form-control-label" htmlFor="input-birthday-visible">
-                                🎂 Birthday
+                                🎂 Ngày sinh
                               </label>
 
                               <div style={{ position: "relative", width: "100%" }}>
@@ -510,7 +560,8 @@ const ProfileManager = () => {
                                   showYearDropdown
                                   dropdownMode="select"
                                   isClearable
-                                  maxDate={new Date()}
+                                  // ✅ chặn chọn ngày sinh < 18 tuổi
+                                  maxDate={maxDobDate18}
                                   className="form-control"
                                   wrapperClassName="w-100"
                                 />
@@ -523,11 +574,12 @@ const ProfileManager = () => {
                           </Col>
                         </Row>
 
+                        {/* ✅ 1 hàng: Email + SĐT + Giới tính */}
                         <Row>
-                          <Col lg="6">
+                          <Col lg="4">
                             <FormGroup>
                               <label className="form-control-label" htmlFor="input-email">
-                                ✉️ Email Address
+                                ✉️ Email
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -539,10 +591,10 @@ const ProfileManager = () => {
                             </FormGroup>
                           </Col>
 
-                          <Col lg="6">
+                          <Col lg="4">
                             <FormGroup>
                               <label className="form-control-label" htmlFor="input-phone">
-                                <FcPhone /> Phone Number
+                                <FcPhone /> Số điện thoại
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -553,13 +605,33 @@ const ProfileManager = () => {
                               />
                             </FormGroup>
                           </Col>
+
+                          <Col lg="4">
+                            <FormGroup>
+                              <Label className="form-control-label" htmlFor="input-gender">
+                                🚻 Giới tính
+                              </Label>
+                              <Input
+                                type="select"
+                                id="input-gender"
+                                className="form-control-alternative"
+                                value={userInfo.gioiTinh}
+                                onChange={(e) => setUserInfo({ ...userInfo, gioiTinh: e.target.value })}
+                              >
+                                <option value="">-- Chọn giới tính --</option>
+                                <option value="Nam">♂️ Nam</option>
+                                <option value="Nữ">♀️ Nữ</option>
+                                <option value="Khác">⚧️ Khác</option>
+                              </Input>
+                            </FormGroup>
+                          </Col>
                         </Row>
 
                         <Row>
                           <Col lg="12">
                             <FormGroup>
                               <label className="form-control-label" htmlFor="input-address">
-                                🏠 Address
+                                🏠 Địa chỉ
                               </label>
                               <Input
                                 className="form-control-alternative"
@@ -586,7 +658,7 @@ const ProfileManager = () => {
                     <>
                       <div className="pl-lg-4">
                         <FormGroup style={{ position: "relative" }}>
-                          <Label className="form-control-label">🔐 Current Password</Label>
+                          <Label className="form-control-label">🔐 Mật khẩu hiện tại</Label>
                           <Input
                             className="form-control-alternative"
                             type={showPassword.current ? "text" : "password"}
@@ -612,7 +684,7 @@ const ProfileManager = () => {
                         <Row>
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">🔑 New Password</Label>
+                              <Label className="form-control-label">🔑 Mật khẩu mới</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.new ? "text" : "password"}
@@ -638,7 +710,7 @@ const ProfileManager = () => {
 
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">🔁 Confirm New Password</Label>
+                              <Label className="form-control-label">🔁 Xác nhận mật khẩu mới</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.confirm ? "text" : "password"}

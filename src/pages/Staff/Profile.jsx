@@ -12,6 +12,7 @@ import {
   Col,
   Label,
 } from "reactstrap";
+
 // core components
 import React, { useEffect, useState, useRef } from "react";
 import DatePicker from "react-datepicker";
@@ -20,6 +21,7 @@ import { HiArrowUpTray } from "react-icons/hi2";
 import { FcPhone } from "react-icons/fc";
 import api from "../../config/axios";
 import { useNavigate } from "react-router-dom";
+import { message } from "antd";
 
 const ProfileStaff = () => {
   const [user, setUser] = useState(null);
@@ -32,9 +34,7 @@ const ProfileStaff = () => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   // State cho thông tin cá nhân
@@ -60,109 +60,182 @@ const ProfileStaff = () => {
     confirm: false,
   });
 
-  // 👉 Chuyển string dd/MM/yyyy -> Date (cho react-datepicker)
+  /** ================== HELPERS ================== */
+
+  // dd/MM/yyyy -> Date
   const toDateFromDDMMYYYY = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-    return isNaN(d) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  // 👉 Chuyển Date -> string dd/MM/yyyy (lưu state)
+  // Date -> dd/MM/yyyy
   const toDDMMYYYY = (d) => {
-    if (!(d instanceof Date) || isNaN(d)) return "";
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
   };
 
-  // 👉 dd/MM/yyyy -> yyyy-MM-dd (string thuần gửi API, tránh timezone)
+  // dd/MM/yyyy -> yyyy-MM-dd
   const toApiDate = (s) => {
     if (!s) return null;
-    const [dd, mm, yyyy] = s.split("/");
+    const [dd, mm, yyyy] = String(s).split("/");
     if (!dd || !mm || !yyyy) return null;
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // 👉 Tính tuổi từ birthday (dd/MM/yyyy)
+  // tính tuổi từ dd/MM/yyyy
   const calculateAge = (birthdayString) => {
-    if (!birthdayString) return "";
-    const [day, month, year] = birthdayString.split("/").map(Number);
-    if (!day || !month || !year) return "";
+    if (!birthdayString) return null;
+    const [day, month, year] = String(birthdayString).split("/").map(Number);
+    if (!day || !month || !year) return null;
+
     const today = new Date();
     let age = today.getFullYear() - year;
     const hasHadBirthday =
       today.getMonth() + 1 > month ||
       (today.getMonth() + 1 === month && today.getDate() >= day);
+
     if (!hasHadBirthday) age--;
-    return age >= 0 ? age : "";
+    return age >= 0 ? age : null;
   };
 
+  // ✅ validate email: KHÔNG cho TLD ".co" (vd gmail.co), nhưng admin.com ok
+  const isValidEmail = (email) => {
+    const s = String(email || "").trim();
+    if (!s) return false;
+
+    // basic structure
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return false;
+
+    const domain = s.split("@")[1] || "";
+    const tld = domain.split(".").pop()?.toLowerCase() || "";
+    if (tld === "co") return false;
+
+    return true;
+  };
+
+  // ✅ validate phone VN phổ biến: 10-11 số, bắt đầu 0
+  const isValidPhone = (phone) => {
+    const p = String(phone || "").trim();
+    if (!p) return false;
+    return /^0\d{9,10}$/.test(p);
+  };
+
+  // ✅ validate toàn bộ input khi cập nhật
+  const validateUserInfo = () => {
+    const fullName = String(userInfo.fullName || "").trim();
+    const email = String(userInfo.email || "").trim();
+    const phone = String(userInfo.phone || "").trim();
+    const address = String(userInfo.address || "").trim();
+    const gender = String(userInfo.gioiTinh || "").trim();
+    const birthday = String(userInfo.birthday || "").trim();
+
+    if (!fullName) return { ok: false, msg: "Vui lòng nhập họ tên." };
+    if (fullName.length < 2) return { ok: false, msg: "Họ tên quá ngắn." };
+
+    if (!birthday) return { ok: false, msg: "Vui lòng chọn ngày sinh." };
+    const d = toDateFromDDMMYYYY(birthday);
+    if (!d) return { ok: false, msg: "Ngày sinh không hợp lệ." };
+
+    const age = calculateAge(birthday);
+    if (age == null) return { ok: false, msg: "Ngày sinh không hợp lệ." };
+    if (age < 18) return { ok: false, msg: "Tuổi phải từ 18 trở lên." };
+
+    if (!email) return { ok: false, msg: "Vui lòng nhập email." };
+    if (!isValidEmail(email))
+      return { ok: false, msg: "Email không hợp lệ (không chấp nhận đuôi .co)." };
+
+    if (!phone) return { ok: false, msg: "Vui lòng nhập số điện thoại." };
+    if (!isValidPhone(phone))
+      return { ok: false, msg: "Số điện thoại không hợp lệ (ví dụ: 0xxxxxxxxx)." };
+
+    if (!gender) return { ok: false, msg: "Vui lòng chọn giới tính." };
+
+    if (!address) return { ok: false, msg: "Vui lòng nhập địa chỉ." };
+    if (address.length < 3) return { ok: false, msg: "Địa chỉ quá ngắn." };
+
+    return { ok: true };
+  };
+
+  /** ================== AVATAR ================== */
+
   const handleButtonClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    if (fileInputRef.current) fileInputRef.current.click();
   };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Preview tạm tại client
+    const loadingKey = "upload-avatar";
+
+    // Preview tạm
     const localUrl = URL.createObjectURL(file);
     setPreview(localUrl);
 
+    message.loading({
+      content: "Đang tải ảnh lên...",
+      key: loadingKey,
+      duration: 0,
+    });
+
     try {
-      // Đọc file -> base64 (data URL)
-      const toBase64 = (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      const formData = new FormData();
 
-      const base64Image = await toBase64(file);
+      // ✅ Swagger: File string($binary) => field name thường là "File"
+      formData.append("File", file);
 
-      // Gửi JSON lên API
-      const payload = {
-        profileImageUrl: base64Image,
-      };
+      const res = await api.post("/UserAccount/avatar/upload", formData, {
+        // ✅ để axios tự set Content-Type + boundary
+        // headers: { "Content-Type": "multipart/form-data" },
+      });
 
-      const res = await api.put("/UserAccount/avatar", payload);
-      const newUrl = res.data?.profileImageUrl || base64Image;
+      const newAvatarUrl =
+        res.data?.profileImageUrl ||
+        res.data?.url ||
+        res.data?.data?.profileImageUrl ||
+        localUrl;
 
-      // Cập nhật state user + localStorage
-      setUser((prev) => ({
-        ...(prev || {}),
-        photo: newUrl,
-      }));
+      setUser((prev) => ({ ...(prev || {}), photo: newAvatarUrl }));
 
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
-        parsed.photo = newUrl;
+        parsed.photo = newAvatarUrl;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
 
-      // 👉 Bắn event cho Navbar biết user đã đổi avatar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      setPreview(newUrl);
-      alert("Cập nhật ảnh đại diện thành công!");
+      message.success({
+        content: "Cập nhật ảnh đại diện thành công!",
+        key: loadingKey,
+        duration: 2,
+      });
     } catch (err) {
-      console.error("Error uploading avatar:", err);
-      alert(
-        `Upload ảnh thất bại (HTTP ${err.response?.status || "?"}). Vui lòng thử lại!`
-      );
+      console.error("Upload avatar failed:", err.response?.data || err);
+
+      // fallback preview nếu fail
+      setPreview(null);
+
+      message.error({
+        content: "Không thể tải ảnh lên, vui lòng thử lại!",
+        key: loadingKey,
+        duration: 3,
+      });
+    } finally {
+      // ✅ cho phép chọn lại cùng 1 file (nếu user chọn y hệt)
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const age = calculateAge(userInfo.birthday);
+  /** ================== FETCH ME ================== */
 
-  // 🚀 LẤY THÔNG TIN /UserAccount/me FILL VÀO TAB USER
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
@@ -172,18 +245,13 @@ const ProfileStaff = () => {
         const res = await api.get("/UserAccount/me");
         const data = res.data;
 
-        const fullNameFromApi = `${data.lastName || ""} ${
-          data.firstName || ""
-        }`.trim();
+        const fullNameFromApi = `${data.lastName || ""} ${data.firstName || ""}`.trim();
 
         let birthday = "";
         if (data.dateOfBirth) {
-          // backend có thể trả "yyyy-MM-dd" hoặc "yyyy-MM-ddTHH:mm:ss"
           const datePart = String(data.dateOfBirth).split("T")[0];
           const [yyyy, mm, dd] = datePart.split("-");
-          if (dd && mm && yyyy) {
-            birthday = `${dd}/${mm}/${yyyy}`;
-          }
+          if (dd && mm && yyyy) birthday = `${dd}/${mm}/${yyyy}`;
         }
 
         let gioiTinh = "";
@@ -205,151 +273,150 @@ const ProfileStaff = () => {
         }));
       } catch (err) {
         if (err.response?.status === 401) {
-          console.log("Không có quyền / chưa đăng nhập -> /me trả 401");
+          message.warning("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
           navigate("/login");
           return;
         }
         console.error("Error fetching /UserAccount/me:", err);
+        message.error("Không thể tải thông tin tài khoản. Vui lòng thử lại!");
       }
     };
 
     fetchUserInfoFromApi();
   }, [navigate]);
 
-  // ⚙️ HANDLE UPDATE TAB USER INFORMATION
+  /** ================== UPDATE USER INFO ================== */
+
   const handleUpdateUserInfo = async (e) => {
     e && e.preventDefault();
+
+    const check = validateUserInfo();
+    if (!check.ok) {
+      message.warning(check.msg);
+      return;
+    }
+
+    const loadingKey = "update-user-info-staff";
+    message.loading({ content: "Đang cập nhật thông tin...", key: loadingKey, duration: 0 });
+
     try {
-      const nameParts = (userInfo.fullName || "")
+      const nameParts = String(userInfo.fullName || "")
         .trim()
         .split(" ")
         .filter(Boolean);
       const lastName = nameParts.length > 0 ? nameParts[0] : "";
-      const firstName =
-        nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const firstName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-      // dd/MM/yyyy -> yyyy-MM-dd (tránh lệch ngày do timezone)
       const dateOfBirthApi = toApiDate(userInfo.birthday);
 
-      // map giới tính đúng enum backend: Male / Female / Other
-      const genderMapApi = {
-        Nam: "Male",
-        Nữ: "Female",
-        Khác: "Other",
-      };
+      const genderMapApi = { Nam: "Male", Nữ: "Female", Khác: "Other" };
 
       const payload = {
         firstName,
         lastName,
-        email: userInfo.email || "",
-        phoneNumber: userInfo.phone || "",
+        email: String(userInfo.email || "").trim(),
+        phoneNumber: String(userInfo.phone || "").trim(),
         gender: genderMapApi[userInfo.gioiTinh] || null,
-        address: userInfo.address || "",
+        address: String(userInfo.address || "").trim(),
         dateOfBirth: dateOfBirthApi,
       };
 
-      console.log("UPDATE /UserAccount/update payload:", payload);
-
       await api.put("/UserAccount/update", payload);
 
-      // 👉 Cập nhật lại user trong localStorage và state để Navbar refresh
       const storedUser = localStorage.getItem("user");
       let newUser = user || {};
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         parsed.firstName = firstName;
         parsed.lastName = lastName;
-        parsed.email = userInfo.email || parsed.email;
-        parsed.phoneNumber = userInfo.phone || parsed.phoneNumber;
-        parsed.address = userInfo.address || parsed.address;
+        parsed.email = payload.email || parsed.email;
+        parsed.phoneNumber = payload.phoneNumber || parsed.phoneNumber;
+        parsed.address = payload.address || parsed.address;
         newUser = parsed;
         localStorage.setItem("user", JSON.stringify(parsed));
       }
       setUser(newUser);
-
-      // 👉 Bắn event cho Navbar
       window.dispatchEvent(new Event("app-auth-changed"));
 
-      alert("Cập nhật thông tin cá nhân thành công!");
+      message.success({ content: "Cập nhật thông tin cá nhân thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("Error updating user info:", err.response?.data || err);
-
       const serverData = err.response?.data;
-      let msg =
+      const msg =
         serverData?.title ||
         serverData?.message ||
-        JSON.stringify(serverData) ||
+        (serverData ? JSON.stringify(serverData) : "") ||
         "Cập nhật thông tin cá nhân thất bại, vui lòng thử lại!";
-
-      alert(msg);
+      message.error({ content: msg, key: loadingKey, duration: 3 });
     }
   };
 
-  // ⚙️ HANDLE CHANGE PASSWORD
+  /** ================== CHANGE PASSWORD ================== */
+
   const handleChangePassword = async (e) => {
     e && e.preventDefault();
 
     const { currentPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      alert("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
+      message.warning("Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!");
       return;
     }
-
     if (newPassword !== confirmNewPassword) {
-      alert("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      message.error("Mật khẩu mới và xác nhận mật khẩu không khớp!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      message.warning("Mật khẩu mới phải có ít nhất 6 ký tự!");
       return;
     }
 
-    if (newPassword.length < 6) {
-      alert("Mật khẩu mới phải có ít nhất 6 ký tự!");
-      return;
-    }
+    const loadingKey = "change-password-staff";
+    message.loading({ content: "Đang đổi mật khẩu...", key: loadingKey, duration: 0 });
 
     try {
-      const payload = {
+      await api.put("/UserAccount/change-password", {
         currentPassword,
         newPassword,
         confirmNewPassword,
-      };
-
-      await api.put("/UserAccount/change-password", payload);
-      alert("Đổi mật khẩu thành công!");
-
-      // reset form
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmNewPassword: "",
       });
+
+      message.success({ content: "Đổi mật khẩu thành công!", key: loadingKey, duration: 2 });
+
+      setPasswordData({ currentPassword: "", newPassword: "", confirmNewPassword: "" });
     } catch (err) {
       console.error("Error changing password:", err);
       if (err.response?.status === 400) {
-        alert(
-          err.response.data?.message ||
-            "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!"
-        );
+        message.error({
+          content: err.response.data?.message || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu hiện tại!",
+          key: loadingKey,
+          duration: 3,
+        });
       } else if (err.response?.status === 401) {
-        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!");
+        message.warning({ content: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!", key: loadingKey, duration: 3 });
         navigate("/login");
       } else {
-        alert("Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!");
+        message.error({ content: "Có lỗi xảy ra khi đổi mật khẩu, vui lòng thử lại!", key: loadingKey, duration: 3 });
       }
     }
   };
 
+  /** ================== DATE LIMIT (>=18) ================== */
+  const maxDobDate18 = new Date(
+    new Date().getFullYear() - 18,
+    new Date().getMonth(),
+    new Date().getDate()
+  );
+
+  const age = calculateAge(userInfo.birthday) ?? "";
+
   return (
     <>
-      {/* Page content */}
       <Container className="mt-5 mb-5" fluid>
         <Row>
           <Col className="mb-5 mb-xl-0" xl="4">
             <Row className="justify-content-center mt-2 mb-2">
-              <Col
-                lg="3"
-                className="d-flex flex-column justify-content-center align-items-center text-center"
-              >
-                {/* Ảnh đại diện */}
+              <Col lg="3" className="d-flex flex-column justify-content-center align-items-center text-center">
                 <div className="card-profile-image mb-3">
                   <a href="#pablo" onClick={(e) => e.preventDefault()}>
                     <img
@@ -372,7 +439,6 @@ const ProfileStaff = () => {
                   </a>
                 </div>
 
-                {/* Nút Upload */}
                 <Button
                   size="sm"
                   className="mt-2"
@@ -392,31 +458,21 @@ const ProfileStaff = () => {
                   }}
                   onClick={handleButtonClick}
                 >
-                  Upload Image <HiArrowUpTray />
+                  Thay đổi ảnh đại diện <HiArrowUpTray />
                 </Button>
 
-                {/* Input ẩn */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  style={{ display: "none" }}
-                />
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: "none" }} />
               </Col>
             </Row>
           </Col>
 
           <Col xl="8">
-            <Card
-              className="bg-secondary shadow"
-              style={{ marginRight: "5%", marginLeft: "5%" }}
-            >
+            <Card className="bg-secondary shadow" style={{ marginRight: "5%", marginLeft: "5%" }}>
               <CardHeader className="bg-white border-0">
                 <Row className="align-items-center">
                   <Col>
                     <h3 className="mb-0" style={{ fontWeight: "bold" }}>
-                      My account
+                      Tài khoản của tôi
                     </h3>
                   </Col>
                 </Row>
@@ -431,166 +487,137 @@ const ProfileStaff = () => {
                 }}
               >
                 <Form>
-                  {/* Tabs chọn section */}
-                  <div
-                    className="d-flex mb-4 justify-content-center"
-                    style={{ gap: "0.5rem", flexWrap: "wrap" }}
-                  >
+                  <div className="d-flex mb-4 justify-content-center" style={{ gap: "0.5rem", flexWrap: "wrap" }}>
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "user" ? "#ffffff" : "transparent",
-                        color:
-                          activeSection === "user" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "user" ? "#ffffff" : "transparent",
+                        color: activeSection === "user" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "user" ? 700 : 500,
                       }}
                       onClick={() => setActiveSection("user")}
                     >
-                      User Information
+                      Thông tin cá nhân
                     </Button>
+
                     <Button
                       size="sm"
                       type="button"
                       style={{
-                        backgroundColor:
-                          activeSection === "password"
-                            ? "#ffffff"
-                            : "transparent",
-                        color:
-                          activeSection === "password" ? "#0c1844" : "#ffffff",
+                        backgroundColor: activeSection === "password" ? "#ffffff" : "transparent",
+                        color: activeSection === "password" ? "#0c1844" : "#ffffff",
                         border: "1px solid #ffffff",
                         fontWeight: activeSection === "password" ? 700 : 500,
                       }}
                       onClick={() => setActiveSection("password")}
                     >
-                      Reset Password
+                      Đổi mật khẩu
                     </Button>
                   </div>
 
-                  {/* ====== TAB 1: USER INFORMATION ====== */}
+                  {/* TAB USER */}
                   {activeSection === "user" && (
                     <>
                       <div className="pl-lg-4">
                         <Row>
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-fullname"
-                              >
-                                👤 Full Name
+                              <label className="form-control-label" htmlFor="input-fullname">
+                                👤 Họ tên
                               </label>
                               <Input
                                 className="form-control-alternative"
                                 id="input-fullname"
                                 value={userInfo.fullName}
                                 type="text"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    fullName: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, fullName: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
                           <Col lg="6">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-birthday-visible"
-                              >
-                                🎂 Birthday
+                              <label className="form-control-label" htmlFor="input-birthday-visible">
+                                🎂 Ngày sinh
                               </label>
 
-                              <div
-                                style={{ position: "relative", width: "100%" }}
-                              >
+                              <div style={{ position: "relative", width: "100%" }}>
                                 <DatePicker
                                   id="birthday-picker"
-                                  selected={toDateFromDDMMYYYY(
-                                    userInfo.birthday
-                                  )}
-                                  onChange={(date) =>
-                                    setUserInfo({
-                                      ...userInfo,
-                                      birthday: date ? toDDMMYYYY(date) : "",
-                                    })
-                                  }
+                                  selected={toDateFromDDMMYYYY(userInfo.birthday)}
+                                  onChange={(date) => setUserInfo({ ...userInfo, birthday: date ? toDDMMYYYY(date) : "" })}
                                   dateFormat="dd/MM/yyyy"
                                   placeholderText="dd/mm/yyyy"
                                   showMonthDropdown
                                   showYearDropdown
                                   dropdownMode="select"
                                   isClearable
-                                  maxDate={new Date()}
+                                  // ✅ chỉ cho chọn >= 18 tuổi
+                                  maxDate={maxDobDate18}
                                   className="form-control"
                                   wrapperClassName="w-100"
                                 />
                               </div>
 
-                              {/* Hiển thị tuổi dưới Birthday */}
-                              <div
-                                className="mt-1"
-                                style={{
-                                  color: "#ffd700",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                Tuổi: {age !== "" ? age : "--"}
+                              <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
+                                Tuổi: {age !== "" ? age : "--"}{" "}
+                                <span style={{ opacity: 0.85 }}>(Yêu cầu ≥ 18)</span>
                               </div>
                             </FormGroup>
                           </Col>
                         </Row>
 
+                        {/* ✅ 1 hàng: Email + SĐT + Giới tính */}
                         <Row>
-                          <Col lg="6">
+                          <Col lg="4">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-email"
-                              >
-                                ✉️ Email Address
+                              <label className="form-control-label" htmlFor="input-email">
+                                ✉️ Email
                               </label>
                               <Input
                                 className="form-control-alternative"
                                 id="input-email"
                                 value={userInfo.email}
                                 type="email"
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    email: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
 
-                          <Col lg="6">
+                          <Col lg="4">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-phone"
-                              >
-                                <FcPhone /> Phone Number
+                              <label className="form-control-label" htmlFor="input-phone">
+                                <FcPhone /> Số điện thoại
                               </label>
                               <Input
                                 className="form-control-alternative"
                                 id="input-phone"
                                 type="tel"
                                 value={userInfo.phone}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    phone: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
                               />
+                            </FormGroup>
+                          </Col>
+
+                          <Col lg="4">
+                            <FormGroup>
+                              <Label className="form-control-label" htmlFor="input-gender">
+                                🚻 Giới tính
+                              </Label>
+                              <Input
+                                type="select"
+                                id="input-gender"
+                                className="form-control-alternative"
+                                value={userInfo.gioiTinh}
+                                onChange={(e) => setUserInfo({ ...userInfo, gioiTinh: e.target.value })}
+                              >
+                                <option value="">-- Chọn giới tính --</option>
+                                <option value="Nam">♂️ Nam</option>
+                                <option value="Nữ">♀️ Nữ</option>
+                                <option value="Khác">⚧️ Khác</option>
+                              </Input>
                             </FormGroup>
                           </Col>
                         </Row>
@@ -598,23 +625,15 @@ const ProfileStaff = () => {
                         <Row>
                           <Col lg="12">
                             <FormGroup>
-                              <label
-                                className="form-control-label"
-                                htmlFor="input-address"
-                              >
-                                🏠 Address
+                              <label className="form-control-label" htmlFor="input-address">
+                                🏠 Địa chỉ
                               </label>
                               <Input
                                 className="form-control-alternative"
                                 id="input-address"
                                 type="text"
                                 value={userInfo.address}
-                                onChange={(e) =>
-                                  setUserInfo({
-                                    ...userInfo,
-                                    address: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setUserInfo({ ...userInfo, address: e.target.value })}
                               />
                             </FormGroup>
                           </Col>
@@ -622,48 +641,28 @@ const ProfileStaff = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleUpdateUserInfo}
-                        >
-                          Update User Information
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleUpdateUserInfo}>
+                          Cập nhật thông tin
                         </Button>
                       </Col>
                     </>
                   )}
 
-                  {/* ====== TAB 2: RESET PASSWORD ====== */}
+                  {/* TAB PASSWORD */}
                   {activeSection === "password" && (
                     <>
                       <div className="pl-lg-4">
-                        {/* CURRENT PASSWORD */}
                         <FormGroup style={{ position: "relative" }}>
-                          <Label className="form-control-label">
-                            🔐 Current Password
-                          </Label>
+                          <Label className="form-control-label">🔐 Mật khẩu hiện tại</Label>
                           <Input
                             className="form-control-alternative"
                             type={showPassword.current ? "text" : "password"}
                             value={passwordData.currentPassword}
                             style={{ paddingRight: "40px" }}
-                            onChange={(e) =>
-                              setPasswordData({
-                                ...passwordData,
-                                currentPassword: e.target.value,
-                              })
-                            }
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                           />
                           <span
-                            onClick={() =>
-                              setShowPassword({
-                                ...showPassword,
-                                current: !showPassword.current,
-                              })
-                            }
+                            onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
                             style={{
                               position: "absolute",
                               right: "12px",
@@ -677,33 +676,19 @@ const ProfileStaff = () => {
                           </span>
                         </FormGroup>
 
-                        {/* NEW PASSWORD + CONFIRM */}
                         <Row>
-                          {/* NEW PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔑 New Password
-                              </Label>
+                              <Label className="form-control-label">🔑 Mật khẩu mới</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.new ? "text" : "password"}
                                 value={passwordData.newPassword}
                                 style={{ paddingRight: "40px" }}
-                                onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    newPassword: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    new: !showPassword.new,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -718,31 +703,18 @@ const ProfileStaff = () => {
                             </FormGroup>
                           </Col>
 
-                          {/* CONFIRM PASSWORD */}
                           <Col lg="6">
                             <FormGroup style={{ position: "relative" }}>
-                              <Label className="form-control-label">
-                                🔁 Confirm New Password
-                              </Label>
+                              <Label className="form-control-label">🔁 Xác nhận mật khẩu mới</Label>
                               <Input
                                 className="form-control-alternative"
                                 type={showPassword.confirm ? "text" : "password"}
                                 value={passwordData.confirmNewPassword}
                                 style={{ paddingRight: "40px" }}
-                                onChange={(e) =>
-                                  setPasswordData({
-                                    ...passwordData,
-                                    confirmNewPassword: e.target.value,
-                                  })
-                                }
+                                onChange={(e) => setPasswordData({ ...passwordData, confirmNewPassword: e.target.value })}
                               />
                               <span
-                                onClick={() =>
-                                  setShowPassword({
-                                    ...showPassword,
-                                    confirm: !showPassword.confirm,
-                                  })
-                                }
+                                onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
                                 style={{
                                   position: "absolute",
                                   right: "12px",
@@ -760,15 +732,8 @@ const ProfileStaff = () => {
                       </div>
 
                       <Col className="d-flex justify-content-center align-items-center mt-4">
-                        <Button
-                          color="primary"
-                          style={{
-                            transform: "none",
-                          }}
-                          type="button"
-                          onClick={handleChangePassword}
-                        >
-                          Change Password
+                        <Button color="primary" style={{ transform: "none" }} type="button" onClick={handleChangePassword}>
+                          Đổi mật khẩu
                         </Button>
                       </Col>
                     </>

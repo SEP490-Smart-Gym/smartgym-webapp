@@ -160,7 +160,7 @@ const TrainerMemberList = () => {
         id: m.userId || idx + 1,
         profileId: m.profileId,
         fullName:
-          `${m.firstName || ""} ${m.lastName || ""}`.trim() ||
+          `${m.lastName || ""} ${m.firstName || ""}`.trim() ||
           m.email ||
           `Member #${m.userId}`,
         email: m.email,

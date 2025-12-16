@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import api from "../../config/axios";
+import { message } from "antd"; // ✅ ADD
 
 /** ===== Helpers thời gian & format ===== */
 function parseTimeRange(timeStr) {
@@ -46,6 +47,17 @@ function loadScript(src) {
   });
 }
 
+/** ✅ Check ngày quá khứ/hôm nay theo ISO/date */
+function isPastOrToday(isoOrDate) {
+  if (!isoOrDate) return false;
+  const d = new Date(isoOrDate);
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  d.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return d.getTime() <= today.getTime();
+}
+
 /** Helpers UI */
 function getPersonInitials(name = "") {
   return name
@@ -67,13 +79,11 @@ function statusBadgeClass(status) {
 
 /** ===== API ===== */
 async function apiGetScheduleDay(isoDate) {
-  // GET /staff-schedule/day?date=YYYY-MM-DD
   const res = await api.get("/staff-schedule/day", { params: { date: isoDate } });
   return res.data;
 }
 
 async function apiAssignStaffToSlot({ scheduleDate, timeSlotId, staffIds, status, notes }) {
-  // POST /staff-schedule/assign
   await api.post("/staff-schedule/assign", {
     scheduleDate,
     timeSlotId,
@@ -83,24 +93,7 @@ async function apiAssignStaffToSlot({ scheduleDate, timeSlotId, staffIds, status
   });
 }
 
-/**
- * Convert BE day -> FE event format
- * BE:
- * {
- *   date: "2025-12-12",
- *   slots: [
- *     {
- *       timeSlotId, slotName, startTime, endTime,
- *       staffs: [{staffId, name, status, notes}]
- *     }
- *   ]
- * }
- *
- * FE event:
- * {
- *   date, title, status, shifts:[{name,time,timeSlotId,staff:[{staffId,status,notes}]}]
- * }
- */
+/** Convert BE day -> FE event format */
 function dayDtoToEvent(dayDto) {
   const isoDate = (dayDto?.date || "").slice(0, 10);
   const d = new Date(isoDate);
@@ -124,23 +117,26 @@ function dayDtoToEvent(dayDto) {
     };
   });
 
-  // status ở mức ngày: nếu tất cả slot không có staff -> Off, ngược lại Scheduled
   const totalStaff = shifts.reduce((sum, sh) => sum + ((sh.staff || []).length || 0), 0);
   const dayStatus = totalStaff === 0 ? "Off" : "Scheduled";
 
-  // tính start/end để calendar sort
   let startTime = "00:00";
   let endTime = "00:00";
   if (shifts.length) {
-    let minH = 23, minM = 59, maxH = 0, maxM = 0;
+    let minH = 23,
+      minM = 59,
+      maxH = 0,
+      maxM = 0;
     shifts.forEach((sh) => {
       if (!sh.time) return;
       const [shh, smm, ehh, emm] = parseTimeRange(sh.time);
       if (shh < minH || (shh === minH && smm < minM)) {
-        minH = shh; minM = smm;
+        minH = shh;
+        minM = smm;
       }
       if (ehh > maxH || (ehh === maxH && emm > maxM)) {
-        maxH = ehh; maxM = emm;
+        maxH = ehh;
+        maxM = emm;
       }
     });
     if (!(minH === 23 && maxH === 0)) {
@@ -167,7 +163,6 @@ function dayDtoToEvent(dayDto) {
 
 /** Chuẩn hoá FE events cho calendar renderer */
 function normalizeScheduleData(arr) {
-  const today = startOfDay(new Date());
   const out = [];
 
   (arr || []).forEach((item) => {
@@ -183,10 +178,8 @@ function normalizeScheduleData(arr) {
     }
     if (end && isNaN(new Date(end).getTime())) end = null;
 
-    const dateOnly = startOfDay(d);
     let statusRaw = item.status || "Scheduled";
     let status = statusRaw.toLowerCase() === "off" ? "Off" : "Scheduled";
-    if (dateOnly.getTime() > today.getTime()) status = status;
 
     out.push({
       title: item.title || "Lịch trực",
@@ -216,10 +209,10 @@ export default function ManageSchedule() {
   const eventModalRef = useRef(null);
   const personModalRef = useRef(null);
 
-  const [staffList, setStaffList] = useState([]);
-  const staffListRef = useRef([]);
+  // ctor bootstrap
+  const bootstrapRef = useRef({ Modal: null, Popover: null });
 
-  /** cache lịch theo ngày (event list) */
+  const [staffList, setStaffList] = useState([]);
   const [allSchedule, setAllSchedule] = useState([]);
   const dataRef = useRef([]);
 
@@ -229,14 +222,15 @@ export default function ManageSchedule() {
   const [editingShiftIndex, setEditingShiftIndex] = useState(null);
   const [editingStaffIds, setEditingStaffIds] = useState([]);
 
-  const isPastOrToday = (() => {
-    if (!selectedEvent) return false;
-    const d = new Date(selectedEvent.date || selectedEvent.start);
-    const today = new Date();
-    d.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    return d.getTime() <= today.getTime();
-  })();
+  const selectedIso = useMemo(() => {
+    return selectedEvent?.rawDate || selectedEvent?.date || selectedEvent?.start || null;
+  }, [selectedEvent]);
+
+  /** ✅ Ngày quá khứ/hôm nay => chỉ xem */
+  const readOnly = useMemo(() => {
+    if (!selectedIso) return true;
+    return isPastOrToday(selectedIso);
+  }, [selectedIso]);
 
   const rerenderCalendar = (events) => {
     if (window.jQuery && holderRef.current) {
@@ -260,14 +254,31 @@ export default function ManageSchedule() {
   };
 
   const fetchDayAndCache = async (isoDate) => {
+    const key = `fetch-day-${isoDate}`;
+    message.loading({ content: "Đang tải lịch trong ngày...", key, duration: 0 });
     try {
       const dayDto = await apiGetScheduleDay(isoDate);
       const ev = dayDtoToEvent(dayDto);
       upsertEventToCache(ev);
+      message.success({ content: "Đã tải lịch.", key, duration: 1.2 });
       return ev;
     } catch (e) {
       console.error("GET /staff-schedule/day failed:", e);
+      message.error({ content: "Không thể tải lịch trong ngày.", key, duration: 2 });
       return null;
+    }
+  };
+
+  const showEventModal = () => {
+    try {
+      const ModalCtor = bootstrapRef.current.Modal || window.bootstrap?.Modal;
+      if (!ModalCtor) return;
+      const el = document.getElementById("eventDetailModal");
+      if (!el) return;
+      const inst = ModalCtor.getOrCreateInstance(el);
+      inst.show();
+    } catch (e) {
+      console.warn("Cannot open event modal:", e);
     }
   };
 
@@ -277,6 +288,7 @@ export default function ManageSchedule() {
   };
 
   const startEditShift = (shift, index) => {
+    if (readOnly) return; // ✅ chặn cứng
     setEditingShiftIndex(index);
     setEditingStaffIds(shiftStaffIds(shift));
   };
@@ -286,31 +298,36 @@ export default function ManageSchedule() {
     setEditingStaffIds([]);
   };
 
-  const saveEditShift = async () => {
+  /** ✅ POST lịch làm việc cho ca đang edit */
+  const assignScheduleForEditingShift = async () => {
     if (!selectedEvent || editingShiftIndex == null) return;
+
+    if (readOnly) {
+      message.warning("Ngày quá khứ hoặc hôm nay chỉ xem lịch, không thể chỉnh sửa/xếp lịch.");
+      return;
+    }
 
     const isoDate = selectedEvent.rawDate || dateObjToISO(selectedEvent.date || selectedEvent.start);
     const baseShifts = selectedEvent.shifts || [];
     const shiftEditing = baseShifts[editingShiftIndex];
-
     if (!shiftEditing) return;
 
-    // chặn trùng staff giữa 2 ca
     const otherStaffIds = baseShifts
       .filter((_, idx) => idx !== editingShiftIndex)
       .flatMap((sh) => shiftStaffIds(sh));
 
     const duplicated = editingStaffIds.filter((id) => otherStaffIds.includes(id));
     if (duplicated.length) {
-      alert("❌ Một số nhân viên đã được phân ca khác trong ngày. Không thể trực 2 ca cùng ngày.");
+      message.error("Một số nhân viên đã được phân ca khác trong ngày. Không thể trực 2 ca cùng ngày.");
       return;
     }
 
     const timeSlotId = shiftEditing.timeSlotId || (editingShiftIndex === 0 ? 17 : 18);
     const isOff = editingStaffIds.length === 0;
-
-    // status: nếu chọn rỗng thì Off, ngược lại Scheduled
     const payloadStatus = isOff ? "Off" : "Scheduled";
+
+    const loadingKey = "assign-staff-schedule";
+    message.loading({ content: "Đang xếp lịch...", key: loadingKey, duration: 0 });
 
     try {
       await apiAssignStaffToSlot({
@@ -321,16 +338,14 @@ export default function ManageSchedule() {
         notes: "",
       });
 
-      // reload day từ BE để chắc chắn đúng data
       const fresh = await fetchDayAndCache(isoDate);
-
-      // update selectedEvent theo data mới (giữ modal đang mở)
       if (fresh) setSelectedEvent(fresh);
 
       cancelEditShift();
+      message.success({ content: "Xếp lịch thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
       console.error("POST /staff-schedule/assign failed:", err);
-      alert("❌ Lưu ca thất bại. Vui lòng thử lại.");
+      message.error({ content: "Xếp lịch thất bại. Vui lòng thử lại.", key: loadingKey, duration: 3 });
     }
   };
 
@@ -340,36 +355,28 @@ export default function ManageSchedule() {
 
     const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || ev.date);
 
-    // Nếu có trong cache -> mở nhanh, đồng thời refresh BE để update mới nhất
     const cached = dataRef.current.find((x) => (x.rawDate || x.date) === isoDate);
     if (cached) setSelectedEvent(cached);
     else setSelectedEvent({ ...ev, rawDate: isoDate, date: isoDate });
 
-    // luôn fetch ngày từ BE để đồng bộ
     const fresh = await fetchDayAndCache(isoDate);
     if (fresh) setSelectedEvent(fresh);
 
-    try {
-      const ModalClass =
-        (window.bootstrap && window.bootstrap.Modal) ||
-        (window.bootstrap?.Modal) ||
-        null;
-      if (ModalClass) {
-        const inst = ModalClass.getOrCreateInstance(document.getElementById("eventDetailModal"));
-        inst.show();
-      }
-    } catch (e) {
-      console.warn("Cannot open event modal:", e);
-    }
+    showEventModal();
   };
 
   useEffect(() => {
     (async () => {
       await loadScript("https://code.jquery.com/jquery-3.6.4.min.js");
 
-      let BootstrapBundle = null;
       try {
-        BootstrapBundle = await import("bootstrap/dist/js/bootstrap.bundle.min.js");
+        const BootstrapBundle = await import("bootstrap/dist/js/bootstrap.bundle.min.js");
+        window.bootstrap = window.bootstrap || {};
+        window.bootstrap.Modal = window.bootstrap.Modal || BootstrapBundle.Modal;
+        window.bootstrap.Popover = window.bootstrap.Popover || BootstrapBundle.Popover;
+
+        bootstrapRef.current.Modal = window.bootstrap.Modal;
+        bootstrapRef.current.Popover = window.bootstrap.Popover;
       } catch (e) {
         console.error("Bootstrap JS not available", e);
       }
@@ -377,7 +384,6 @@ export default function ManageSchedule() {
       const $ = window.jQuery;
       if (!$) return;
 
-      // quicktmpl
       $.extend({
         quicktmpl: function (template) {
           return new Function(
@@ -400,7 +406,6 @@ export default function ManageSchedule() {
         },
       });
 
-      // Date helpers
       $.extend(Date.prototype, {
         toDateCssClass: function () {
           return "_" + this.getFullYear() + "_" + (this.getMonth() + 1) + "_" + this.getDate();
@@ -423,9 +428,7 @@ export default function ManageSchedule() {
       };
 
       function getOrCreatePopover(elem, opts) {
-        const PopCtor =
-          (window.bootstrap && window.bootstrap.Popover) ||
-          (BootstrapBundle && BootstrapBundle.Popover);
+        const PopCtor = bootstrapRef.current.Popover || window.bootstrap?.Popover;
         if (!PopCtor) return null;
         let instance = PopCtor.getInstance ? PopCtor.getInstance(elem) : null;
         if (!instance) instance = new PopCtor(elem, { ...POPOVER_OPTS, ...opts });
@@ -514,7 +517,6 @@ export default function ManageSchedule() {
             return false;
           });
 
-        // js-cal-option cho month/year (không đụng ô ngày)
         $(document)
           .off("click.calOpt")
           .on("click.calOpt", ".js-cal-option", function () {
@@ -528,7 +530,7 @@ export default function ManageSchedule() {
             draw();
           });
 
-        // CLICK CHIP EVENT
+        // CLICK CHIP
         $el.on("click", ".event-chip", function (e) {
           e.preventDefault();
           e.stopPropagation();
@@ -539,27 +541,16 @@ export default function ManageSchedule() {
           return false;
         });
 
-        // CLICK NGÀY: mở modal (và GET lịch từ BE)
+        // ✅ CLICK NGÀY: luôn mở modal, nhưng ngày quá khứ/hôm nay sẽ readOnly
         $el.on("click", ".calendar-day", function (e) {
           e.preventDefault();
           e.stopPropagation();
 
           const dateStr = this.getAttribute("data-date");
-          if (!dateStr) return;
+          if (!dateStr) return false;
           const clickedDate = new Date(dateStr);
           const iso = dateObjToISO(clickedDate);
 
-          // chặn ngày quá khứ + hôm nay
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const clickedNorm = new Date(clickedDate);
-          clickedNorm.setHours(0, 0, 0, 0);
-          if (clickedNorm.getTime() <= today.getTime()) {
-            alert("Không thể thêm/chỉnh lịch cho ngày đã qua hoặc hôm nay.");
-            return false;
-          }
-
-          // mở event stub (sẽ được fetch BE thay)
           options.onOpenEvent &&
             options.onOpenEvent({
               title: "Lịch trực",
@@ -579,13 +570,11 @@ export default function ManageSchedule() {
           const dayCell = $("." + e.toDateCssClass());
           if (!dayCell.length || dayCell.hasClass("has-event")) return;
 
-          // gom staffIds từ shifts
           let staffs = [];
           (event.shifts || []).forEach((shift) => {
             (shift.staff || []).forEach((s) => staffs.push(s));
           });
 
-          // unique theo staffId
           const map = new Map();
           staffs.forEach((s) => {
             if (s?.staffId == null) return;
@@ -617,22 +606,11 @@ export default function ManageSchedule() {
           dayCell.addClass("has-event").append($chip);
         }
 
-        function yearAddEvents(events, year) {
-          const counts = new Array(12).fill(0);
-          $.each(events, (i, v) => {
-            if (v.start.getFullYear() === year) counts[v.start.getMonth()]++;
-          });
-          $.each(counts, (i, v) => {
-            if (v !== 0) $(".month-" + i).append('<span class="badge bg-info ms-2">' + v + "</span>");
-          });
-        }
-
         function draw() {
           $el.html(t(options));
           $("." + new Date().toDateCssClass()).addClass("today");
           if (options.data && options.data.length) {
-            if (options.mode === "year") yearAddEvents(options.data, options.date.getFullYear());
-            else if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
+            if (options.mode === "month" || options.mode === "week") $.each(options.data, monthAddEvent);
           }
         }
         draw();
@@ -670,17 +648,19 @@ export default function ManageSchedule() {
         document
       );
 
-      /** ===== Call API lấy staff list ===== */
+      // staff list
+      const staffKey = "load-staff-list";
+      message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
       try {
         const res = await api.get("/staff-schedule/staffs");
-        const staffsFromApi = res.data || [];
-        setStaffList(staffsFromApi);
-        staffListRef.current = staffsFromApi;
+        setStaffList(res.data || []);
+        message.success({ content: "Đã tải danh sách staff.", key: staffKey, duration: 1.2 });
       } catch (e) {
         console.error("Failed to load staff list:", e);
+        message.error({ content: "Không thể tải danh sách staff.", key: staffKey, duration: 2 });
       }
 
-      // khởi tạo calendar với cache rỗng
+      // init calendar
       dataRef.current = [];
       setAllSchedule([]);
       window.jQuery(holderRef.current).calendar({
@@ -688,6 +668,7 @@ export default function ManageSchedule() {
         onOpenEvent: onOpenEventFromCalendar,
       });
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -742,9 +723,55 @@ export default function ManageSchedule() {
       `}</style>
 
       <div className="mb-3 text-center">
-        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>
-          Quản lý lịch trực Staff
-        </h1>
+        <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Quản lý lịch trực Staff</h1>
+      </div>
+
+      {/* ✅ Button bên trên calendar */}
+      <div className="d-flex justify-content-center gap-2 mb-3">
+        <button
+          type="button"
+          className="btn btn-outline-primary"
+          onClick={() => {
+            if (!selectedEvent) {
+              message.info("Bạn hãy nhấn vào ngày hoặc chip để mở lịch.");
+              return;
+            }
+            showEventModal();
+          }}
+        >
+          Mở lịch
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-danger"
+          disabled={!selectedEvent || readOnly || editingShiftIndex == null}
+          onClick={() => {
+            if (!selectedEvent) return;
+            if (readOnly) {
+              message.warning("Ngày quá khứ/hôm nay chỉ xem lịch, không thể xếp lịch.");
+              showEventModal();
+              return;
+            }
+            if (editingShiftIndex == null) {
+              message.info("Hãy bấm 'Chỉnh sửa ca này' trong modal trước.");
+              showEventModal();
+              return;
+            }
+            assignScheduleForEditingShift();
+          }}
+          title={
+            !selectedEvent
+              ? "Chọn 1 ngày/chip trước"
+              : readOnly
+              ? "Ngày quá khứ/hôm nay không thể xếp lịch"
+              : editingShiftIndex == null
+              ? "Chọn 'Chỉnh sửa ca này' trước"
+              : ""
+          }
+        >
+          Xếp lịch
+        </button>
       </div>
 
       {/* MODAL CHI TIẾT LỊCH */}
@@ -769,8 +796,15 @@ export default function ManageSchedule() {
               {selectedEvent ? (
                 <>
                   <div className="mb-3 text-muted">
-                    Ngày: <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
+                    Ngày:{" "}
+                    <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
                   </div>
+
+                  {readOnly && (
+                    <div className="alert alert-warning py-2">
+                      Ngày này là <b>hôm nay</b> hoặc <b>đã qua</b> → chỉ được <b>xem lịch</b>, không thể chỉnh sửa/xếp lịch.
+                    </div>
+                  )}
 
                   {(selectedEvent.shifts || []).length === 0 ? (
                     <div className="text-muted">
@@ -788,32 +822,27 @@ export default function ManageSchedule() {
                     return (
                       <div key={idx} className="border rounded-3 p-3 mb-3" style={{ background: "#fafafa" }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                          <h6 className="mb-0">
+                          <h6 className="mb-0" style={{ color: "#c80036", fontWeight: "bold" }}>
                             Ca {idx + 1}: {shift.name || ""}{" "}
                             {shift.time && <span className="text-muted ms-2">({shift.time})</span>}
                           </h6>
 
-                          {!isEditing && !isPastOrToday ? (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() => startEditShift(shift, idx)}
-                            >
+                          {!isEditing && !readOnly ? (
+                            <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEditShift(shift, idx)}>
                               Chỉnh sửa ca này
                             </button>
-                          ) : isEditing && !isPastOrToday ? (
+                          ) : isEditing && !readOnly ? (
                             <div className="d-flex gap-2">
                               <button type="button" className="btn btn-sm btn-secondary" onClick={cancelEditShift}>
                                 Hủy
                               </button>
-                              <button type="button" className="btn btn-sm btn-success" onClick={saveEditShift}>
-                                Lưu ca này
+                              <button type="button" className="btn btn-sm btn-danger" onClick={assignScheduleForEditingShift}>
+                                Xếp lịch
                               </button>
                             </div>
                           ) : null}
                         </div>
 
-                        {/* VIEW MODE */}
                         {!isEditing && (
                           <div className="mb-2">
                             <div className="fw-semibold mb-1">Staff trực:</div>
@@ -839,13 +868,10 @@ export default function ManageSchedule() {
                           </div>
                         )}
 
-                        {/* EDIT MODE */}
-                        {isEditing && !isPastOrToday && (
+                        {isEditing && !readOnly && (
                           <>
                             <div className="mb-2">
-                              <small className="text-muted">
-                                Chọn bằng checkbox. Staff đã trực ca khác trong ngày sẽ bị khóa.
-                              </small>
+                              <small className="text-muted">Chọn checkbox. Staff đã trực ca khác trong ngày sẽ bị khóa.</small>
                             </div>
 
                             <div className="border rounded-3 p-2" style={{ maxHeight: 260, overflowY: "auto" }}>
@@ -868,19 +894,12 @@ export default function ManageSchedule() {
                                       }}
                                     />
                                     <label className="form-check-label" htmlFor={`shift-${idx}-staff-${s.staffId}`}>
-                                      {s.name}{" "}
-                                      {alreadyInOther && <span className="text-danger ms-1">(đã trực ca khác)</span>}
+                                      {s.name} {alreadyInOther && <span className="text-danger ms-1">(đã trực ca khác)</span>}
                                     </label>
                                   </div>
                                 );
                               })}
                               {staffList.length === 0 && <div className="text-muted">Chưa có staff từ API.</div>}
-                            </div>
-
-                            <div className="mt-2 text-muted">
-                              <small>
-                                Nếu bỏ chọn hết staff → hệ thống sẽ gửi status <b>Off</b> cho ca này.
-                              </small>
                             </div>
                           </>
                         )}
@@ -893,7 +912,7 @@ export default function ManageSchedule() {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer d-flex justify-content-between">
               <button
                 type="button"
                 className="btn btn-light"
@@ -905,6 +924,12 @@ export default function ManageSchedule() {
               >
                 Đóng
               </button>
+
+              {!readOnly && editingShiftIndex != null ? (
+                <button type="button" className="btn btn-danger" onClick={assignScheduleForEditingShift}>
+                  Xếp lịch
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -918,13 +943,7 @@ export default function ManageSchedule() {
               <h5 className="modal-title">
                 {selectedPerson ? `Staff: ${selectedPerson.name || selectedPerson.staffId}` : "Thông tin staff"}
               </h5>
-              <button
-                type="button"
-                className="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-                onClick={() => setSelectedPerson(null)}
-              />
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={() => setSelectedPerson(null)} />
             </div>
             <div className="modal-body">
               {selectedPerson ? (
