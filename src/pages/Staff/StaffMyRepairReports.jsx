@@ -241,7 +241,7 @@ export default function StaffMyRepairReports() {
                   rowKey="id"
                   dataSource={reports}
                   columns={columns}
-                  pagination={{ pageSize: 10 }}
+                  pagination={{ pageSize: 5 }}
                 />
               )}
             </div>
