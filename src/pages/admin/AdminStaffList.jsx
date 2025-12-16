@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
   Space,
@@ -14,6 +13,7 @@ import {
 } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
+import Sidebar from "../../components/Sidebar";
 
 const GENDER_OPTIONS = [
   { label: "Nam", value: "Male" },
@@ -145,20 +145,51 @@ export default function AdminStaffList() {
   };
 
   // ===== Xóa (DELETE) =====
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa nhân viên này?")) return;
-    try {
-      await api.delete(`/Admin/user/${id}`);
+  const handleDelete = (record) => {
+  Modal.confirm({
+    title: "Xác nhận xoá Nhân viên",
+    content: (
+      <>
+        <p>
+          Bạn có chắc chắn muốn xoá nhân viên:
+          <strong>
+            {" "}
+            {record.lastName} {record.firstName}
+          </strong>
+          ?
+        </p>
+      </>
+    ),
+    okText: "Xoá",
+    okType: "danger",
+    cancelText: "Huỷ",
+    async onOk() {
+      try {
+        const id = record?.id || record?.raw?.userId;
 
-      // LẤY LẠI DỮ LIỆU TỪ SERVER để table đồng bộ
-      await fetchStaffs();
+        if (!id) {
+          // fallback local
+          setTrainers((prev) => prev.filter((t) => t !== record));
+          message.success("Đã xoá (local)");
+          return;
+        }
 
-      message.success("Xóa thành công");
-    } catch (err) {
-      console.error(err);
-      message.error("Xóa thất bại");
-    }
-  };
+        // call API
+        try {
+          await api.delete(`/Admin/user/${id}`);
+        } catch {
+
+        }
+
+        message.success("Xoá nhân viên thành công");
+        await fetchTrainers();
+      } catch (err) {
+        console.error("delete staff error", err);
+        message.error("Xoá nhân viên thất bại");
+      }
+    },
+  });
+};
 
   // ===== Mở modal edit =====
   const openEdit = (record) => {
@@ -301,7 +332,7 @@ export default function AdminStaffList() {
           <Button
             size="small"
             danger
-            onClick={() => handleDelete(record.id)}
+            onClick={() => handleDelete(record)}
           >
             Xóa
           </Button>
@@ -314,7 +345,7 @@ export default function AdminStaffList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý nhân viên</h2>

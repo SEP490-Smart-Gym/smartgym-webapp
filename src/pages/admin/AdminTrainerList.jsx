@@ -1,6 +1,5 @@
 // AdminTrainerList.jsx
 import React, { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
   Modal,
@@ -17,6 +16,7 @@ import {
 } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
+import Sidebar from "../../components/Sidebar";
 
 const GENDER_OPTIONS = [
   { label: "Nam", value: "Male" },
@@ -63,43 +63,68 @@ export default function AdminTrainerList() {
       chars[Math.floor(Math.random() * chars.length)]
     ).join("");
   };
+//helper to normalize trainer data
+  const normalizeTrainer = (u = {}) => {
+  const firstName = u.firstName ?? "";
+  const lastName = u.lastName ?? "";
+
+  return {
+    // ===== IDENTIFIER =====
+    id: u.trainerId ?? null,
+
+    // ===== NAME =====
+    firstName,
+    lastName,
+    fullName:
+      `${firstName}${firstName && lastName ? " " : ""}${lastName}`.trim() ||
+      "—",
+
+    // ===== IMAGE =====
+    photo: u.imageUrl || "/img/useravt.jpg",
+
+    // ===== BASIC INFO =====
+    gender: u.gender ?? "Male",
+    dateOfBirth: u.dateOfBirth ?? null,
+    email: u.email ?? "—",
+    phoneNumber: u.phoneNumber ?? "—",
+
+    // ===== PROFESSIONAL INFO =====
+    specialization: u.specialization ?? "—",
+    trainerRating:
+      typeof u.trainerRating === "number" ? u.trainerRating : null,
+    totalReviews:
+      typeof u.totalReviews === "number" ? u.totalReviews : 0,
+    yearsOfExperience:
+      typeof u.yearsOfExperience === "number"
+        ? u.yearsOfExperience
+        : null,
+    workingShift: u.workingShift ?? null,
+
+    // ===== STATUS =====
+    isAvailableForNewClients: Boolean(u.isAvailableForNewClients),
+
+    // ===== CERTIFICATES =====
+    certificates: Array.isArray(u.certificates)
+      ? u.certificates.map((c) => ({
+          name: c.certificateName ?? "—",
+          detail: c.certificateDetail ?? "—",
+        }))
+      : [],
+  };
+};
+
 
   // Fetch trainers
   const fetchTrainers = async () => {
     setLoading(true);
     try {
       const res = await api.get("/Admin/trainers");
+
       const raw = Array.isArray(res.data)
         ? res.data
         : res.data.items || res.data.data || [];
 
-      const list = (Array.isArray(raw) ? raw : []).map((u) => ({
-        id: u.trainerId ?? u.id ?? u.userId ?? null,
-        firstName: u.firstName ?? "",
-        lastName: u.lastName ?? "",
-        name:
-          (
-            `${u.firstName ?? ""}${
-              u.firstName && u.lastName ? " " : ""
-            }${u.lastName ?? ""}`
-          ).trim() ||
-          u.fullName ||
-          u.name ||
-          "",
-        specialization: u.specialization ?? "",
-        trainerRating:
-          typeof u.trainerRating === "number" ? u.trainerRating : null,
-        totalReviews:
-          typeof u.totalReviews === "number" ? u.totalReviews : null,
-        isAvailableForNewClients: !!u.isAvailableForNewClients,
-        certificates: Array.isArray(u.certificates) ? u.certificates : [],
-        email: u.email ?? "",
-        phoneNumber: u.phoneNumber ?? u.phone ?? "",
-        address: u.address ?? "",
-        dateOfBirth: u.dateOfBirth ?? null,
-        gender: u.gender || "Male", // ➕ thêm gender để dùng trong edit
-        raw: u,
-      }));
+      const list = raw.map(normalizeTrainer);
 
       setTrainers(list);
     } catch (err) {
@@ -136,9 +161,9 @@ export default function AdminTrainerList() {
       certificates:
         values.certificates && Array.isArray(values.certificates)
           ? values.certificates.map((c) => ({
-              certificateName: c.certificateName || "",
-              certificateDetail: c.certificateDetail || "",
-            }))
+            certificateName: c.certificateName || "",
+            certificateDetail: c.certificateDetail || "",
+          }))
           : [],
     };
 
@@ -176,29 +201,53 @@ export default function AdminTrainerList() {
   };
 
   // DELETE trainer
-  const handleDelete = async (record) => {
-    if (!window.confirm("Bạn có chắc muốn xoá HLV này?")) return;
-    try {
-      const id = record?.id || record?.raw?.userId;
-      if (!id) {
-        setTrainers((p) => p.filter((t) => t !== record));
-        message.success("Đã xóa (local)");
-        return;
-      }
+  const handleDelete = (record) => {
+    Modal.confirm({
+      title: "Xác nhận xoá Huấn luyện viên",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá huấn luyện viên:
+            <strong>
+              {" "}
+              {record.lastName} {record.firstName}
+            </strong>
+            ?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
+        try {
+          const id = record?.id || record?.raw?.userId;
 
-      try {
-        await api.delete(`/Admin/user/${id}`);
-      } catch (err) {
-        await api.delete(`/Admin/user/${id}`);
-      }
+          if (!id) {
+            // fallback local
+            setTrainers((prev) => prev.filter((t) => t !== record));
+            message.success("Đã xoá (local)");
+            return;
+          }
 
-      message.success("Xóa tài khoản thành công");
-      await fetchTrainers();
-    } catch (err) {
-      console.error("delete trainer error", err);
-      message.error("Xóa thất bại");
-    }
+          // call API
+          try {
+            await api.delete(`/Admin/user/${id}`);
+          } catch {
+            // fallback nếu backend map khác
+            await api.delete(`/Admin/trainer/${id}`);
+          }
+
+          message.success("Xoá huấn luyện viên thành công");
+          await fetchTrainers();
+        } catch (err) {
+          console.error("delete trainer error", err);
+          message.error("Xoá huấn luyện viên thất bại");
+        }
+      },
+    });
   };
+
 
   // OPEN edit modal
   const openEdit = (record) => {
@@ -375,7 +424,7 @@ export default function AdminTrainerList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

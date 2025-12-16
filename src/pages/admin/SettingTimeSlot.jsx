@@ -1,6 +1,6 @@
 // AdminStaffList.jsx (quản lý Time Slot)
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
+import Sidebar from "../../components/Sidebar";
 import {
   Table,
   Space,
@@ -293,7 +293,7 @@ export default function AdminStaffList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

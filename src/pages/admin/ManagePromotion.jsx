@@ -1,6 +1,6 @@
 // src/views/Admin/AdminPromotionGifts.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
+import Sidebar from "../../components/Sidebar";
 import {
   Card,
   Table,
@@ -181,27 +181,39 @@ export default function AdminPromotionGifts() {
     resetModalState();
   };
 
-  // DELETE (nếu backend có)
-  const handleDelete = async (record) => {
-    const id = record?.id;
-    if (!id) return;
+  // Xóa quà
+  const handleDelete = (record) => {
+    Modal.confirm({
+      title: "Xác nhận xoá quà tặng",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá quà tặng:
+            <strong> {record.name}</strong>?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
+        try {
+          // 👉 Sau này đổi thành API DELETE
+          // await api.delete(`/PromotionGift/${record.id}`);
 
-    try {
-      setLoading(true);
-      await api.delete(`/Reward/${id}`);
-      message.success("Đã xóa quà tặng.");
-      await fetchRewards();
-    } catch (err) {
-      console.error("DELETE /Reward/{id} error:", err?.response?.data || err);
-      const apiMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.title ||
-        "Xóa thất bại. Backend có thể chưa hỗ trợ DELETE /Reward/{id}.";
-      message.error(apiMsg);
-    } finally {
-      setLoading(false);
-    }
+          setPromotions((prev) =>
+            prev.filter((p) => p.id !== record.id)
+          );
+
+          message.success("Đã xoá quà tặng khuyến mãi");
+        } catch (err) {
+          console.error(err);
+          message.error("Xoá quà tặng thất bại");
+        }
+      },
+    });
   };
+
 
   // Submit form thêm / sửa
   const handleSubmitForm = async (values) => {
@@ -258,141 +270,126 @@ export default function AdminPromotionGifts() {
     }
   };
 
-  const columns = useMemo(
-    () => [
-      {
-        title: "Ảnh quà",
-        dataIndex: "imageUrl",
-        key: "imageUrl",
-        width: 140,
-        align: "center",
-        render: (url, record) => (
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            {url ? (
-              <Image
-                src={url}
-                alt={record.rewardName}
-                width={80}
-                height={80}
-                style={{ objectFit: "cover", borderRadius: 8 }}
-                fallback="https://via.placeholder.com/100x100?text=Gift"
-              />
-            ) : (
-              <img
-                src="https://via.placeholder.com/100x100?text=Gift"
-                alt="Gift"
-                style={{
-                  width: 80,
-                  height: 80,
-                  objectFit: "cover",
-                  borderRadius: 8,
-                }}
-              />
-            )}
-          </div>
-        ),
+  const columns = [
+    {
+      title: "Ảnh quà",
+      dataIndex: "imageUrl",
+      key: "imageUrl",
+      width: 140,
+      render: (url, record) => (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <img
+            src={url}
+            alt={record.name}
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              borderRadius: 8,
+            }}
+            onError={(e) => {
+              e.currentTarget.src =
+                "https://via.placeholder.com/100x100?text=Gift";
+            }}
+          />
+        </div>
+      ),
+    },
+    {
+      title: "Tên phần quà",
+      dataIndex: "rewardName",
+      key: "rewardName",
+      width: 260,
+      render: (text) => (
+        <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
+          <Text strong>{text}</Text>
+        </div>
+      ),
+    },
+    {
+      title: "Mô tả",
+      dataIndex: "description",
+      key: "description",
+      width: 350,
+      render: (text) => (
+        <div
+          style={{
+            whiteSpace: "normal",
+            wordWrap: "break-word",
+          }}
+        >
+          {text}
+        </div>
+      ),
+    },
+    {
+      title: "Điểm cần để đổi",
+      dataIndex: "pointsRequired",
+      key: "pointsRequired",
+      width: 150,
+      align: "right",
+      render: (val) => (
+        <Text strong>{val.toLocaleString("vi-VN")} điểm</Text>
+      ),
+    },
+    {
+      title: "Số lượng",
+      dataIndex: "stockQuantity",
+      key: "stockQuantity",
+      width: 120,
+      align: "right",
+      render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "isActive",
+      key: "isActive",
+      width: 120,
+      align: "center",
+      render: (status) => {
+        let color = "default";
+        if (status === "Active") color = "green";
+        if (status === "Inactive") color = "red";
+        if (status === "Expired") color = "orange";
+        return <Tag color={color}>{status}</Tag>;
       },
-      {
-        title: "Tên phần quà",
-        dataIndex: "rewardName",
-        key: "rewardName",
-        width: 260,
-        render: (text) => (
-          <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
-            <Text strong>{text || "—"}</Text>
-          </div>
-        ),
-      },
-      {
-        title: "Mô tả",
-        dataIndex: "description",
-        key: "description",
-        width: 360,
-        render: (text) => (
-          <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
-            {text || "—"}
-          </div>
-        ),
-      },
-      {
-        title: "Danh mục",
-        dataIndex: "category",
-        key: "category",
-        width: 160,
-        render: (v) => v || "—",
-      },
-      {
-        title: "Điểm cần để đổi",
-        dataIndex: "pointsRequired",
-        key: "pointsRequired",
-        width: 160,
-        align: "right",
-        render: (val) => (
-          <Text strong>{Number(val || 0).toLocaleString("vi-VN")} điểm</Text>
-        ),
-      },
-      {
-        title: "Tồn kho",
-        dataIndex: "stockQuantity",
-        key: "stockQuantity",
-        width: 120,
-        align: "right",
-        render: (q) => <Text>{Number(q || 0).toLocaleString("vi-VN")}</Text>,
-      },
-      {
-        title: "Trạng thái",
-        dataIndex: "isActive",
-        key: "isActive",
-        width: 140,
-        align: "center",
-        render: (isActive) => (
-          <Tag color={isActive ? "green" : "red"}>
-            {isActive ? "Active" : "Inactive"}
-          </Tag>
-        ),
-      },
-      {
-        title: "Thao tác",
-        key: "actions",
-        width: 200,
-        fixed: "right",
-        align: "center",
-        render: (_, record) => (
-          <Space>
-            <Button
-              size="small"
-              type="primary"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenEdit(record)}
-            >
-              Cập nhật
-            </Button>
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      width: 180,
+      fixed: "right",
+      align: "center",
+      render: (_, record) => (
+        <Space>
+          <Button
+            size="small"
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenEdit(record)}
+          >
+            Cập nhật
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+          >
+            Xóa
+          </Button>
 
-            <Popconfirm
-              title="Xóa quà tặng"
-              description={`Bạn chắc chắn muốn xóa "${record.rewardName}"?`}
-              okText="Xóa"
-              cancelText="Hủy"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => handleDelete(record)}
-            >
-              <Button size="small" danger icon={<DeleteOutlined />}>
-                Xóa
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [rewards]
-  );
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="container-fluid" style={{ padding: 24 }}>
-      <div className="row">
+    <div className="container-fluid py-5" >
+      <div className="row g-4">
         {/* Sidebar */}
         <div className="col-lg-3 col-md-4 mb-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         {/* Content */}

@@ -1,6 +1,5 @@
 // AdminManagerList.jsx
 import React, { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
   Space,
@@ -15,6 +14,7 @@ import {
 } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
+import Sidebar from "../../components/Sidebar";
 
 const GENDER_OPTIONS = [
   { label: "Nam", value: "Male" },
@@ -166,20 +166,37 @@ export default function AdminManagerList() {
   };
 
   // DELETE
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa manager này?")) return;
-    try {
-      await api.delete(`/Admin/user/${id}`);
+  const handleDelete = (record) => {
+  Modal.confirm({
+    title: "Xác nhận xoá Manager",
+    content: (
+      <>
+        <p>
+          Bạn có chắc chắn muốn xoá manager:
+          <strong>
+            {" "}
+            {record.lastName} {record.firstName}
+          </strong>
+          ?
+        </p>
+      </>
+    ),
+    okText: "Xoá",
+    okType: "danger",
+    cancelText: "Huỷ",
+    async onOk() {
+      try {
+        await api.delete(`/Admin/user/${record.id}`);
+        message.success("Xoá manager thành công");
+        await fetchManagers();
+      } catch (err) {
+        console.error("delete manager error", err);
+        message.error("Xoá manager thất bại");
+      }
+    },
+  });
+};
 
-      // fetch lại danh sách
-      await fetchManagers();
-
-      message.success("Xóa thành công");
-    } catch (err) {
-      console.error("delete manager error", err);
-      message.error("Xóa thất bại");
-    }
-  };
 
   // EDIT (open modal with form)
   const openEdit = (record) => {
@@ -309,7 +326,7 @@ export default function AdminManagerList() {
           <Button size="small" onClick={() => openEdit(record)}>
             Sửa
           </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+          <Button size="small" danger onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
@@ -321,7 +338,7 @@ export default function AdminManagerList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin"/>
         </div>
 
         <div className="col-lg-9">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import api from "../../config/axios";
 import dayjs from "dayjs";
 import { message, Spin } from "antd";
-import ManagerSidebar from "../../components/ManagerSidebar";
+import Sidebar from "../../components/Sidebar";
 
 export default function ManagerCreateMaintenanceSchedule() {
   const [equipments, setEquipments] = useState([]);
@@ -65,11 +65,11 @@ export default function ManagerCreateMaintenanceSchedule() {
   };
 
   return (
-    <div className="container py-5">
+    <div className="container-fluid py-5">
       <div className="row g-4">
 
         <div className="col-lg-3">
-          <ManagerSidebar />
+          <Sidebar role="Manager" />
         </div>
 
         <div className="col-lg-9">

@@ -1819,3 +1819,16 @@
     margin-bottom: 0 !important;
     color : white;
 }
+/*status equipment*/
+.status-badge {
+  position: absolute;
+  top: 12px;
+  /* right: 12px; */
+
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 999px;
+
+  white-space: nowrap;
+}

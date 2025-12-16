@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
-import { Table, Tag, Space, Button, message, Spin } from "antd";
+import { Table, Tag, Space, Button, message, Spin, Modal } from "antd";
 import api from "../../config/axios";
+import Sidebar from "../../components/Sidebar";
 
 export default function AdminPackages() {
   const [packages, setPackages] = useState([]);
@@ -110,17 +110,33 @@ export default function AdminPackages() {
   /* ==============================
         DELETE PACKAGE
   ============================== */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa gói này?")) return;
-    try {
-      await api.delete(`/Package/${id}`);
-      message.success("Đã xoá gói!");
-      fetchPackages();
-    } catch (err) {
-      console.error(err);
-      message.error("Xoá thất bại!");
-    }
+  const handleDelete = (pkg) => {
+    Modal.confirm({
+      title: "Xác nhận xoá gói tập",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá gói:
+            <strong> {pkg.packageName}</strong>?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
+        try {
+          await api.delete(`/Package/${pkg.id}`);
+          message.success("Đã xoá gói tập");
+          fetchPackages();
+        } catch (err) {
+          console.error(err);
+          message.error("Xoá gói thất bại!");
+        }
+      },
+    });
   };
+
 
   /* ==============================
         UPDATE PACKAGE
@@ -222,9 +238,10 @@ export default function AdminPackages() {
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => setEditingPkg(record)}>Sửa</Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+          <Button size="small" danger onClick={() => handleDelete(record)}>
             Xoá
           </Button>
+
         </Space>
       ),
     },
@@ -237,7 +254,7 @@ export default function AdminPackages() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

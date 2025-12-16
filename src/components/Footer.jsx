@@ -1,6 +1,9 @@
 import { BsArrowUp } from "react-icons/bs";
 import FloatingChatWidget from "./FloatingChatWidget";
+import { useEffect } from "react";
 export default function Footer() {
+
+  const user = JSON.parse(localStorage.getItem("user")) || { roleName: "guest" };
   return (
     <>
       {/* Footer */}
@@ -125,17 +128,28 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      <FloatingChatWidget />
-      {/* Back to Top */}
-      <div className="back-to-top">
-        <button
-          className="btn"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Back to top"
-        >
-          <BsArrowUp />
-        </button>
-      </div>
+      {(user.roleName === "Member" || user.roleName === "guest") && (
+        <FloatingChatWidget />
+      )}
+      {(user.roleName === "Member" || user.roleName === "guest") && (
+        <>
+          {/* Back to Top */}
+          {user.roleName != "Admin" && (
+            <div className="back-to-top">
+              <button
+                className="btn"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                aria-label="Back to top"
+              >
+                <BsArrowUp />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+
+
     </>
   );
 }

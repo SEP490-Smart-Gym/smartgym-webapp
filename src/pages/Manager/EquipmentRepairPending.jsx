@@ -10,7 +10,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import api from "../../config/axios";
-import ManagerSidebar from "../../components/ManagerSidebar";
+import Sidebar from "../../components/Sidebar";
 
 export default function EquipmentRepairPending() {
     const [loading, setLoading] = useState(false);
@@ -181,7 +181,7 @@ export default function EquipmentRepairPending() {
 
                 {/* SIDEBAR */}
                 <div className="col-lg-3">
-                    <ManagerSidebar />
+                    <Sidebar role="Manager" />
                 </div>
 
                 {/* MAIN CONTENT */}
