@@ -59,7 +59,7 @@ import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.js
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
 import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
-import StaffChatList from "../pages/Staff/StaffChatList.jsx"; 
+import StaffChatList from "../pages/Staff/StaffChatList.jsx";
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -73,6 +73,7 @@ import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
 import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
+import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 
 function Layout() {
   return (
@@ -146,9 +147,9 @@ export default function AppRoutes() {
           <Route path="/chat/:conversationId" element={<ChatConversation />} />
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
-          <Route path="/member/payment/:id" element={<PaymentPage />} />          
+          <Route path="/member/payment/:id" element={<PaymentPage />} />
           <Route path="/member/points-history" element={<ExtraPoint />} />
-          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />    
+          <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
           <Route path="/member/reward-gifts" element={<RewardGifts />} />
         </Route>
 
@@ -170,14 +171,13 @@ export default function AppRoutes() {
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
-          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />          
+          <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
           <Route path="/staff/chatlist" element={<StaffChatList />} />
           <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
         </Route>
 
         {/* ===== Admin protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
-          <Route path="/admin/dashboard" element={<Home />} />
           <Route path="/admin/profile" element={<ProfileAdmin />} />
           <Route path="/admin/packages" element={<AdminPackages />} />
           <Route path="/admin/trainers" element={<AdminTrainerList />} />
@@ -188,6 +188,7 @@ export default function AppRoutes() {
           <Route path="/admin/vouchers" element={<AdminVoucher />} />
           <Route path="/admin/timeslot" element={<TimeSlot />} />
           <Route path="/admin/promotion-gifts" element={<AdminPromotionGifts />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Route>
 
         {/* ===== Manager protected ===== */}

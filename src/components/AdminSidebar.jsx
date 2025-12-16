@@ -107,6 +107,12 @@ export default function AdminSidebar() {
             <span className="label">Setting Time Slot</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
+          <NavLink to="/admin/dashboard" className="admin-side-item" end>
+            <i className="fa fa-box icon" />
+            <RiFileListLine />
+            <span className="label">Dashboard</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
         </nav>
       </aside>
     </>

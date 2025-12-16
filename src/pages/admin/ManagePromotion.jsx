@@ -297,8 +297,8 @@ export default function AdminPromotionGifts() {
     },
     {
       title: "Tên phần quà",
-      dataIndex: "name",
-      key: "name",
+      dataIndex: "rewardName",
+      key: "rewardName",
       width: 260,
       render: (text) => (
         <div style={{ whiteSpace: "normal", wordWrap: "break-word" }}>
@@ -334,16 +334,16 @@ export default function AdminPromotionGifts() {
     },
     {
       title: "Số lượng",
-      dataIndex: "quantity",
-      key: "quantity",
+      dataIndex: "stockQuantity",
+      key: "stockQuantity",
       width: 120,
       align: "right",
       render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
     },
     {
       title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
+      dataIndex: "isActive",
+      key: "isActive",
       width: 120,
       align: "center",
       render: (status) => {
