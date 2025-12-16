@@ -172,7 +172,7 @@ export default function ManagerAllRepairReports() {
                                     dataSource={reports}
                                     columns={columns}
                                     rowKey="id"
-                                    pagination={{ pageSize: 10 }}
+                                    pagination={{ pageSize: 5 }}
                                     scroll={{ x: "max-content" }}
                                 />
                             )}
