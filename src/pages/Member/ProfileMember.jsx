@@ -141,56 +141,71 @@ const ProfileMember = () => {
   };
 
   const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const loadingKey = "upload-avatar";
+  const loadingKey = "upload-avatar";
 
-    // Preview tạm
-    const localUrl = URL.createObjectURL(file);
-    setPreview(localUrl);
+  // Preview tạm
+  const localUrl = URL.createObjectURL(file);
+  setPreview(localUrl);
 
-    message.loading({
-      content: "Đang tải ảnh lên...",
-      key: loadingKey,
-      duration: 0,
+  message.loading({
+    content: "Đang tải ảnh lên...",
+    key: loadingKey,
+    duration: 0,
+  });
+
+  try {
+    const formData = new FormData();
+
+    // ✅ Swagger: File string($binary) => field name thường là "File"
+    formData.append("File", file);
+
+    const res = await api.post("/UserAccount/avatar/upload", formData, {
+      // ✅ để axios tự set Content-Type + boundary
+      // headers: { "Content-Type": "multipart/form-data" },
     });
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const newAvatarUrl =
+      res.data?.profileImageUrl ||
+      res.data?.url ||
+      res.data?.data?.profileImageUrl ||
+      localUrl;
 
-      const res = await api.post("/UserAccount/avatar/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+    setUser((prev) => ({ ...(prev || {}), photo: newAvatarUrl }));
 
-      const newAvatarUrl = res.data?.profileImageUrl || localUrl;
-
-      setUser((prev) => ({ ...(prev || {}), photo: newAvatarUrl }));
-
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        parsed.photo = newAvatarUrl;
-        localStorage.setItem("user", JSON.stringify(parsed));
-      }
-
-      window.dispatchEvent(new Event("app-auth-changed"));
-
-      message.success({
-        content: "Cập nhật ảnh đại diện thành công!",
-        key: loadingKey,
-        duration: 2,
-      });
-    } catch (err) {
-      console.error("Upload avatar failed:", err);
-      message.error({
-        content: "Không thể tải ảnh lên, vui lòng thử lại!",
-        key: loadingKey,
-        duration: 3,
-      });
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      parsed.photo = newAvatarUrl;
+      localStorage.setItem("user", JSON.stringify(parsed));
     }
-  };
+
+    window.dispatchEvent(new Event("app-auth-changed"));
+
+    message.success({
+      content: "Cập nhật ảnh đại diện thành công!",
+      key: loadingKey,
+      duration: 2,
+    });
+  } catch (err) {
+    console.error("Upload avatar failed:", err.response?.data || err);
+
+    // fallback preview nếu fail
+    setPreview(null);
+
+    message.error({
+      content: "Không thể tải ảnh lên, vui lòng thử lại!",
+      key: loadingKey,
+      duration: 3,
+    });
+  } finally {
+    // ✅ cho phép chọn lại cùng 1 file (nếu user chọn y hệt)
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+};
+
 
   const age = calculateAge(userInfo.birthday);
 
