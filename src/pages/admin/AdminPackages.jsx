@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import { Table, Tag, Space, Button, message, Spin, Modal } from "antd";
 import api from "../../config/axios";
+import Sidebar from "../../components/Sidebar";
 
 export default function AdminPackages() {
   const [packages, setPackages] = useState([]);
@@ -254,7 +254,7 @@ export default function AdminPackages() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

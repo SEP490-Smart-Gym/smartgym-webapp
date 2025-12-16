@@ -1,6 +1,5 @@
 // AdminManagerList.jsx
 import React, { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import {
   Table,
   Space,
@@ -15,6 +14,7 @@ import {
 } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
+import Sidebar from "../../components/Sidebar";
 
 const GENDER_OPTIONS = [
   { label: "Nam", value: "Male" },
@@ -338,7 +338,7 @@ export default function AdminManagerList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin"/>
         </div>
 
         <div className="col-lg-9">

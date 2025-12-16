@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Table, Button, Space, Modal, Form, Input, InputNumber, DatePicker, Select, message } from "antd";
 import dayjs from "dayjs";
 import api from "../../config/axios";
-import AdminSidebar from "../../components/AdminSidebar";
+import Sidebar from "../../components/Sidebar";
 
 const { RangePicker } = DatePicker;
 
@@ -207,7 +207,7 @@ const handleDelete = (record) => {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

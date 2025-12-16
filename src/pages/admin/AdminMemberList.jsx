@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
 import { Table, Space, Button, message } from "antd";
 import api from "../../config/axios";
 import dayjs from "dayjs";
+import Sidebar from "../../components/Sidebar";
 
 export default function AdminMemberList() {
   const [members, setMembers] = useState([]);
@@ -143,7 +143,7 @@ export default function AdminMemberList() {
       <div className="row g-4">
         {/* Sidebar */}
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         {/* Nội dung chính */}

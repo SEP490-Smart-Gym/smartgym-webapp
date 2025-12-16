@@ -385,8 +385,8 @@ export default function AdminPromotionGifts() {
   ];
 
   return (
-    <div className="container-fluid" style={{ padding: 24 }}>
-      <div className="row">
+    <div className="container-fluid py-5" >
+      <div className="row g-4">
         {/* Sidebar */}
         <div className="col-lg-3 col-md-4 mb-3">
           <AdminSidebar />

@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import AdminSidebar from "../../components/AdminSidebar";
+import Sidebar from "../../components/Sidebar";
 import {
   Table,
   Button,
@@ -311,7 +311,7 @@ export default function EquipmentList() {
     <div className="container-fluid py-5">
       <div className="row g-4">
         <div className="col-lg-3">
-          <AdminSidebar />
+          <Sidebar role="Admin" />
         </div>
 
         <div className="col-lg-9">

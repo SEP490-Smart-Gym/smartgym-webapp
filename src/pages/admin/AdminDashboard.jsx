@@ -21,6 +21,7 @@ import {
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
 import ManagerSidebar from "../../components/ManagerSidebar";
+import Sidebar from "../../components/Sidebar";
 
 ChartJS.register(
     CategoryScale,
@@ -124,11 +125,7 @@ export default function AdminDashboard() {
             <div className="row g-4">
                 {/* ===== SIDEBAR ===== */}
                 <div className="col-lg-3">
-                    {user.roleName === "Admin" ? (
-                        <AdminSidebar />
-                    ) : (
-                        <ManagerSidebar />
-                    )}
+                    <Sidebar role="Admin"/>
                 </div>
 
                 {/* ===== MAIN CONTENT ===== */}
