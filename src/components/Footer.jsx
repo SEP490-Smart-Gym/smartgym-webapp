@@ -4,9 +4,6 @@ import { useEffect } from "react";
 export default function Footer() {
 
   const user = JSON.parse(localStorage.getItem("user")) || { roleName: "guest" };
-  useEffect(() => {
-    console.log("Footer user role:", user.roleName);
-  }, [user.role]);
   return (
     <>
       {/* Footer */}

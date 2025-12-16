@@ -200,6 +200,7 @@ export default function AppRoutes() {
           <Route path="/profile/manager" element={<ProfileManager />} />
           <Route path="/manager/schedule" element={<ManageSchedule />} />
           <Route path="/manager/manager-refund" element={<RefundManagement />} />
+          <Route path="/manager/dashboard" element={<AdminDashboard />} />
         </Route>
 
         {/* 404 cuối cùng trong layout */}

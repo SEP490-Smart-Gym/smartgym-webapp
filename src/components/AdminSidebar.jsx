@@ -3,9 +3,10 @@ import { AiOutlineTool, AiOutlineUser } from "react-icons/ai";
 import { IoTicketOutline } from "react-icons/io5";
 import { NavLink } from "react-router-dom";
 import { RiFileListLine } from "react-icons/ri";
-import { FaUsers } from "react-icons/fa";
+import { FaGift, FaUsers } from "react-icons/fa";
 import { GiWhistle } from "react-icons/gi";
 import { CiAlarmOn } from "react-icons/ci";
+import { GoGraph } from "react-icons/go";
 
 export default function AdminSidebar() {
   const [open, setOpen] = useState(true);
@@ -53,6 +54,12 @@ export default function AdminSidebar() {
 
         <nav className="admin-sidebar-nav">
           <div className="admin-side-section">Quản Lý</div>
+          <NavLink to="/admin/dashboard" className="admin-side-item" end>
+            <i className="fa fa-box icon" />
+            <GoGraph />
+            <span className="label">Dashboard</span>
+            <i className="fa fa-angle-right caret" />
+          </NavLink>
           <NavLink to="/admin/packages" className="admin-side-item" end>
             <i className="fa fa-box icon" />
             <RiFileListLine />
@@ -91,7 +98,7 @@ export default function AdminSidebar() {
           </NavLink>
           <NavLink to="/admin/promotion-gifts" className="admin-side-item">
             <i className="fa fa-users icon" />
-            <AiOutlineTool />
+            <FaGift />
             <span className="label">Quà đổi điểm</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
@@ -105,12 +112,6 @@ export default function AdminSidebar() {
             <i className="fa fa-users icon" />
             <CiAlarmOn />
             <span className="label">Setting Time Slot</span>
-            <i className="fa fa-angle-right caret" />
-          </NavLink>
-          <NavLink to="/admin/dashboard" className="admin-side-item" end>
-            <i className="fa fa-box icon" />
-            <RiFileListLine />
-            <span className="label">Dashboard</span>
             <i className="fa fa-angle-right caret" />
           </NavLink>
         </nav>

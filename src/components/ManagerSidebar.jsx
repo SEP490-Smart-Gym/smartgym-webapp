@@ -5,6 +5,7 @@ import { RiFileListLine } from "react-icons/ri";
 import { FaUsers } from "react-icons/fa";
 import { IoConstructOutline } from "react-icons/io5";
 import { MdPendingActions } from "react-icons/md";
+import { GoGraph } from "react-icons/go";
 
 export default function ManagerSidebar() {
     const [open, setOpen] = useState(true);
@@ -60,7 +61,11 @@ export default function ManagerSidebar() {
 
                 {/* MENU ITEMS */}
                 <nav className="admin-sidebar-nav">
-                    <div className="admin-side-section">Quản Lý</div>
+                    <NavLink to="/manager/dashboard" className="admin-side-item" end>
+                        <GoGraph className="me-2"/>
+                        <span className="label">Dashboard</span>
+                        <i className="fa fa-angle-right caret" />
+                    </NavLink>
                     <NavLink to="/manager/equipment-report-all" className="admin-side-item">
                         <RiFileListLine className="me-2" />
                         <span className="label">Báo cáo tổng hợp</span>
