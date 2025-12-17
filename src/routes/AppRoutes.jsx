@@ -55,7 +55,7 @@ import AdminPromotionGifts from "../pages/admin/ManagePromotion.jsx";
 // Staff
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
-import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import StaffMaintenance from "../pages/Staff/StaffMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
 import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
@@ -170,7 +170,7 @@ export default function AppRoutes() {
           <Route path="/profile/staff" element={<ProfileStaff />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
-          <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
+          <Route path="/staff/equipmentschedule" element={<StaffMaintenance />} />
           <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
           <Route path="/staff/chatlist" element={<StaffChatList />} />
           <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />

@@ -72,7 +72,7 @@ const MENU_BY_ROLE = {
         icon: <TbReportSearch />,
       },
       {
-        to: "/staff/upcomingschedule",
+        to: "/staff/equipmentschedule",
         label: "Lịch bảo trì",
         icon: <MdHistory />,
       },
