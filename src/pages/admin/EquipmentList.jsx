@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import {
   Table,
@@ -32,6 +32,15 @@ const statusColor = {
 export default function EquipmentList() {
   const [equipments, setEquipments] = useState([]);
   const [categories, setCategories] = useState([]);
+  //img upload
+  const addFileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
+  const [pickedFile, setPickedFile] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [editFile, setEditFile] = useState(null);
+
+
+
 
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +49,12 @@ export default function EquipmentList() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Category Modal
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categoryForm] = Form.useForm();
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
 
   /* =====================================
      FETCH LIST (SỬA THEO PAYLOAD)
@@ -90,26 +105,44 @@ export default function EquipmentList() {
     try {
       const values = await addForm.validateFields();
 
-      const body = {
-        equipmentName: values.equipmentName,
-        categoryId: Number(values.categoryId),
-        model: values.model || "",
-        serialNumber: values.serialNumber,
-        purchaseDate: values.purchaseDate
-          ? values.purchaseDate.toISOString()
-          : new Date().toISOString(),
-        purchaseCost: Number(values.purchaseCost ?? 0),
-        warranty: values.warranty || "",
-        status: values.status,
-        location: values.location || "",
-        imageUrl: values.imageUrl || "",
-        description: values.description || "",
-      };
+      if (!pickedFile) {
+        message.warning("Vui lòng chọn ảnh thiết bị");
+        return;
+      }
 
-      await api.post("/Equipment", body);
+      const formData = new FormData();
+
+      formData.append("EquipmentName", values.equipmentName);
+      formData.append("CategoryId", values.categoryId);
+      formData.append("Model", values.model || "");
+      formData.append("SerialNumber", values.serialNumber);
+      formData.append(
+        "PurchaseDate",
+        values.purchaseDate
+          ? values.purchaseDate.format("YYYY-MM-DD")
+          : new Date().toISOString().split("T")[0]
+      );
+      formData.append("PurchaseCost", values.purchaseCost || 0);
+      formData.append("Warranty", values.warranty || "");
+      formData.append("Status", values.status);
+      formData.append("Location", values.location || "");
+      formData.append("Description", values.description || "");
+
+      formData.append("ImageFile", pickedFile);
+
+      await api.post("/Equipment", formData);
       message.success("Thêm thiết bị thành công");
 
       addForm.resetFields();
+      setPickedFile(null);
+      setPreviewImage(null);
+
+      if (addFileInputRef.current) {
+        addFileInputRef.current.value = "";
+      }
+
+      setPickedFile(null);
+      setPreviewImage(null);
       fetchEquipments();
     } catch (err) {
       if (err?.errorFields) return;
@@ -117,6 +150,7 @@ export default function EquipmentList() {
       message.error("Thêm thiết bị thất bại");
     }
   };
+
 
   /* =====================================
      DELETE
@@ -184,26 +218,31 @@ export default function EquipmentList() {
     try {
       const values = await editForm.validateFields();
 
-      const body = {
-        equipmentName: values.equipmentName,
-        categoryId: Number(values.categoryId),
-        model: values.model || "",
-        serialNumber: values.serialNumber,
-        purchaseDate: values.purchaseDate
-          ? values.purchaseDate.toISOString()
-          : new Date().toISOString(),
-        purchaseCost: Number(values.purchaseCost ?? 0),
-        warranty: values.warranty || "",
-        status: values.status,
-        location: values.location,
-        imageUrl: values.imageUrl,
-        description: values.description,
-      };
+      const formData = new FormData();
+      formData.append("EquipmentName", values.equipmentName);
+      formData.append("CategoryId", values.categoryId);
+      formData.append("Model", values.model || "");
+      formData.append("SerialNumber", values.serialNumber);
+      formData.append(
+        "PurchaseDate",
+        values.purchaseDate
+          ? values.purchaseDate.format("YYYY-MM-DD")
+          : null
+      );
+      formData.append("PurchaseCost", values.purchaseCost || 0);
+      formData.append("Warranty", values.warranty || "");
+      formData.append("Status", values.status);
+      formData.append("Location", values.location || "");
+      formData.append("Description", values.description || "");
 
-      await api.put(`/Equipment/${editingItem.id}`, body);
+      // 🔥 chỉ append nếu user chọn ảnh mới
+      if (editFile) {
+        formData.append("ImageFile", editFile);
+      }
+
+      await api.put(`/Equipment/${editingItem.id}`, formData);
 
       message.success("Cập nhật thiết bị thành công");
-
       closeEditModal();
       fetchEquipments();
     } catch (err) {
@@ -212,6 +251,7 @@ export default function EquipmentList() {
       message.error("Cập nhật thất bại");
     }
   };
+
 
   /* =====================================
      TABLE COLUMNS
@@ -316,6 +356,12 @@ export default function EquipmentList() {
 
         <div className="col-lg-9">
           <h2 className="mb-4 text-center">Quản lý Thiết bị</h2>
+          <div className="d-flex justify-content-end mb-3">
+            <Button type="primary" onClick={() => setIsCategoryOpen(true)}>
+              + Thêm danh mục
+            </Button>
+          </div>
+
 
           {/* ADD FORM */}
           <div className="card shadow-sm mb-4">
@@ -382,18 +428,52 @@ export default function EquipmentList() {
                       <Input placeholder="Vị trí" />
                     </Form.Item>
                   </div>
-
-                  <div className="col-md-4">
-                    <Form.Item name="imageUrl">
-                      <Input placeholder="Ảnh (URL)" />
-                    </Form.Item>
-                  </div>
-
                   <div className="col-md-4">
                     <Form.Item name="warranty">
                       <Input placeholder="Bảo hành" />
                     </Form.Item>
                   </div>
+                  <div className="col-md-4">
+                    <Form.Item>
+                      <Button
+                        htmlType="button"
+                        onClick={() => addFileInputRef.current?.click()}
+                      >
+                        Chọn ảnh
+                      </Button>
+
+                      <input
+                        ref={addFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+
+                          setPickedFile(file);
+                          setPreviewImage(URL.createObjectURL(file));
+                        }}
+                      />
+
+
+                      {previewImage && (
+                        <img
+                          src={previewImage}
+                          alt="preview"
+                          style={{
+                            marginTop: 8,
+                            width: 80,
+                            height: 80,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            border: "1px solid #ddd",
+                          }}
+                        />
+                      )}
+                    </Form.Item>
+                  </div>
+
 
                   <div className="col-md-8">
                     <Form.Item name="description">
@@ -487,9 +567,30 @@ export default function EquipmentList() {
             <Input />
           </Form.Item>
 
-          <Form.Item name="imageUrl" label="Ảnh (URL)">
-            <Input />
+          <Form.Item label="Đổi ảnh (nếu có)">
+            <Button
+              htmlType="button"
+              onClick={() => editFileInputRef.current?.click()}
+            >
+              Chọn ảnh mới
+            </Button>
+
+            <input
+              ref={editFileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                setEditFile(file);
+                setPreviewImage(URL.createObjectURL(file));
+              }}
+            />
+
           </Form.Item>
+
 
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={3} />
@@ -509,6 +610,59 @@ export default function EquipmentList() {
           />
         </Form>
       </Modal>
+      {/* CATEGORY MODAL */}
+      <Modal
+        open={isCategoryOpen}
+        title="Thêm danh mục thiết bị"
+        okText="Thêm danh mục"
+        cancelText="Hủy"
+        confirmLoading={creatingCategory}
+        onCancel={() => {
+          setIsCategoryOpen(false);
+          categoryForm.resetFields();
+        }}
+        onOk={() => categoryForm.submit()}
+      >
+        <Form
+          form={categoryForm}
+          layout="vertical"
+          onFinish={async (values) => {
+            try {
+              setCreatingCategory(true);
+
+              await api.post("/EquipmentCategory", {
+                categoryName: values.categoryName,
+                description: values.description || "",
+              });
+
+              message.success("Thêm danh mục thành công");
+              setIsCategoryOpen(false);
+              categoryForm.resetFields();
+
+              // reload danh mục để Select cập nhật
+              fetchCategories();
+            } catch (err) {
+              console.error(err);
+              message.error("Thêm danh mục thất bại");
+            } finally {
+              setCreatingCategory(false);
+            }
+          }}
+        >
+          <Form.Item
+            name="categoryName"
+            label="Tên danh mục"
+            rules={[{ required: true, message: "Nhập tên danh mục" }]}
+          >
+            <Input placeholder="VD: Cardio, Strength, Machine..." />
+          </Form.Item>
+
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={3} placeholder="Mô tả danh mục (không bắt buộc)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
     </div>
   );
 }
