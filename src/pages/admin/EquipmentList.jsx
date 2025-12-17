@@ -37,6 +37,8 @@ export default function EquipmentList() {
   const editFileInputRef = useRef(null);
   const [pickedFile, setPickedFile] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [addPreviewImage, setAddPreviewImage] = useState(null);
+  const [editPreviewImage, setEditPreviewImage] = useState(null);
   const [editFile, setEditFile] = useState(null);
 
 
@@ -452,14 +454,14 @@ export default function EquipmentList() {
                           if (!file) return;
 
                           setPickedFile(file);
-                          setPreviewImage(URL.createObjectURL(file));
+                          setAddPreviewImage(URL.createObjectURL(file));
                         }}
                       />
 
 
-                      {previewImage && (
+                      {addPreviewImage && (
                         <img
-                          src={previewImage}
+                          src={addPreviewImage}
                           alt="preview"
                           style={{
                             marginTop: 8,
@@ -471,6 +473,7 @@ export default function EquipmentList() {
                           }}
                         />
                       )}
+
                     </Form.Item>
                   </div>
 
@@ -585,9 +588,35 @@ export default function EquipmentList() {
                 if (!file) return;
 
                 setEditFile(file);
-                setPreviewImage(URL.createObjectURL(file));
+                setEditPreviewImage(URL.createObjectURL(file));
               }}
             />
+            {editPreviewImage ? (
+              <img
+                src={editPreviewImage}
+                alt="new-preview"
+                style={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: 8,
+                  objectFit: "cover",
+                  border: "1px solid #ddd",
+                }}
+              />
+            ) : (
+              <img
+                src={editingItem?.imageUrl || "/img/noimg.jpg"}
+                alt="current"
+                style={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: 8,
+                  objectFit: "cover",
+                  border: "1px solid #ddd",
+                }}
+              />
+            )}
+
 
           </Form.Item>
 
