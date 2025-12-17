@@ -19,6 +19,26 @@ const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 export default function StaffMaintenance() {
+  // Status map
+  const STATUS_MAP = {
+    Pending: {
+      label: "Chưa nhận",
+      color: "orange",
+    },
+    Upcoming: {
+      label: "Đã nhận",
+      color: "blue",
+    },
+    "In Progress": {
+      label: "Đang bảo trì",
+      color: "gold",
+    },
+    Completed: {
+      label: "Hoàn thành",
+      color: "green",
+    },
+  };
+
   const [activeTab, setActiveTab] = useState("upcoming");
 
   const [upcoming, setUpcoming] = useState([]);
@@ -116,41 +136,39 @@ export default function StaffMaintenance() {
   /* =========================
       RENDER CARD
   ========================= */
-  const renderCard = (item) => (
-    <Card
-      key={item.id}
-      hoverable
-      bordered
-      style={{ borderWidth: 2 }}
-      onClick={() => openModal(item)}
-    >
-      <h5>{equipmentMap[item.equipmentId]?.equipmentName || "Thiết bị"}</h5>
+  const renderCard = (item) => {
+    const statusUi = STATUS_MAP[item.status] || {
+      label: item.status,
+      color: "default",
+    };
 
-      <p>
-        <b>Ngày:</b>{" "}
-        {dayjs(item.scheduledDate).format("DD/MM/YYYY HH:mm")}
-      </p>
-
-      <p>
-        <b>Giao cho:</b>{" "}
-        {item.assignedToName || (
-          <span style={{ color: "red" }}>Chưa ai nhận</span>
-        )}
-      </p>
-
-      <Tag
-        color={
-          item.status === "Pending"
-            ? "orange"
-            : item.status === "In Progress"
-              ? "blue"
-              : "green"
-        }
+    return (
+      <Card
+        key={item.id}
+        hoverable
+        bordered
+        style={{ borderWidth: 2 }}
+        onClick={() => openModal(item)}
       >
-        {item.status}
-      </Tag>
-    </Card>
-  );
+        <h5>{equipmentMap[item.equipmentId]?.equipmentName || "Thiết bị"}</h5>
+
+        <p>
+          <b>Ngày:</b>{" "}
+          {dayjs(item.scheduledDate).format("DD/MM/YYYY HH:mm")}
+        </p>
+
+        <p>
+          <b>Giao cho:</b>{" "}
+          {item.assignedToName || (
+            <span style={{ color: "red" }}>Chưa ai nhận</span>
+          )}
+        </p>
+
+        <Tag color={statusUi.color}>{statusUi.label}</Tag>
+      </Card>
+    );
+  };
+
 
   const equipment = selectedItem
     ? equipmentMap[selectedItem.equipmentId]
