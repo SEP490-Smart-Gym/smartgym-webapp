@@ -143,8 +143,8 @@ export default function StaffMaintenance() {
           item.status === "Pending"
             ? "orange"
             : item.status === "In Progress"
-            ? "blue"
-            : "green"
+              ? "blue"
+              : "green"
         }
       >
         {item.status}
@@ -168,8 +168,15 @@ export default function StaffMaintenance() {
 
           <Tabs activeKey={activeTab} onChange={setActiveTab}>
             <TabPane tab="Lịch sắp tới" key="upcoming">
-              {loading ? <Spin /> : upcoming.map(renderCard)}
+              {loading ? (
+                <Spin />
+              ) : (
+                upcoming
+                  .filter((it) => it.status !== "Upcoming")
+                  .map(renderCard)
+              )}
             </TabPane>
+
 
             <TabPane tab="Bảo trì của tôi" key="my">
               {loading ? <Spin /> : myList.map(renderCard)}
@@ -196,23 +203,23 @@ export default function StaffMaintenance() {
           ),
 
           activeTab === "my" &&
-            selectedItem?.status === "Pending" && (
-              <Button key="start" type="primary" onClick={handleStart}>
-                Bắt đầu bảo trì
-              </Button>
-            ),
+          selectedItem?.status === "Pending" && (
+            <Button key="start" type="primary" onClick={handleStart}>
+              Bắt đầu bảo trì
+            </Button>
+          ),
 
           activeTab === "my" &&
-            selectedItem?.status === "In Progress" && (
-              <Button
-                key="complete"
-                danger
-                type="primary"
-                onClick={() => setCompleteOpen(true)}
-              >
-                Hoàn thành
-              </Button>
-            ),
+          selectedItem?.status === "In Progress" && (
+            <Button
+              key="complete"
+              danger
+              type="primary"
+              onClick={() => setCompleteOpen(true)}
+            >
+              Hoàn thành
+            </Button>
+          ),
         ].filter(Boolean)}
       >
         {equipment && (
