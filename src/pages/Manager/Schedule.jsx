@@ -1,6 +1,9 @@
+// ManageSchedule.jsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import api from "../../config/axios";
 import { message } from "antd";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 /** ================= Helpers thời gian & format ================= */
 function parseTimeRange(timeStr) {
@@ -15,6 +18,28 @@ function dateObjToISO(d) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+// ✅ NEW: ISO helpers for recurring date rules
+function todayISO() {
+  return dateObjToISO(new Date());
+}
+function addDaysISO(iso, days = 1) {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return dateObjToISO(d);
+}
+function isoToDate(iso) {
+  if (!iso) return null;
+  const d = new Date(String(iso).slice(0, 10));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function dateToISO(d) {
+  if (!d) return "";
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return dateObjToISO(x);
 }
 function toDDMMYYYY(date) {
   if (!date) return "";
@@ -78,13 +103,33 @@ async function apiGetScheduleDay(isoDate) {
 async function apiAssignStaffToSlot({ scheduleDate, timeSlotId, staffIds, status, notes }) {
   await api.post("/staff-schedule/assign", { scheduleDate, timeSlotId, staffIds, status, notes });
 }
+async function apiGetAllStaffSchedule() {
+  const res = await api.get("/staff-schedule/all");
+  return res.data || [];
+}
+async function apiRecurringStaffSchedule({ startDate, endDate, daysOfWeek, timeSlotId, staffIds, status }) {
+  await api.post("/staff-schedule/recurring", {
+    startDate,
+    endDate,
+    daysOfWeek,
+    timeSlotId,
+    staffIds,
+    status,
+  });
+}
 async function apiGetAllBookedTrainingSessions() {
-  // user: GET /api/TrainingSession/all-booked
   const res = await api.get("/TrainingSession/all-booked");
   return res.data || [];
 }
 
-/** ================= Convert BE Staff Day -> FE Event ================= */
+// ✅ NEW: time slot for staff
+async function apiGetStaffTimeSlots() {
+  // GET TimeSlot/staff
+  const res = await api.get("/TimeSlot/staff");
+  return res.data || [];
+}
+
+/** ================= Convert BE Staff Day (/day) -> FE Event ================= */
 function dayDtoToEvent(dayDto) {
   const isoDate = (dayDto?.date || "").slice(0, 10);
   const d = new Date(isoDate);
@@ -96,7 +141,7 @@ function dayDtoToEvent(dayDto) {
     const time = start && end ? `${start}-${end}` : "";
 
     return {
-      name: sl.slotName || "Ca",
+      name: sl.slotName || sl.timeSlotName || "Ca",
       time,
       timeSlotId: sl.timeSlotId,
       staff: (sl.staffs || []).map((st) => ({
@@ -152,9 +197,99 @@ function dayDtoToEvent(dayDto) {
   };
 }
 
+/** ================= Convert Staff /all rows -> FE day events ================= */
+function allStaffRowsToDayEvents(rows) {
+  const byDate = new Map();
+
+  (rows || []).forEach((r) => {
+    const iso = String(r.scheduleDate || "").slice(0, 10);
+    if (!iso) return;
+
+    if (!byDate.has(iso)) byDate.set(iso, new Map());
+    const bySlot = byDate.get(iso);
+
+    const slotId = r.timeSlotId ?? "unknown";
+    if (!bySlot.has(slotId)) {
+      const start = toHHmmFromApiTime(r.startTime);
+      const end = toHHmmFromApiTime(r.endTime);
+      const time = start && end ? `${start}-${end}` : "";
+
+      bySlot.set(slotId, {
+        timeSlotId: r.timeSlotId,
+        name: r.timeSlotName || "Ca",
+        time,
+        staff: [],
+      });
+    }
+
+    bySlot.get(slotId).staff.push({
+      staffId: r.staffId,
+      name: r.staffName || `Staff #${r.staffId ?? "?"}`,
+      status: r.status || "Scheduled",
+      notes: r.notes || "",
+      scheduleId: r.scheduleId,
+    });
+  });
+
+  const events = [];
+  for (const [iso, slotMap] of byDate.entries()) {
+    const d = new Date(iso);
+    const shifts = [...slotMap.values()].map((sh) => {
+      const uniq = new Map();
+      (sh.staff || []).forEach((s) => {
+        if (s?.staffId == null) return;
+        if (!uniq.has(s.staffId)) uniq.set(s.staffId, s);
+      });
+      return { ...sh, staff: [...uniq.values()] };
+    });
+
+    let minH = 23,
+      minM = 59,
+      maxH = 0,
+      maxM = 0;
+    let hasAny = false;
+
+    shifts.forEach((sh) => {
+      if (!sh.time) return;
+      const [shh, smm, ehh, emm] = parseTimeRange(sh.time);
+      hasAny = true;
+      if (shh < minH || (shh === minH && smm < minM)) {
+        minH = shh;
+        minM = smm;
+      }
+      if (ehh > maxH || (ehh === maxH && emm > maxM)) {
+        maxH = ehh;
+        maxM = emm;
+      }
+    });
+
+    const start = hasAny
+      ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), minH, minM, 0, 0)
+      : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    const end = hasAny
+      ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), maxH, maxM, 0, 0)
+      : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+
+    const totalStaff = shifts.reduce((sum, sh) => sum + ((sh.staff || []).length || 0), 0);
+
+    events.push({
+      rawDate: iso,
+      date: iso,
+      title: "Lịch trực",
+      status: totalStaff > 0 ? "Scheduled" : "Off",
+      start,
+      end,
+      shifts,
+      meta: { totalStaff },
+    });
+  }
+
+  events.sort((a, b) => String(a.rawDate).localeCompare(String(b.rawDate)));
+  return events;
+}
+
 /** ================= Convert Training sessions -> FE day events ================= */
 function trainingSessionsToDayEvents(sessions) {
-  // group by date -> then group by trainerId
   const byDate = new Map();
 
   (sessions || []).forEach((s) => {
@@ -173,7 +308,7 @@ function trainingSessionsToDayEvents(sessions) {
     if (!byTrainer.has(trainerId)) byTrainer.set(trainerId, { trainerId, trainerName, sessions: [] });
 
     byTrainer.get(trainerId).sessions.push({
-      sessionId: s.sessionId,
+      sessionId: s.sessionId ?? s.id,
       timeSlotName: s.timeSlotName || "",
       timeSlotId: s.timeSlotId,
       memberId: s.memberId,
@@ -192,7 +327,6 @@ function trainingSessionsToDayEvents(sessions) {
       return { ...t, sessions: sorted };
     });
 
-    // compute min/max time across all sessions
     let minH = 23,
       minM = 59,
       maxH = 0,
@@ -233,7 +367,6 @@ function trainingSessionsToDayEvents(sessions) {
       start,
       end,
       shifts: trainers.map((tr) => ({
-        // reuse field name `shifts` for renderer consistency
         name: tr.trainerName,
         trainerId: tr.trainerId,
         sessions: tr.sessions,
@@ -242,7 +375,6 @@ function trainingSessionsToDayEvents(sessions) {
     });
   }
 
-  // ensure stable sort by date
   events.sort((a, b) => String(a.rawDate).localeCompare(String(b.rawDate)));
   return events;
 }
@@ -258,7 +390,8 @@ function normalizeScheduleData(arr) {
     let start = item.start;
     let end = item.end;
 
-    if (!start || isNaN(new Date(start).getTime())) start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    if (!start || isNaN(new Date(start).getTime()))
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
     if (end && isNaN(new Date(end).getTime())) end = null;
 
     let statusRaw = item.status || "Scheduled";
@@ -287,6 +420,18 @@ function shiftStaffIds(shift) {
   return arr.map((x) => x.staffId).filter((x) => x != null);
 }
 
+// ✅ NEW: conflict checker for recurring range
+function isIsoInRange(iso, startIso, endIso) {
+  if (!iso || !startIso || !endIso) return false;
+  const x = String(iso).slice(0, 10);
+  return x >= startIso && x <= endIso; // ISO date string comparable
+}
+function statusIsWorking(status) {
+  const st = String(status || "").toLowerCase().trim();
+  if (!st) return true;
+  return st !== "off";
+}
+
 export default function ManageSchedule() {
   const holderStaffRef = useRef(null);
   const holderTrainerRef = useRef(null);
@@ -295,21 +440,54 @@ export default function ManageSchedule() {
   const eventModalRef = useRef(null);
   const personModalRef = useRef(null);
   const trainerModalRef = useRef(null);
+  const recurringModalRef = useRef(null);
 
   const bootstrapRef = useRef({ Modal: null, Popover: null });
 
-  const [activeTab, setActiveTab] = useState("staff"); // "staff" | "trainer"
+  const [activeTab, setActiveTab] = useState("staff");
 
   /** ============ STAFF STATE ============ */
   const [staffList, setStaffList] = useState([]);
   const staffDataRef = useRef([]);
   const [allStaffSchedule, setAllStaffSchedule] = useState([]);
 
-  const [selectedEvent, setSelectedEvent] = useState(null); // staff event
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedPerson, setSelectedPerson] = useState(null);
 
   const [editingShiftIndex, setEditingShiftIndex] = useState(null);
   const [editingStaffIds, setEditingStaffIds] = useState([]);
+
+  // ✅ time slots state (for recurring dropdown)
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // recurring modal state
+  // ✅ RULE: start >= tomorrow, end >= start+1 day
+  const [recStart, setRecStart] = useState(() => addDaysISO(todayISO(), 1));
+  const [recEnd, setRecEnd] = useState(() => addDaysISO(addDaysISO(todayISO(), 1), 1));
+  const [recDays, setRecDays] = useState([1, 2, 3, 4, 5]);
+  const [recTimeSlotId, setRecTimeSlotId] = useState(null); // ✅ set after load timeSlots
+  const [recStaffIds, setRecStaffIds] = useState([]);
+  const [recStatus, setRecStatus] = useState("Scheduled");
+  const [staffSearch, setStaffSearch] = useState("");
+
+  // ✅ keep recurring dates always valid (even if user tries to type older values)
+  useEffect(() => {
+    const minStart = addDaysISO(todayISO(), 1);
+    if (new Date(recStart) < new Date(minStart)) setRecStart(minStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const minEnd = addDaysISO(recStart, 1);
+    if (new Date(recEnd) < new Date(minEnd)) setRecEnd(minEnd);
+  }, [recStart, recEnd]);
+
+  const toggleRecDay = (d) => {
+    setRecDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)
+    );
+  };
 
   const selectedIso = useMemo(() => {
     return selectedEvent?.rawDate || selectedEvent?.date || selectedEvent?.start || null;
@@ -327,10 +505,8 @@ export default function ManageSchedule() {
 
   /** ================= init calendar plugin once ================= */
   const ensureCalendarPlugin = async () => {
-    // load jquery
     await loadScript("https://code.jquery.com/jquery-3.6.4.min.js");
 
-    // load bootstrap bundle (Modal/Popover)
     try {
       const BootstrapBundle = await import("bootstrap/dist/js/bootstrap.bundle.min.js");
       window.bootstrap = window.bootstrap || {};
@@ -345,7 +521,6 @@ export default function ManageSchedule() {
 
     const $ = window.jQuery;
     if (!$) return;
-
     if (window.__SMARTGYM_CALENDAR_PLUGIN_LOADED__) return;
 
     $.extend({
@@ -535,14 +710,10 @@ export default function ManageSchedule() {
         const dayCell = $("." + e.toDateCssClass());
         if (!dayCell.length || dayCell.hasClass("has-event")) return;
 
-        // render chip per mode:
-        // - Staff: show staff initials
-        // - Trainer: show trainer initials + counts
         const isTrainerMode = event.title === "Lịch PT";
 
         let avatars = [];
         if (!isTrainerMode) {
-          // staff mode: unique staff across shifts
           let staffs = [];
           (event.shifts || []).forEach((shift) => {
             (shift.staff || []).forEach((s) => staffs.push(s));
@@ -554,7 +725,6 @@ export default function ManageSchedule() {
           });
           avatars = [...map.values()].map((x) => ({ id: x.staffId, name: x.name }));
         } else {
-          // trainer mode: unique trainers (each shift is trainer)
           avatars = (event.shifts || []).map((tr) => ({
             id: tr.trainerId ?? tr.name,
             name: tr.name,
@@ -563,13 +733,8 @@ export default function ManageSchedule() {
 
         const maxShow = 4;
         const total = avatars.length;
-
-        const totalSessions =
-          isTrainerMode && event.meta ? event.meta.totalSessions : (avatars.length || 0);
-
-        const subtitle = isTrainerMode
-          ? `${totalSessions} buổi • ${total} PT`
-          : `${total} Staff`;
+        const totalSessions = isTrainerMode && event.meta ? event.meta.totalSessions : total;
+        const subtitle = isTrainerMode ? `${totalSessions} buổi • ${total} PT` : `${total} Staff`;
 
         const $chip = $(`
           <div class="event-chip" data-index="${index}" title="${event.title}">
@@ -660,16 +825,27 @@ export default function ManageSchedule() {
     }
   };
 
-  const upsertStaffEventToCache = (ev) => {
-    const iso = ev.rawDate || ev.date || dateObjToISO(ev.start);
-    const next = [...staffDataRef.current];
-    const idx = next.findIndex((x) => (x.rawDate || x.date) === iso);
-    if (idx >= 0) next[idx] = { ...next[idx], ...ev, rawDate: iso, date: iso };
-    else next.push({ ...ev, rawDate: iso, date: iso });
-    staffDataRef.current = next;
-    setAllStaffSchedule(next);
-    rerenderStaffCalendar(next);
-    return next;
+  const replaceStaffCache = (events) => {
+    staffDataRef.current = events || [];
+    setAllStaffSchedule(events || []);
+    rerenderStaffCalendar(events || []);
+  };
+
+  const refreshAllStaffSchedule = async () => {
+    const key = "load-staff-all";
+    message.loading({ content: "Đang tải lịch staff (all)...", key, duration: 0 });
+    try {
+      const rows = await apiGetAllStaffSchedule();
+      const dayEvents = allStaffRowsToDayEvents(rows);
+      replaceStaffCache(dayEvents);
+      message.success({ content: "Đã tải lịch staff.", key, duration: 1.2 });
+      return dayEvents;
+    } catch (e) {
+      console.error("GET /staff-schedule/all failed:", e);
+      replaceStaffCache([]);
+      message.error({ content: "Không thể tải lịch staff (all).", key, duration: 2 });
+      return [];
+    }
   };
 
   const fetchStaffDayAndCache = async (isoDate) => {
@@ -678,7 +854,7 @@ export default function ManageSchedule() {
     try {
       const dayDto = await apiGetScheduleDay(isoDate);
       const ev = dayDtoToEvent(dayDto);
-      upsertStaffEventToCache(ev);
+      setSelectedEvent(ev);
       message.success({ content: "Đã tải lịch.", key, duration: 1.2 });
       return ev;
     } catch (e) {
@@ -694,8 +870,7 @@ export default function ManageSchedule() {
       if (!ModalCtor) return;
       const el = document.getElementById("eventDetailModal");
       if (!el) return;
-      const inst = ModalCtor.getOrCreateInstance(el);
-      inst.show();
+      ModalCtor.getOrCreateInstance(el).show();
     } catch (e) {
       console.warn("Cannot open staff event modal:", e);
     }
@@ -707,11 +882,32 @@ export default function ManageSchedule() {
       if (!ModalCtor) return;
       const el = document.getElementById("trainerDayModal");
       if (!el) return;
-      const inst = ModalCtor.getOrCreateInstance(el);
-      inst.show();
+      ModalCtor.getOrCreateInstance(el).show();
     } catch (e) {
       console.warn("Cannot open trainer modal:", e);
     }
+  };
+
+  const showRecurringModal = () => {
+    try {
+      const ModalCtor = bootstrapRef.current.Modal || window.bootstrap?.Modal;
+      if (!ModalCtor) return;
+      const el = document.getElementById("recurringScheduleModal");
+      if (!el) return;
+      ModalCtor.getOrCreateInstance(el).show();
+    } catch (e) {
+      console.warn("Cannot open recurring modal:", e);
+    }
+  };
+
+  const hideRecurringModal = () => {
+    try {
+      const ModalCtor = bootstrapRef.current.Modal || window.bootstrap?.Modal;
+      const el = document.getElementById("recurringScheduleModal");
+      if (!ModalCtor || !el) return;
+      const inst = ModalCtor.getInstance(el);
+      inst?.hide();
+    } catch {}
   };
 
   /** ================= Staff actions ================= */
@@ -739,7 +935,7 @@ export default function ManageSchedule() {
       return;
     }
 
-    const isoDate = selectedEvent.rawDate || dateObjToISO(selectedEvent.date || selectedEvent.start);
+    const isoDate = selectedEvent.rawDate || selectedEvent.date || dateObjToISO(new Date(selectedEvent.start));
     const baseShifts = selectedEvent.shifts || [];
     const shiftEditing = baseShifts[editingShiftIndex];
     if (!shiftEditing) return;
@@ -754,7 +950,12 @@ export default function ManageSchedule() {
       return;
     }
 
-    const timeSlotId = shiftEditing.timeSlotId || (editingShiftIndex === 0 ? 17 : 18);
+    const timeSlotId = shiftEditing.timeSlotId ?? recTimeSlotId;
+    if (timeSlotId == null) {
+      message.error("Thiếu timeSlotId.");
+      return;
+    }
+
     const isOff = editingStaffIds.length === 0;
     const payloadStatus = isOff ? "Off" : "Scheduled";
 
@@ -770,8 +971,8 @@ export default function ManageSchedule() {
         notes: "",
       });
 
-      const fresh = await fetchStaffDayAndCache(isoDate);
-      if (fresh) setSelectedEvent(fresh);
+      await fetchStaffDayAndCache(isoDate);
+      await refreshAllStaffSchedule();
 
       cancelEditShift();
       message.success({ content: "Xếp lịch thành công!", key: loadingKey, duration: 2 });
@@ -785,16 +986,12 @@ export default function ManageSchedule() {
     setEditingShiftIndex(null);
     setEditingStaffIds([]);
 
-    const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || ev.date);
-
-    const cached = staffDataRef.current.find((x) => (x.rawDate || x.date) === isoDate);
-    if (cached) setSelectedEvent(cached);
-    else setSelectedEvent({ ...ev, rawDate: isoDate, date: isoDate });
+    const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || new Date());
+    setSelectedEvent({ ...ev, rawDate: isoDate, date: isoDate });
+    showStaffEventModal();
 
     const fresh = await fetchStaffDayAndCache(isoDate);
     if (fresh) setSelectedEvent(fresh);
-
-    showStaffEventModal();
   };
 
   /** ================= Trainer actions (read-only) ================= */
@@ -820,21 +1017,138 @@ export default function ManageSchedule() {
   };
 
   const onOpenEventFromTrainerCalendar = (ev) => {
-    const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || ev.date);
+    const isoDate = ev.rawDate || ev.date || dateObjToISO(ev.start || new Date());
     const cached = trainerDataRef.current.find((x) => (x.rawDate || x.date) === isoDate);
     const picked = cached || { ...ev, rawDate: isoDate, date: isoDate };
 
-    // nếu click vào ngày không có lịch, vẫn mở modal để báo "không có lịch"
     setSelectedTrainerDay(picked);
     showTrainerModal();
   };
 
-  /** ================= Init: load plugin, init both calendars ================= */
+  // /** ================= Load TimeSlots (staff) ================= */
+  // const loadStaffTimeSlots = async () => {
+  //   const key = "load-staff-timeslots";
+  //   setLoadingSlots(true);
+  //   message.loading({ content: "Đang tải ca làm (TimeSlot)...", key, duration: 0 });
+  //   try {
+  //     const data = await apiGetStaffTimeSlots();
+  //     const onlyActive = (data || []).filter((x) => x?.isActive !== false);
+  //     setTimeSlots(onlyActive);
+
+  //     // set default recTimeSlotId nếu chưa có
+  //     if (recTimeSlotId == null && onlyActive.length) setRecTimeSlotId(onlyActive[0].id);
+
+  //     message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
+  //   } catch (e) {
+  //     console.error("GET /TimeSlot/staff failed:", e);
+  //     setTimeSlots([]);
+  //     message.error({ content: "Không thể tải TimeSlot/staff.", key, duration: 2 });
+  //   } finally {
+  //     setLoadingSlots(false);
+  //   }
+  // };
+
+  /** ================= Recurring submit ================= */
+  const submitRecurring = async () => {
+    // ✅ RULES:
+    // - Start must be >= tomorrow
+    // - End must be >= start + 1 day
+    const minStart = addDaysISO(todayISO(), 1);
+    if (!recStart || !recEnd) return message.error("Vui lòng chọn ngày bắt đầu và kết thúc.");
+    if (new Date(recStart) < new Date(minStart)) return message.error("Ngày bắt đầu phải sau hôm nay (từ ngày mai trở đi).");
+
+    const minEnd = addDaysISO(recStart, 1);
+    if (new Date(recEnd) < new Date(minEnd)) return message.error("Ngày kết thúc phải sau ngày bắt đầu (ít nhất +1 ngày).");
+
+    if (!Array.isArray(recDays) || recDays.length === 0) return message.error("Vui lòng chọn ít nhất 1 ngày trong tuần.");
+    if (recTimeSlotId == null) return message.error("Vui lòng chọn ca (TimeSlot).");
+    if (!Array.isArray(recStaffIds) || recStaffIds.length === 0) return message.error("Vui lòng chọn ít nhất 1 nhân viên.");
+
+    // ✅ NEW: check conflict in [recStart..recEnd] for selected staff
+    const checkKey = "recurring-check-conflict";
+    message.loading({ content: "Đang kiểm tra lịch trùng trong khoảng thời gian...", key: checkKey, duration: 0 });
+
+    try {
+      const rows = await apiGetAllStaffSchedule();
+
+      // Map staffId -> name
+      const staffNameMap = new Map((staffList || []).map((s) => [s.staffId, s.name || `Staff #${s.staffId}`]));
+
+      const conflictMap = new Map(); // staffId -> Set(dates)
+      (rows || []).forEach((r) => {
+        const staffId = r.staffId;
+        if (!recStaffIds.includes(staffId)) return;
+
+        const iso = String(r.scheduleDate || "").slice(0, 10);
+        if (!isIsoInRange(iso, recStart, recEnd)) return;
+
+        // Ignore "Off"
+        if (!statusIsWorking(r.status)) return;
+
+        // If your business rule is "any schedule in range means conflict", keep this.
+        // If later you want "only conflict if same day", or "same timeslot", we can adjust.
+        if (!conflictMap.has(staffId)) conflictMap.set(staffId, new Set());
+        conflictMap.get(staffId).add(iso);
+      });
+
+      if (conflictMap.size > 0) {
+        message.destroy(checkKey);
+
+        const conflictLines = [];
+        for (const [sid, dateSet] of conflictMap.entries()) {
+          const name = staffNameMap.get(sid) || `Staff #${sid}`;
+          const dates = Array.from(dateSet).sort().slice(0, 5); // show first 5
+          const more = dateSet.size > 5 ? ` (+${dateSet.size - 5} ngày khác)` : "";
+          conflictLines.push(`- ${name}: ${dates.join(", ")}${more}`);
+          if (conflictLines.length >= 6) break; // avoid too long
+        }
+        const moreStaff = conflictMap.size > 6 ? `\n... và ${conflictMap.size - 6} nhân viên khác` : "";
+
+        message.error(
+          "Nhân viên đã có lịch trong khoảng thời gian bạn chọn. Vui lòng chọn lại ngày bắt đầu/kết thúc.\n" +
+            conflictLines.join("\n") +
+            moreStaff,
+          6
+        );
+        return;
+      }
+
+      message.success({ content: "Không có lịch trùng. Có thể xếp lịch.", key: checkKey, duration: 1.0 });
+    } catch (e) {
+      console.error("Conflict check failed:", e);
+      message.error({ content: "Không thể kiểm tra lịch trùng. Vui lòng thử lại.", key: checkKey, duration: 2 });
+      return;
+    }
+
+    const key = "recurring-staff";
+    message.loading({ content: "Đang xếp lịch theo chu kỳ...", key, duration: 0 });
+
+    try {
+      await apiRecurringStaffSchedule({
+        startDate: recStart,
+        endDate: recEnd,
+        daysOfWeek: recDays,
+        timeSlotId: Number(recTimeSlotId),
+        staffIds: recStaffIds,
+        status: recStatus,
+      });
+
+      await refreshAllStaffSchedule();
+      hideRecurringModal();
+
+      message.success({ content: "Xếp lịch theo chu kỳ thành công!", key, duration: 2 });
+    } catch (e) {
+      console.error("POST /staff-schedule/recurring failed:", e);
+      message.error({ content: "Xếp lịch thất bại. Vui lòng thử lại.", key, duration: 3 });
+    }
+  };
+
+  /** ================= Init ================= */
   useEffect(() => {
     (async () => {
       await ensureCalendarPlugin();
 
-      // load staff list (once)
+      // staff list
       const staffKey = "load-staff-list";
       message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
       try {
@@ -846,23 +1160,25 @@ export default function ManageSchedule() {
         message.error({ content: "Không thể tải danh sách staff.", key: staffKey, duration: 2 });
       }
 
-      // init staff calendar empty
+      // ✅ load timeslot staff
+      await loadStaffTimeSlots();
+
+      // init calendars empty
       staffDataRef.current = [];
       setAllStaffSchedule([]);
       rerenderStaffCalendar([]);
 
-      // init trainer calendar empty (lazy data)
       trainerDataRef.current = [];
       setAllTrainerSchedule([]);
       rerenderTrainerCalendar([]);
 
-      // load trainer schedule once at start (so tab trainer có sẵn data)
+      // load staff all + trainer
+      await refreshAllStaffSchedule();
       await loadTrainerSchedule();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** when switching tabs, re-render corresponding calendar to avoid sizing glitches */
   useEffect(() => {
     if (activeTab === "staff") rerenderStaffCalendar(allStaffSchedule);
     if (activeTab === "trainer") rerenderTrainerCalendar(allTrainerSchedule);
@@ -922,7 +1238,7 @@ export default function ManageSchedule() {
 
       <div className="mb-3 text-center">
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Quản lý lịch</h1>
-        <div className="text-muted mt-1">Chọn tab Staff để xếp lịch, tab Trainer chỉ xem lịch đặt PT.</div>
+        <div className="text-muted mt-1">Tab Staff để xếp lịch; tab Trainer chỉ xem lịch đặt PT.</div>
       </div>
 
       {/* Tabs */}
@@ -949,37 +1265,23 @@ export default function ManageSchedule() {
           <button
             type="button"
             className="btn btn-danger"
-            disabled={!selectedEvent || readOnly || editingShiftIndex == null}
-            onClick={() => {
-              if (!selectedEvent) return;
-              if (readOnly) {
-                message.warning("Ngày quá khứ/hôm nay chỉ xem lịch, không thể xếp lịch.");
-                showStaffEventModal();
-                return;
-              }
-              if (editingShiftIndex == null) {
-                message.info("Hãy bấm 'Chỉnh sửa ca này' trong modal trước.");
-                showStaffEventModal();
-                return;
-              }
-              assignScheduleForEditingShift();
+            onClick={async () => {
+              // đảm bảo timeSlots có data khi mở modal
+              if (!timeSlots.length) await loadStaffTimeSlots();
+              // ✅ ensure recurring start/end always valid when open
+              const minStart = addDaysISO(todayISO(), 1);
+              const nextMinEnd = addDaysISO(minStart, 1);
+              if (new Date(recStart) < new Date(minStart)) setRecStart(minStart);
+              if (new Date(recEnd) < new Date(addDaysISO(recStart, 1))) setRecEnd(nextMinEnd);
+              showRecurringModal();
             }}
-            title={
-              !selectedEvent
-                ? "Chọn 1 ngày/chip trước"
-                : readOnly
-                ? "Ngày quá khứ/hôm nay không thể xếp lịch"
-                : editingShiftIndex == null
-                ? "Chọn 'Chỉnh sửa ca này' trước"
-                : ""
-            }
           >
             Xếp lịch
           </button>
         </div>
       )}
 
-      {/* ================= STAFF MODAL CHI TIẾT LỊCH ================= */}
+      {/* ================= STAFF MODAL CHI TIẾT LỊCH (/day) ================= */}
       <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
@@ -1010,12 +1312,6 @@ export default function ManageSchedule() {
                       Ngày này là <b>hôm nay</b> hoặc <b>đã qua</b> → chỉ được <b>xem lịch</b>, không thể chỉnh sửa/xếp lịch.
                     </div>
                   )}
-
-                  {(selectedEvent.shifts || []).length === 0 ? (
-                    <div className="text-muted">
-                      Ngày này chưa có dữ liệu ca từ BE (slots rỗng). Hãy kiểm tra API /staff-schedule/day.
-                    </div>
-                  ) : null}
 
                   {(selectedEvent.shifts || []).map((shift, idx) => {
                     const isEditing = editingShiftIndex === idx;
@@ -1184,7 +1480,7 @@ export default function ManageSchedule() {
         </div>
       </div>
 
-      {/* ================= TRAINER MODAL (read-only) ================= */}
+      {/* ================= TRAINER MODAL ================= */}
       <div className="modal fade" id="trainerDayModal" tabIndex="-1" aria-hidden="true" ref={trainerModalRef}>
         <div className="modal-dialog modal-lg">
           <div className="modal-content">
@@ -1201,9 +1497,7 @@ export default function ManageSchedule() {
                   </div>
 
                   {(!selectedTrainerDay.shifts || selectedTrainerDay.shifts.length === 0) && (
-                    <div className="alert alert-light border text-center mb-0">
-                      Ngày này chưa có lịch PT được đặt.
-                    </div>
+                    <div className="alert alert-light border text-center mb-0">Ngày này chưa có lịch PT được đặt.</div>
                   )}
 
                   {(selectedTrainerDay.shifts || []).map((tr, idx) => {
@@ -1256,6 +1550,184 @@ export default function ManageSchedule() {
             <div className="modal-footer">
               <button type="button" className="btn btn-light" data-bs-dismiss="modal" onClick={() => setSelectedTrainerDay(null)}>
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= RECURRING MODAL ================= */}
+      <div className="modal fade" id="recurringScheduleModal" tabIndex="-1" aria-hidden="true" ref={recurringModalRef}>
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Xếp lịch làm theo chu kỳ</h5>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+            </div>
+
+            <div className="modal-body">
+              <div className="row g-3">
+                <div className="row g-3" style={{ width: "100%" }}>
+                  {/* Ngày bắt đầu */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-semibold mb-2">
+                      Ngày bắt đầu
+                    </label>
+                    <DatePicker
+                      className="form-control w-100"
+                      selected={isoToDate(recStart)}
+                      onChange={(d) => {
+                        const picked = dateToISO(d);
+                        setRecStart(picked);
+
+                        // đảm bảo end >= start + 1
+                        const minEnd = addDaysISO(picked, 1);
+                        if (new Date(recEnd) < new Date(minEnd)) setRecEnd(minEnd);
+                      }}
+                      minDate={isoToDate(addDaysISO(todayISO(), 1))} // start >= tomorrow
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="Chọn ngày"
+                      showPopperArrow={false}
+                    />
+                  </div>
+
+                  {/* Ngày kết thúc */}
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-semibold mb-2">
+                      Ngày kết thúc
+                    </label>
+                    <DatePicker
+                      className="form-control w-100"
+                      selected={isoToDate(recEnd)}
+                      onChange={(d) => setRecEnd(dateToISO(d))}
+                      minDate={isoToDate(addDaysISO(recStart, 1))} // end >= start + 1
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="Chọn ngày"
+                      showPopperArrow={false}
+                    />
+                  </div>
+                </div>
+                <div className="col-12">
+                  <div className="d-flex flex-nowrap gap-3">
+                    <span className="fw-semibold">Chọn ngày trong tuần</span>
+
+                    {[
+                      { d: 0, label: "CN" },
+                      { d: 1, label: "T2" },
+                      { d: 2, label: "T3" },
+                      { d: 3, label: "T4" },
+                      { d: 4, label: "T5" },
+                      { d: 5, label: "T6" },
+                      { d: 6, label: "T7" },
+                    ].map((x) => (
+                      <div
+                        key={x.d}
+                        className="form-check d-inline-flex align-items-center m-0"
+                      >
+                        <input
+                          className="form-check-input m-0"
+                          type="checkbox"
+                          id={`dow-${x.d}`}
+                          checked={recDays.includes(x.d)}
+                          onChange={() => toggleRecDay(x.d)}
+                        />
+                        <label className="form-check-label ms-1" htmlFor={`dow-${x.d}`}>
+                          {x.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold">Ca làm (TimeSlot)</label>
+                  <select
+                    className="form-select"
+                    value={recTimeSlotId ?? ""}
+                    onChange={(e) => setRecTimeSlotId(Number(e.target.value))}
+                    disabled={loadingSlots}
+                  >
+                    {timeSlots.length === 0 ? (
+                      <option value="" disabled>
+                        {loadingSlots ? "Đang tải..." : "Chưa có TimeSlot"}
+                      </option>
+                    ) : (
+                      timeSlots.map((ts) => {
+                        const start = toHHmmFromApiTime(ts.startTime);
+                        const end = toHHmmFromApiTime(ts.endTime);
+                        const label = `${ts.slotName || "Ca"}${start && end ? ` (${start}-${end})` : ""}`;
+                        return (
+                          <option key={ts.id} value={ts.id}>
+                            {label}
+                          </option>
+                        );
+                      })
+                    )}
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-6">
+                  <label className="form-label fw-semibold">Trạng thái</label>
+                  <select className="form-select" value={recStatus} onChange={(e) => setRecStatus(e.target.value)}>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Off">Off</option>
+                  </select>
+                </div>
+
+                <div className="col-12">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <label className="form-label fw-semibold mb-0">Chọn nhân viên</label>
+                    <input
+                      className="form-control"
+                      style={{ maxWidth: 320 }}
+                      placeholder="Tìm staff..."
+                      value={staffSearch}
+                      onChange={(e) => setStaffSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="border rounded-3 p-2" style={{ maxHeight: 320, overflowY: "auto" }}>
+                    {(staffList || [])
+                      .filter((s) => {
+                        if (!staffSearch.trim()) return true;
+                        const q = staffSearch.trim().toLowerCase();
+                        return String(s.name || "").toLowerCase().includes(q) || String(s.staffId || "").includes(q);
+                      })
+                      .map((s) => (
+                        <div className="form-check" key={s.staffId}>
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={`rec-staff-${s.staffId}`}
+                            checked={recStaffIds.includes(s.staffId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setRecStaffIds((prev) => (prev.includes(s.staffId) ? prev : [...prev, s.staffId]));
+                              } else {
+                                setRecStaffIds((prev) => prev.filter((x) => x !== s.staffId));
+                              }
+                            }}
+                          />
+                          <label className="form-check-label" htmlFor={`rec-staff-${s.staffId}`}>
+                            {s.name} <span className="text-muted">#{s.staffId}</span>
+                          </label>
+                        </div>
+                      ))}
+                    {(!staffList || staffList.length === 0) && <div className="text-muted">Chưa có staff từ API.</div>}
+                  </div>
+
+                  <div className="mt-2 text-muted" style={{ fontSize: 13 }}>
+                    Đã chọn: <b>{recStaffIds.length}</b> nhân viên
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer d-flex justify-content-between">
+              <button type="button" className="btn btn-light" data-bs-dismiss="modal">
+                Đóng
+              </button>
+              <button type="button" className="btn btn-danger" onClick={submitRecurring} disabled={loadingSlots || timeSlots.length === 0}>
+                Xếp lịch
               </button>
             </div>
           </div>
