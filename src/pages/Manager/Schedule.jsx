@@ -1238,7 +1238,6 @@ export default function ManageSchedule() {
 
       <div className="mb-3 text-center">
         <h1 style={{ margin: 0, color: "#c80036", fontWeight: "bold" }}>Quản lý lịch</h1>
-        <div className="text-muted mt-1">Tab Staff để xếp lịch; tab Trainer chỉ xem lịch đặt PT.</div>
       </div>
 
       {/* Tabs */}
@@ -1307,11 +1306,11 @@ export default function ManageSchedule() {
                     <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
                   </div>
 
-                  {readOnly && (
+                  {/* {readOnly && (
                     <div className="alert alert-warning py-2">
                       Ngày này là <b>hôm nay</b> hoặc <b>đã qua</b> → chỉ được <b>xem lịch</b>, không thể chỉnh sửa/xếp lịch.
                     </div>
-                  )}
+                  )} */}
 
                   {(selectedEvent.shifts || []).map((shift, idx) => {
                     const isEditing = editingShiftIndex === idx;
