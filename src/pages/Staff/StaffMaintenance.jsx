@@ -151,7 +151,6 @@ export default function StaffMaintenance() {
       <Card
         key={item.id}
         hoverable
-        bordered
         style={{ borderWidth: 2 }}
         onClick={() => openModal(item)}
       >

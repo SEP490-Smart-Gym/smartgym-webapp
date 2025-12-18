@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import api from "../../config/axios";
-import { Modal, Descriptions, Image, Tag, Button, Spin, message } from "antd";
+import { Modal, Descriptions, Image, Tag, Button, Spin, message, Select } from "antd";
 import dayjs from "dayjs";
-
 import Sidebar from "../../components/Sidebar";
 
 const STATUS_OPTIONS = ["Tất cả", "Đang Hoạt Động", "Đang Bảo Trì"];
+
+const SEVERITY_MAP = {
+  Low: "Thấp",
+  Medium: "Trung bình",
+  High: "Cao",
+  Critical: "Nghiêm trọng",
+};
 
 function statusBadgeClass(s) {
   switch (s) {
@@ -26,40 +32,23 @@ export default function StaffEquipmentList() {
   const [statusFilter, setStatusFilter] = useState("Tất cả");
   const [selected, setSelected] = useState(null);
 
-  // Maintenance
-  const [schedule, setSchedule] = useState([]);
-  const [activeTask, setActiveTask] = useState({});
-  const [showMaintenanceLog, setShowMaintenanceLog] = useState(false);
-  const [maintenanceLogText, setMaintenanceLogText] = useState("");
-
   // Damage report
   const [showDamageReport, setShowDamageReport] = useState(false);
   const [damageText, setDamageText] = useState("");
   const [severity, setSeverity] = useState("Medium");
 
-  // Return log
-  const [showReturnLog, setShowReturnLog] = useState(false);
-  const [returnLogText, setReturnLogText] = useState("");
-  const [returnFromStatus, setReturnFromStatus] = useState(null);
-
   /* ==============================
-        FETCH EQUIPMENT (SEARCH)
+        FETCH EQUIPMENT
      ============================== */
   const fetchEquipments = async (keyword = "", status = "Tất cả") => {
     setLoading(true);
     try {
       const params = {};
 
-      if (keyword && keyword.trim() !== "") {
-        params.searchTerm = keyword.trim();
-      }
-
-      if (status && status !== "Tất cả") {
-        params.status = status;
-      }
+      if (keyword.trim()) params.searchTerm = keyword.trim();
+      if (status !== "Tất cả") params.status = status;
 
       const res = await api.get("/Equipment/search", { params });
-
       const data = Array.isArray(res.data)
         ? res.data
         : res.data.items || res.data.data || [];
@@ -77,144 +66,50 @@ export default function StaffEquipmentList() {
           location: it.location,
         }))
       );
-    } catch (err) {
-      message.error("Không thể tìm thiết bị");
+    } catch {
+      message.error("Không thể tải danh sách thiết bị");
     } finally {
       setLoading(false);
     }
   };
 
-
-
-  const fetchMaintenanceSchedule = async () => {
-    try {
-      const res = await api.get("/MaintenanceSchedule");
-      const data = Array.isArray(res.data)
-        ? res.data
-        : res.data.items || res.data.data || [];
-      setSchedule(data);
-    } catch {
-      message.error("Không thể tải lịch bảo trì");
-    }
-  };
-
   /* ==============================
-        INIT LOAD
+        INIT + SEARCH
      ============================== */
   useEffect(() => {
-    fetchEquipments("", "Tất cả");
-    fetchMaintenanceSchedule();
+    fetchEquipments();
   }, []);
 
-
-  /* ==============================
-        SEARCH DEBOUNCE
-     ============================== */
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchEquipments(query, statusFilter);
     }, 400);
-
     return () => clearTimeout(timer);
   }, [query, statusFilter]);
-
 
   /* ==============================
         DETAIL
      ============================== */
   const openDetail = (it) => {
     setSelected(it);
-
-    if (activeTask[it.id]) {
-      setShowMaintenanceLog(true);
-    } else {
-      setShowMaintenanceLog(false);
-    }
-
     setShowDamageReport(false);
-    setShowReturnLog(false);
-    setMaintenanceLogText("");
     setDamageText("");
-    setReturnLogText("");
     setSeverity("Medium");
-    setReturnFromStatus(null);
   };
 
   const closeDetail = () => setSelected(null);
 
   /* ==============================
-        START MAINTENANCE
-     ============================== */
-  const handleStartMaintenance = async () => {
-    const today = dayjs().format("YYYY-MM-DD");
-
-    const task = schedule.find(
-      (s) =>
-        s.equipmentId === selected.id &&
-        dayjs(s.scheduledDate).format("YYYY-MM-DD") === today &&
-        s.status === "Pending" &&
-        !s.isCompleted
-    );
-
-    if (!task) {
-      return message.error("Thiết bị này không có lịch bảo trì hôm nay");
-    }
-
-    try {
-      await api.post(`/MaintenanceSchedule/${task.id}/accept`);
-      message.success("Đã nhận nhiệm vụ bảo trì");
-
-      setActiveTask((prev) => ({
-        ...prev,
-        [selected.id]: { ...task, status: "Accepted" },
-      }));
-
-      setShowMaintenanceLog(true);
-    } catch {
-      message.error("Không thể nhận nhiệm vụ bảo trì");
-    }
-  };
-
-  const saveMaintenanceLog = async () => {
-    if (!maintenanceLogText.trim())
-      return message.warning("Nhập nội dung log!");
-
-    const task = activeTask[selected.id];
-    if (!task) return message.error("Không tìm thấy nhiệm vụ");
-
-    try {
-      await api.post(`/MaintenanceSchedule/${task.id}/complete`, {
-        notes: maintenanceLogText,
-      });
-
-      message.success("Hoàn tất bảo trì");
-
-      setActiveTask((prev) => {
-        const n = { ...prev };
-        delete n[selected.id];
-        return n;
-      });
-
-      closeDetail();
-      fetchEquipments();
-      fetchMaintenanceSchedule();
-    } catch {
-      message.error("Không thể hoàn tất bảo trì");
-    }
-  };
-
-  /* ==============================
         DAMAGE REPORT
      ============================== */
   const handleReportDamage = () => {
-    setShowMaintenanceLog(false);
-    setShowReturnLog(false);
     setShowDamageReport(true);
   };
 
   const saveDamageReport = async () => {
-    if (!damageText.trim())
-      return message.warning("Nhập mô tả sự cố!");
+    if (!damageText.trim()) {
+      return message.warning("Vui lòng nhập mô tả sự cố");
+    }
 
     try {
       await api.post("/EquipmentRepairReport", {
@@ -223,32 +118,15 @@ export default function StaffEquipmentList() {
         severity,
       });
 
-      message.success("Đã gửi báo cáo");
+      message.success("Đã gửi báo cáo hỏng");
       closeDetail();
-      fetchEquipments();
+      fetchEquipments(query, statusFilter);
     } catch {
-      message.error("Không thể gửi báo cáo");
+      message.error("Không thể gửi báo cáo hỏng");
     }
   };
 
-  /* ==============================
-        RETURN LOG (LOCAL)
-     ============================== */
-  const handleBackToActive = () => {
-    setReturnFromStatus(selected.status);
-    setShowReturnLog(true);
-  };
-
-  const saveReturnLog = () => {
-    if (!returnLogText.trim())
-      return message.warning("Nhập nội dung log!");
-
-    message.success("Đã ghi log (local)");
-    closeDetail();
-  };
-
-  const formatDate = (d) =>
-    d ? dayjs(d).format("DD/MM/YYYY") : "—";
+  const formatDate = (d) => (d ? dayjs(d).format("DD/MM/YYYY") : "—");
 
   /* ==============================
         RENDER
@@ -330,12 +208,12 @@ export default function StaffEquipmentList() {
                         Mua: {formatDate(it.purchaseDate)}
                       </p>
 
-                      <button
-                        className="btn btn-outline-primary mt-auto"
+                      <Button
+                        className="mt-auto"
                         onClick={() => openDetail(it)}
                       >
                         Chi tiết
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -379,9 +257,7 @@ export default function StaffEquipmentList() {
               color={
                 selected?.status === "Đang Hoạt Động"
                   ? "green"
-                  : selected?.status === "Đang Bảo Trì"
-                    ? "orange"
-                    : "red"
+                  : "orange"
               }
             >
               {selected?.status}
@@ -402,68 +278,42 @@ export default function StaffEquipmentList() {
               </Descriptions.Item>
             </Descriptions>
 
-            <div className="d-flex gap-2 mt-3">
-              {selected?.status === "Đang Hoạt Động" && (
-                <>
-                  <Button type="primary" onClick={handleStartMaintenance}>
-                    🛠 Bảo trì
-                  </Button>
-                  <Button danger onClick={handleReportDamage}>
-                    ⚠ Báo cáo hỏng
-                  </Button>
-                </>
-              )}
-              {selected?.status === "Đang Bảo Trì" && (
-                <Button onClick={handleBackToActive}>
-                  ✔ Trở về hoạt động
-                </Button>
-              )}
+            <div className="mt-3">
+              <Button danger onClick={handleReportDamage}>
+                ⚠ Báo cáo hỏng
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* LOG / REPORT */}
-        {showMaintenanceLog && (
-          <div className="mt-4">
-            <h6>Ghi log bảo trì</h6>
-            <textarea
-              className="form-control mb-2"
-              rows={3}
-              value={maintenanceLogText}
-              onChange={(e) => setMaintenanceLogText(e.target.value)}
-            />
-            <Button type="primary" onClick={saveMaintenanceLog}>
-              Hoàn tất
-            </Button>
-          </div>
-        )}
-
+        {/* DAMAGE REPORT */}
         {showDamageReport && (
           <div className="mt-4">
-            <h6>Báo cáo thiệt hại</h6>
+            <h6>Báo cáo hỏng</h6>
+
+            <Select
+              className="mb-2"
+              style={{ width: 200 }}
+              value={severity}
+              onChange={setSeverity}
+            >
+              {Object.entries(SEVERITY_MAP).map(([k, v]) => (
+                <Select.Option key={k} value={k}>
+                  {v}
+                </Select.Option>
+              ))}
+            </Select>
+
             <textarea
               className="form-control mb-2"
               rows={3}
+              placeholder="Mô tả chi tiết sự cố..."
               value={damageText}
               onChange={(e) => setDamageText(e.target.value)}
             />
+
             <Button danger onClick={saveDamageReport}>
               Gửi báo cáo
-            </Button>
-          </div>
-        )}
-
-        {showReturnLog && (
-          <div className="mt-4">
-            <h6>Ghi log hoàn tất</h6>
-            <textarea
-              className="form-control mb-2"
-              rows={3}
-              value={returnLogText}
-              onChange={(e) => setReturnLogText(e.target.value)}
-            />
-            <Button onClick={saveReturnLog}>
-              Lưu
             </Button>
           </div>
         )}
