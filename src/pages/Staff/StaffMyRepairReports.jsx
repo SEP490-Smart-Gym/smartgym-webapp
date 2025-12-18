@@ -147,6 +147,25 @@ export default function StaffMyRepairReports() {
         return "default";
     }
   };
+  const SEVERITY_MAP = {
+    Low: {
+      label: "Thấp",
+      color: "green",
+    },
+    Medium: {
+      label: "Trung bình",
+      color: "gold",
+    },
+    High: {
+      label: "Cao",
+      color: "red",
+    },
+    Critical: {
+      label: "Nghiêm trọng",
+      color: "volcano",
+    },
+  };
+
 
   /* =======================================================
         TABLE COLUMNS
@@ -160,11 +179,17 @@ export default function StaffMyRepairReports() {
     {
       title: "Mức độ",
       dataIndex: "severity",
-      width: 100,
-      render: (v) => (
-        <Tag color={v === "High" ? "red" : v === "Medium" ? "gold" : "green"}>{v}</Tag>
-      ),
+      width: 120,
+      render: (v) => {
+        const s = SEVERITY_MAP[v] || {
+          label: v,
+          color: "default",
+        };
+
+        return <Tag color={s.color}>{s.label}</Tag>;
+      },
     },
+
     {
       title: "Ngày báo cáo",
       dataIndex: "reportDate",
@@ -181,35 +206,35 @@ export default function StaffMyRepairReports() {
       title: "Thao tác",
       width: 260,
       render: (_, r) => {
-    return (
-        <Space>
+        return (
+          <Space>
 
             {/* === BẮT ĐẦU SỬA === */}
             {(r.status === "Đang Chờ Xử Lý" || r.status === "Đã Phê Duyệt") && (
-                <Button
-                    size="small"
-                    type="primary"
-                    disabled={r.status === "Đang Chờ Xử Lý"} 
-                    onClick={() => confirmStartRepair(r)}
-                >
-                    Bắt đầu sửa
-                </Button>
+              <Button
+                size="small"
+                type="primary"
+                disabled={r.status === "Đang Chờ Xử Lý"}
+                onClick={() => confirmStartRepair(r)}
+              >
+                Bắt đầu sửa
+              </Button>
             )}
 
             {/* === HOÀN TẤT SỬA === */}
             {r.status === "Đang Sửa Chữa" && (
-                <Button
-                    size="small"
-                    danger
-                    onClick={() => openCompleteModal(r)}
-                >
-                    Hoàn tất sửa
-                </Button>
+              <Button
+                size="small"
+                danger
+                onClick={() => openCompleteModal(r)}
+              >
+                Hoàn tất sửa
+              </Button>
             )}
 
-        </Space>
-    );
-},
+          </Space>
+        );
+      },
 
     },
   ];
@@ -220,7 +245,7 @@ export default function StaffMyRepairReports() {
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-        
+
         {/* SIDEBAR */}
         <div className="col-lg-3">
           <Sidebar role="Staff" />
