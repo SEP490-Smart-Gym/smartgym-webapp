@@ -53,6 +53,11 @@ export default function StaffMaintenance() {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completeNote, setCompleteNote] = useState("");
 
+  //  get staff id
+  const user = JSON.parse(localStorage.getItem("user"));
+  const staffId = user?.id;
+
+
   /* =========================
       FETCH DATA
   ========================= */
@@ -190,15 +195,31 @@ export default function StaffMaintenance() {
                 <Spin />
               ) : (
                 upcoming
-                  .filter((it) => it.status !== "Upcoming")
+                  .filter((it) => it.status === "Pending")
                   .map(renderCard)
               )}
             </TabPane>
 
 
+
             <TabPane tab="Bảo trì của tôi" key="my">
-              {loading ? <Spin /> : myList.map(renderCard)}
+              {loading ? (
+                <Spin />
+              ) : (
+                <>
+                  {/* Upcoming đã nhận bởi staff hiện tại */}
+                  {upcoming
+                    .filter(
+                      (it) => it.status === "Upcoming" && it.assignedTo === staffId
+                    )
+                    .map(renderCard)}
+
+                  {/* In-progress */}
+                  {myList.map(renderCard)}
+                </>
+              )}
             </TabPane>
+
           </Tabs>
         </div>
       </div>
@@ -221,7 +242,7 @@ export default function StaffMaintenance() {
           ),
 
           activeTab === "my" &&
-          selectedItem?.status === "Pending" && (
+          selectedItem?.status === "Upcoming" && (
             <Button key="start" type="primary" onClick={handleStart}>
               Bắt đầu bảo trì
             </Button>
