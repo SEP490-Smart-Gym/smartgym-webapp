@@ -1025,28 +1025,28 @@ export default function ManageSchedule() {
     showTrainerModal();
   };
 
-  // /** ================= Load TimeSlots (staff) ================= */
-  // const loadStaffTimeSlots = async () => {
-  //   const key = "load-staff-timeslots";
-  //   setLoadingSlots(true);
-  //   message.loading({ content: "Đang tải ca làm (TimeSlot)...", key, duration: 0 });
-  //   try {
-  //     const data = await apiGetStaffTimeSlots();
-  //     const onlyActive = (data || []).filter((x) => x?.isActive !== false);
-  //     setTimeSlots(onlyActive);
+  /** ================= Load TimeSlots (staff) ================= */
+  const loadStaffTimeSlots = async () => {
+    const key = "load-staff-timeslots";
+    setLoadingSlots(true);
+    message.loading({ content: "Đang tải ca làm (TimeSlot)...", key, duration: 0 });
+    try {
+      const data = await apiGetStaffTimeSlots();
+      const onlyActive = (data || []).filter((x) => x?.isActive !== false);
+      setTimeSlots(onlyActive);
 
-  //     // set default recTimeSlotId nếu chưa có
-  //     if (recTimeSlotId == null && onlyActive.length) setRecTimeSlotId(onlyActive[0].id);
+      // set default recTimeSlotId nếu chưa có
+      if (recTimeSlotId == null && onlyActive.length) setRecTimeSlotId(onlyActive[0].id);
 
-  //     message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
-  //   } catch (e) {
-  //     console.error("GET /TimeSlot/staff failed:", e);
-  //     setTimeSlots([]);
-  //     message.error({ content: "Không thể tải TimeSlot/staff.", key, duration: 2 });
-  //   } finally {
-  //     setLoadingSlots(false);
-  //   }
-  // };
+      message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
+    } catch (e) {
+      console.error("GET /TimeSlot/staff failed:", e);
+      setTimeSlots([]);
+      message.error({ content: "Không thể tải TimeSlot/staff.", key, duration: 2 });
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   /** ================= Recurring submit ================= */
   const submitRecurring = async () => {
