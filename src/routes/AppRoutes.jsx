@@ -58,8 +58,9 @@ import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import StaffMaintenance from "../pages/Staff/StaffMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
-import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
-import StaffChatList from "../pages/Staff/StaffChatList.jsx";
+import ChatBox from "../pages/Staff/chatBox.jsx";
+import EmptyChat from "../pages/Staff/EmptyChat.jsx";
+
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -75,6 +76,8 @@ import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ManagerDashboard from "../pages/Manager/ManagerDashboard.jsx";
+import StaffChatLayout from "../pages/Staff/StaffChatLayout.jsx";
+
 function Layout() {
   return (
     <>
@@ -164,17 +167,19 @@ export default function AppRoutes() {
 
         {/* ===== Staff protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Staff"]} />}>
-          <Route path="staff/dashboard" element={<Home />} />
-          <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/dashboard" element={<Home />} />
-          <Route path="/profile/staff" element={<ProfileStaff />} />
+          <Route path="/staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
           <Route path="/staff/equipmentschedule" element={<StaffMaintenance />} />
           <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
-          <Route path="/staff/chatlist" element={<StaffChatList />} />
-          <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
+
+          <Route path="/staff/chat" element={<StaffChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
+
 
         {/* ===== Admin protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
