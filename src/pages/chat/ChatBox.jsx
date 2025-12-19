@@ -210,10 +210,13 @@ export default function ChatBox() {
 
                 {/* MESSAGE BUBBLE */}
                 <div
-                  className={`p-2 rounded ${m.isMine ? "bg-primary text-white" : "bg-white border"
-                    }`}
-                  style={{ maxWidth: "70%" }}
+                  className={`p-2 rounded ${m.isMine ? "text-white" : "bg-white border"}`}
+                  style={{
+                    maxWidth: "70%",
+                    backgroundColor: m.isMine ? "#0c1844" : undefined,
+                  }}
                 >
+
                   {m.text}
 
                   <div className="small text-muted text-end mt-1">
