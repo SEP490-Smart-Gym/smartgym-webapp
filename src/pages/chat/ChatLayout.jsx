@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import StaffChatList from "./StaffChatList";
+import ChatList from "./ChatList";
 
 export default function StaffChatLayout() {
   return (
@@ -10,7 +10,7 @@ export default function StaffChatLayout() {
           className="col-12 col-md-4 col-lg-3 border-end"
           style={{ height: "100vh", overflow: "hidden" }}
         >
-          <StaffChatList />
+          <ChatList />
         </div>
 
         {/* RIGHT - CHAT CONTENT */}

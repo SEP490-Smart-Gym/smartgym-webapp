@@ -350,7 +350,7 @@ export default function Navbar() {
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
-                              onClick={() => navigate(`/staff/chat-list`)}
+                              onClick={() => navigate(`/staff/chat`)}
                             >
                               Chat với Học viên
                             </button>
@@ -528,7 +528,7 @@ export default function Navbar() {
                     </NavLink>
                   )}
                   {user?.roleName === "Member" && (
-                    <NavLink to="/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
+                    <NavLink to="/member/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
                       Chat
                     </NavLink>
                   )}

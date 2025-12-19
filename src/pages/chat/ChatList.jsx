@@ -68,9 +68,9 @@ export default function StaffChatList() {
   const formatTime = (t) =>
     t
       ? new Date(t).toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
+        hour: "2-digit",
+        minute: "2-digit",
+      })
       : "";
 
   /* ===================== RENDER ===================== */
@@ -100,10 +100,11 @@ export default function StaffChatList() {
           ) : (
             filtered.map((cv) => (
               <Link
-                to={`/staff/chat/${cv.conversationId}`}
+                to={`${cv.conversationId}`}
                 key={cv.conversationId}
                 className="chat-item"
               >
+
                 <Avatar
                   size={48}
                   src={cv.otherUserAvatar}

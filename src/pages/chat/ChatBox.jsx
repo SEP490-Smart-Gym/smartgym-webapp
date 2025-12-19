@@ -192,25 +192,41 @@ export default function ChatBox() {
                 className={`d-flex mb-2 ${m.isMine ? "justify-content-end" : "justify-content-start"
                   }`}
               >
+                {/* AVATAR - chỉ hiện với người khác */}
+                {!m.isMine && (
+                  <img
+                    src={partner?.avatar || "/img/noimg.jpg"}
+                    alt="avatar"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      marginRight: 8,
+                      alignSelf: "flex-end",
+                    }}
+                  />
+                )}
+
+                {/* MESSAGE BUBBLE */}
                 <div
                   className={`p-2 rounded ${m.isMine ? "bg-primary text-white" : "bg-white border"
                     }`}
                   style={{ maxWidth: "70%" }}
                 >
-                  {/* {!m.isMine && (
-                    <div className="small text-muted fw-bold">
-                      {m.senderName}
-                    </div>
-                  )} */}
-
                   {m.text}
 
                   <div className="small text-muted text-end mt-1">
-                    {new Date(m.sentAt).toLocaleTimeString("vi-VN")}
+                    {new Date(m.sentAt).toLocaleTimeString("vi-VN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                    }
                   </div>
                 </div>
               </div>
             ))
+
           )}
           <div ref={bottomRef} />
         </div>

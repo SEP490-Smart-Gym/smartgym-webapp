@@ -58,8 +58,6 @@ import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
 import StaffMaintenance from "../pages/Staff/StaffMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
-import ChatBox from "../pages/Staff/chatBox.jsx";
-import EmptyChat from "../pages/Staff/EmptyChat.jsx";
 
 
 //Manager pages
@@ -72,11 +70,17 @@ import ManageSchedule from "../pages/Manager/Schedule.jsx";
 //Trainer
 import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
-import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ManagerDashboard from "../pages/Manager/ManagerDashboard.jsx";
-import StaffChatLayout from "../pages/Staff/StaffChatLayout.jsx";
+
+
+//Chat
+import ChatBox from "../pages/chat/ChatBox.jsx";
+import ChatList from "../pages/chat/ChatList.jsx";
+import EmptyChat from "../pages/chat/EmptyChat.jsx";
+import ChatLayout from "../pages/chat/ChatLayout.jsx";
+
 
 function Layout() {
   return (
@@ -146,23 +150,27 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat/:conversationId" element={<ChatConversation />} />
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
           <Route path="/member/payment/:id" element={<PaymentPage />} />
           <Route path="/member/points-history" element={<ExtraPoint />} />
           <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
           <Route path="/member/reward-gifts" element={<RewardGifts />} />
+          <Route path="/member/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
 
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
-          <Route path="/trainer/chatlist" element={<TrainerChatList />} />
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
           <Route path="/trainer/member-list" element={<ManageMember />} />
-          <Route path="/trainer/chat/:id" element={<ChatBoxTrainer />} />
+          <Route path="/trainer/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
 
         {/* ===== Staff protected ===== */}
@@ -174,7 +182,7 @@ export default function AppRoutes() {
           <Route path="/staff/equipmentschedule" element={<StaffMaintenance />} />
           <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
 
-          <Route path="/staff/chat" element={<StaffChatLayout />}>
+          <Route path="/staff/chat" element={<ChatLayout />}>
             <Route index element={<EmptyChat />} />
             <Route path=":conversationId" element={<ChatBox />} />
           </Route>
