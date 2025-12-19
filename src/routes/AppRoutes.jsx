@@ -36,8 +36,6 @@ import PaymentHistory from "../pages/Member/MyPayment.jsx";
 import PaymentPage from "../pages/Member/PaymentCont.jsx";
 import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
 import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
-import ChatPage from "../pages/Member/ChatPage.jsx";
-import ChatConversation from "../pages/Member/ChatConversation.jsx";
 import RewardGifts from "../pages/Member/RewardGifts.jsx";
 
 // Admin pages

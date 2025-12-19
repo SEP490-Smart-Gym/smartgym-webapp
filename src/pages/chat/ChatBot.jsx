@@ -41,14 +41,24 @@ const MessageContainer = styled(Box)({
 });
 
 const MessageBubble = styled(Paper)(({ isUser }) => ({
-  padding: "12px 18px",
-  maxWidth: "70%",
+  padding: "8px 12px",
+
+  
+  inlineSize: "fit-content",        
+  maxInlineSize: "420px",          
+  
   alignSelf: isUser ? "flex-end" : "flex-start",
   backgroundColor: isUser ? "#0c1844" : "#ffffff",
   color: isUser ? "#ffffff" : "#000000",
-  borderRadius: "22px",
-  boxShadow: "0 2px 12px rgba(99, 102, 241, 0.15)",
+  borderRadius: "18px",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
 }));
+
+
+
 
 /* ======================= COMPONENT ======================= */
 
@@ -191,39 +201,83 @@ export default function ChatBot({ isPopup = false, onClose }) {
                 alignItems: m.isUser ? "flex-end" : "flex-start",
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="flex-end">
+              <Stack
+                direction="row"
+                spacing={0.5}
+                alignItems="flex-end"
+                justifyContent={m.isUser ? "flex-end" : "flex-start"}
+              >
+                {/* USER: copy bên TRÁI */}
+                {m.isUser && (
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopy(m.text)}
+                    sx={{
+                      color: "#64748b",
+                      opacity: 0.6,
+                      "&:hover": { opacity: 1 },
+                    }}
+                  >
+                    <IoCopy size={14} />
+                  </IconButton>
+                )}
+
+                {/* AI AVATAR */}
                 {!m.isUser && (
                   <Avatar
                     sx={{
-                      width: 35,
-                      height: 35,
+                      width: 30,
+                      height: 30,
                       bgcolor: "#0c1844",
-                      fontSize: 14,
+                      fontSize: 13,
                     }}
                   >
                     AI
                   </Avatar>
                 )}
 
+                {/* MESSAGE BUBBLE */}
                 <MessageBubble isUser={m.isUser}>
-                  <Typography variant="body1">{m.text}</Typography>
                   <Typography
-                    variant="caption"
-                    sx={{ opacity: 0.6, mt: 0.5, display: "block" }}
+                    sx={{
+                      fontSize: "0.88rem",
+                      lineHeight: 1.45,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {m.text}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      opacity: 0.55,
+                      mt: 0.4,
+                      textAlign: "right",
+                      display: "block",
+                    }}
                   >
                     {format(m.timestamp, "HH:mm")}
                   </Typography>
                 </MessageBubble>
 
-                <IconButton
-                  size="small"
-                  onClick={() => handleCopy(m.text)}
-                  aria-label="Copy message"
-                  sx={{ color: "#253f9cff" }}
-                >
-                  <IoCopy />
-                </IconButton>
+                {/* AI: copy bên PHẢI */}
+                {!m.isUser && (
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCopy(m.text)}
+                    sx={{
+                      color: "#64748b",
+                      opacity: 0.6,
+                      "&:hover": { opacity: 1 },
+                    }}
+                  >
+                    <IoCopy size={14} />
+                  </IconButton>
+                )}
               </Stack>
+
+
             </Box>
           ))}
 
