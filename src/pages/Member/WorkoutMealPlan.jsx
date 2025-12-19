@@ -1123,7 +1123,6 @@ export default function WorkoutMealPlan() {
               </div>
             ) : (
               <>
-                {/* KPI row */}
                 <div className="row g-3 mb-3">
                   <div className="col-12 col-md-4">
                     <div
@@ -1198,7 +1197,6 @@ export default function WorkoutMealPlan() {
                   </div>
                 ) : (
                   <>
-                    {/* Status + note */}
                     <div
                       className="p-3 rounded-4 mb-3"
                       style={{
