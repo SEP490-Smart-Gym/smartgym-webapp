@@ -190,6 +190,12 @@ function getRefundStatusDisplay(statusRaw) {
   return { text: statusRaw || "—", className: "text-muted" };
 }
 
+// ✅ Nếu dự kiến hoàn = 0 => sẽ chỉ cancel (không refund-request)
+function isZeroRefund(info) {
+  const v = Number(info?.calculatedRefundAmount ?? 0);
+  return !Number.isFinite(v) || v <= 0;
+}
+
 const ITEMS_PER_PAGE = 5;
 
 export default function MyPackage() {
@@ -569,33 +575,44 @@ export default function MyPackage() {
     resetRefundState();
   };
 
+  // ✅ UPDATE: nếu dự kiến hoàn = 0 => cancel gói (không refund-request)
   const handleRefundSubmit = async () => {
     if (!selected || !selected.history) return;
 
     const id = selected.history.id;
     if (!id) {
-      message.error("Không tìm được ID gói để hoàn tiền.");
-      return;
-    }
-
-    if (!refundRequestedAmount || Number(refundRequestedAmount) <= 0) {
-      message.warning("Số tiền yêu cầu hoàn phải lớn hơn 0.");
+      message.error("Không tìm được ID gói để xử lý.");
       return;
     }
 
     if (!refundReason.trim()) {
-      message.warning("Vui lòng nhập lý do yêu cầu hoàn tiền.");
+      message.warning("Vui lòng nhập lý do.");
       return;
     }
 
+    const shouldCancelOnly = isZeroRefund(refundInfo);
+
     try {
       setRefundLoading(true);
-      await api.post(`/MemberPackage/${id}/refund-request`, {
-        requestedAmount: Number(refundRequestedAmount) || 0,
-        reason: refundReason.trim(),
-      });
 
-      message.success("Gửi yêu cầu hoàn tiền thành công.");
+      if (shouldCancelOnly) {
+        await api.post(`/MemberPackage/${id}/cancel`, {
+          cancellationReason: refundReason.trim(),
+        });
+        message.success("Đã hủy gói thành công (không phát sinh hoàn tiền).");
+      } else {
+        if (!refundRequestedAmount || Number(refundRequestedAmount) <= 0) {
+          message.warning("Số tiền yêu cầu hoàn phải lớn hơn 0.");
+          return;
+        }
+
+        await api.post(`/MemberPackage/${id}/refund-request`, {
+          requestedAmount: Number(refundRequestedAmount) || 0,
+          reason: refundReason.trim(),
+        });
+
+        message.success("Gửi yêu cầu hoàn tiền thành công.");
+      }
 
       setRefundOpen(false);
       resetRefundState();
@@ -603,12 +620,14 @@ export default function MyPackage() {
       await fetchRefundRequests();
       await fetchPackages();
     } catch (err) {
-      console.error("Error requesting refund:", err);
+      console.error("Error refund/cancel:", err);
       const detail =
         err?.response?.data?.title ||
         err?.response?.data?.message ||
         err?.message ||
-        "Gửi yêu cầu hoàn tiền thất bại. Vui lòng thử lại sau.";
+        (shouldCancelOnly
+          ? "Hủy gói thất bại. Vui lòng thử lại sau."
+          : "Gửi yêu cầu hoàn tiền thất bại. Vui lòng thử lại sau.");
       message.error(detail);
     } finally {
       setRefundLoading(false);
@@ -1077,7 +1096,11 @@ export default function MyPackage() {
                         <>
                           <div className="mb-2">
                             <label className="form-label small mb-1">Mức độ hài lòng</label>
-                            <StarRating value={gymRating} onChange={setGymRating} disabled={feedbackLoading || checkingGymFeedback} />
+                            <StarRating
+                              value={gymRating}
+                              onChange={setGymRating}
+                              disabled={feedbackLoading || checkingGymFeedback}
+                            />
                           </div>
 
                           {/* ✅ Dropdown feedback type từ FEEDBACK_TYPE_LABELS */}
@@ -1146,7 +1169,8 @@ export default function MyPackage() {
                     <div className="col-12 col-md-6">
                       <div className="border rounded p-3 h-100">
                         <h6 className="mb-2">
-                          Huấn luyện viên <span className="fw-semibold">{selected.history.trainerName}</span>
+                          Huấn luyện viên{" "}
+                          <span className="fw-semibold">{selected.history.trainerName}</span>
                         </h6>
 
                         {checkingTrainerFeedback && checkedTrainerFeedbackForPkgId === Number(selected.history.id) && (
@@ -1208,7 +1232,9 @@ export default function MyPackage() {
                   if (apiStatusLower === "cancelled") {
                     return (
                       <button className="btn btn-warning" onClick={handleOpenRefund}>
-                        {getRefundRequestsForPackage(hist.id).length > 0 ? "Yêu cầu hoàn tiền mới" : "Yêu cầu hoàn tiền"}
+                        {getRefundRequestsForPackage(hist.id).length > 0
+                          ? "Yêu cầu hoàn tiền mới"
+                          : "Yêu cầu hoàn tiền"}
                       </button>
                     );
                   }
@@ -1224,14 +1250,16 @@ export default function MyPackage() {
                   return null;
                 })()}
 
-                <button
+                {/* <button
                   className="btn btn-primary"
                   onClick={() =>
-                    message.info(`Chức năng mua lại gói #${selected.history?.packageId ?? "?"} đang được phát triển.`)
+                    message.info(
+                      `Chức năng mua lại gói #${selected.history?.packageId ?? "?"} đang được phát triển.`
+                    )
                   }
                 >
                   Mua lại
-                </button>
+                </button> */}
               </div>
             </div>
           </div>
@@ -1293,6 +1321,15 @@ export default function MyPackage() {
                       <span className="text-muted">Số tiền dự kiến hoàn: </span>
                       <strong>{currencyVND(Number(refundInfo.calculatedRefundAmount) || 0)}</strong>
                     </div>
+
+                    {/* ✅ Note: dự kiến hoàn = 0 => chỉ cancel */}
+                    {isZeroRefund(refundInfo) && (
+                      <div className="alert alert-info py-2 small mt-2 mb-0" style={{ color: "#090808" }}>
+                        Gói này không phát sinh hoàn tiền. Khi bấm <strong>Hủy gói</strong>, hệ thống sẽ chỉ ghi nhận
+                        hủy và lý do.
+                      </div>
+                    )}
+
                     {refundInfo.calculationDetails && (
                       <div className="mt-1">
                         <span className="text-muted">Chi tiết tính toán: </span>
@@ -1317,20 +1354,19 @@ export default function MyPackage() {
                 </>
               )}
 
-              {!refundCalcLoading && !refundInfo && (
-                <p className="text-muted mb-3">Không lấy được thông tin tính toán hoàn tiền.</p>
-              )}
+              {!refundCalcLoading && !refundInfo && <p className="text-muted mb-3">Không lấy được thông tin tính toán hoàn tiền.</p>}
 
               <div className="d-flex justify-content-end gap-2 mt-3">
                 <button className="btn btn-light" onClick={handleRefundModalClose} disabled={refundLoading || refundCalcLoading}>
                   Đóng
                 </button>
+
                 <button
                   className="btn btn-warning"
                   onClick={handleRefundSubmit}
                   disabled={refundLoading || refundCalcLoading || !refundInfo || !selected}
                 >
-                  {refundLoading ? "Đang gửi..." : "Gửi yêu cầu hoàn tiền"}
+                  {refundLoading ? "Đang gửi..." : isZeroRefund(refundInfo) ? "Hủy gói" : "Gửi yêu cầu hoàn tiền"}
                 </button>
               </div>
             </div>

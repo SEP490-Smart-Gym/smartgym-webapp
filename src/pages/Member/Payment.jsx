@@ -245,7 +245,7 @@ const CartComponent = () => {
           .map((t) => ({
             id: t.trainerId,
             name:
-              `${t.firstName || ""} ${t.lastName || ""}`.trim() || "Huấn luyện viên",
+              `${t.lastName || ""} ${t.firstName || ""}`.trim() || "Huấn luyện viên",
             avatar:
               "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=800&q=80",
             specialties: t.specialization

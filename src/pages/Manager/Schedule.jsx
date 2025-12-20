@@ -103,6 +103,10 @@ async function apiGetScheduleDay(isoDate) {
 async function apiAssignStaffToSlot({ scheduleDate, timeSlotId, staffIds, status, notes }) {
   await api.post("/staff-schedule/assign", { scheduleDate, timeSlotId, staffIds, status, notes });
 }
+async function apiUpdateStaffSchedule(scheduleId, payload) {
+  // ✅ NEW: PUT /staff-schedule/{scheduleId}
+  await api.put(`/staff-schedule/${scheduleId}`, payload);
+}
 async function apiGetAllStaffSchedule() {
   const res = await api.get("/staff-schedule/all");
   return res.data || [];
@@ -144,17 +148,24 @@ function dayDtoToEvent(dayDto) {
       name: sl.slotName || sl.timeSlotName || "Ca",
       time,
       timeSlotId: sl.timeSlotId,
+      // ✅ scheduleId cần dùng cho PUT
       staff: (sl.staffs || []).map((st) => ({
         staffId: st.staffId,
         name: st.name,
         status: st.status || "Scheduled",
         notes: st.notes || "",
+        scheduleId: st.scheduleId, // ✅ nếu API /day có trả
       })),
     };
   });
 
-  const totalStaff = shifts.reduce((sum, sh) => sum + ((sh.staff || []).length || 0), 0);
-  const dayStatus = totalStaff === 0 ? "Off" : "Scheduled";
+ const totalStaff = shifts.reduce(
+    (sum, sh) =>
+      sum + ((sh.staff || []).filter((s) => s?.status === "Scheduled").length || 0),
+    0
+  );
+
+  const dayStatus = totalStaff > 0 ? "Scheduled" : "Off";
 
   let startTime = "00:00";
   let endTime = "00:00";
@@ -270,7 +281,11 @@ function allStaffRowsToDayEvents(rows) {
       ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), maxH, maxM, 0, 0)
       : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 
-    const totalStaff = shifts.reduce((sum, sh) => sum + ((sh.staff || []).length || 0), 0);
+    const totalStaff = shifts.reduce(
+      (sum, sh) =>
+        sum + ((sh.staff || []).filter((s) => s?.status === "Scheduled").length || 0),
+      0
+    );
 
     events.push({
       rawDate: iso,
@@ -417,14 +432,17 @@ function normalizeScheduleData(arr) {
 /** ================= Staff helper ================= */
 function shiftStaffIds(shift) {
   const arr = Array.isArray(shift?.staff) ? shift.staff : [];
-  return arr.map((x) => x.staffId).filter((x) => x != null);
+  return arr
+    .filter((x) => statusIsWorking(x?.status)) // ✅ Off -> không tính
+    .map((x) => x.staffId)
+    .filter((x) => x != null);
 }
 
 // ✅ NEW: conflict checker for recurring range
 function isIsoInRange(iso, startIso, endIso) {
   if (!iso || !startIso || !endIso) return false;
   const x = String(iso).slice(0, 10);
-  return x >= startIso && x <= endIso; // ISO date string comparable
+  return x >= startIso && x <= endIso;
 }
 function statusIsWorking(status) {
   const st = String(status || "").toLowerCase().trim();
@@ -471,7 +489,7 @@ export default function ManageSchedule() {
   const [recStatus, setRecStatus] = useState("Scheduled");
   const [staffSearch, setStaffSearch] = useState("");
 
-  // ✅ keep recurring dates always valid (even if user tries to type older values)
+  // ✅ keep recurring dates always valid
   useEffect(() => {
     const minStart = addDaysISO(todayISO(), 1);
     if (new Date(recStart) < new Date(minStart)) setRecStart(minStart);
@@ -484,9 +502,7 @@ export default function ManageSchedule() {
   }, [recStart, recEnd]);
 
   const toggleRecDay = (d) => {
-    setRecDays((prev) =>
-      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)
-    );
+    setRecDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)));
   };
 
   const selectedIso = useMemo(() => {
@@ -559,13 +575,7 @@ export default function ManageSchedule() {
       const t = $.quicktmpl(tmplEl ? tmplEl.innerHTML : "");
 
       let currentPopover = null;
-      const POPOVER_OPTS = {
-        html: true,
-        container: "body",
-        placement: "auto",
-        trigger: "manual",
-        sanitize: false,
-      };
+      const POPOVER_OPTS = { html: true, container: "body", placement: "auto", trigger: "manual", sanitize: false };
 
       function getOrCreatePopover(elem, opts) {
         const PopCtor = bootstrapRef.current.Popover || window.bootstrap?.Popover;
@@ -584,9 +594,11 @@ export default function ManageSchedule() {
         }
       }
 
-      $(document).off("click.smartgymPop").on("click.smartgymPop", (e) => {
-        if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event-chip").length) hideCurrent();
-      });
+      $(document)
+        .off("click.smartgymPop")
+        .on("click.smartgymPop", (e) => {
+          if (!$(e.target).closest(".popover, .js-cal-years, .js-cal-months, .event-chip").length) hideCurrent();
+        });
 
       $el
         .off("click.calNav")
@@ -670,7 +682,6 @@ export default function ManageSchedule() {
           draw();
         });
 
-      // CLICK CHIP
       $el.off("click.eventChip").on("click.eventChip", ".event-chip", function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -681,7 +692,6 @@ export default function ManageSchedule() {
         return false;
       });
 
-      // CLICK NGÀY
       $el.off("click.dayCell").on("click.dayCell", ".calendar-day", function (e) {
         e.preventDefault();
         e.stopPropagation();
@@ -716,7 +726,9 @@ export default function ManageSchedule() {
         if (!isTrainerMode) {
           let staffs = [];
           (event.shifts || []).forEach((shift) => {
-            (shift.staff || []).forEach((s) => staffs.push(s));
+            (shift.staff || []).forEach((s) => {
+              if (String(s?.status) === "Scheduled") staffs.push(s); // ✅ chỉ Scheduled
+            });
           });
           const map = new Map();
           staffs.forEach((s) => {
@@ -927,6 +939,17 @@ export default function ManageSchedule() {
     setEditingStaffIds([]);
   };
 
+  // ✅ NEW HELPER: map schedules in current shift by staffId -> scheduleId
+  const getShiftScheduleIdByStaffId = (shift) => {
+    const m = new Map();
+    (shift?.staff || []).forEach((s) => {
+      if (s?.staffId == null) return;
+      if (s?.scheduleId != null) m.set(s.staffId, s.scheduleId);
+    });
+    return m;
+  };
+
+  // ✅ UPDATED: assign schedule using PUT /staff-schedule/{scheduleId}
   const assignScheduleForEditingShift = async () => {
     if (!selectedEvent || editingShiftIndex == null) return;
 
@@ -935,7 +958,8 @@ export default function ManageSchedule() {
       return;
     }
 
-    const isoDate = selectedEvent.rawDate || selectedEvent.date || dateObjToISO(new Date(selectedEvent.start));
+    const isoDate =
+      selectedEvent.rawDate || selectedEvent.date || dateObjToISO(new Date(selectedEvent.start));
     const baseShifts = selectedEvent.shifts || [];
     const shiftEditing = baseShifts[editingShiftIndex];
     if (!shiftEditing) return;
@@ -956,20 +980,79 @@ export default function ManageSchedule() {
       return;
     }
 
-    const isOff = editingStaffIds.length === 0;
-    const payloadStatus = isOff ? "Off" : "Scheduled";
-
     const loadingKey = "assign-staff-schedule";
     message.loading({ content: "Đang xếp lịch...", key: loadingKey, duration: 0 });
 
     try {
-      await apiAssignStaffToSlot({
-        scheduleDate: isoDate,
-        timeSlotId,
-        staffIds: editingStaffIds,
-        status: payloadStatus,
-        notes: "",
+      // current staff in shift (may have scheduleId if /day returns)
+      const existingStaff = Array.isArray(shiftEditing.staff) ? shiftEditing.staff : [];
+      const existingIds = existingStaff.map((x) => x.staffId).filter((x) => x != null);
+
+      const selectedIds = editingStaffIds.slice();
+
+      // staff removed from shift => set Off
+      const removed = existingIds.filter((id) => !selectedIds.includes(id));
+      const added = selectedIds.filter((id) => !existingIds.includes(id));
+      const kept = selectedIds.filter((id) => existingIds.includes(id));
+
+      // ✅ Build scheduleId map from /staff-schedule/all to detect "lịch sẵn"
+      const allRows = await apiGetAllStaffSchedule();
+      const scheduleIdMap = new Map(); 
+      // key: `${date}|${timeSlotId}|${staffId}` -> scheduleId
+      (allRows || []).forEach((r) => {
+        const d = String(r.scheduleDate || "").slice(0, 10);
+        if (!d) return;
+        const k = `${d}|${Number(r.timeSlotId)}|${Number(r.staffId)}`;
+        if (r.scheduleId != null) scheduleIdMap.set(k, r.scheduleId);
       });
+
+      const resolveScheduleId = (staffId) => {
+        const k = `${isoDate}|${Number(timeSlotId)}|${Number(staffId)}`;
+        return scheduleIdMap.get(k) ?? null;
+      };
+
+      // helper: create by POST assign (fallback only)
+      const createByPost = async (staffId, status) => {
+        await apiAssignStaffToSlot({
+          scheduleDate: isoDate,
+          timeSlotId: Number(timeSlotId),
+          staffIds: [Number(staffId)],
+          status,
+          notes: "",
+        });
+      };
+
+      // helper: update by PUT
+      const updateByPut = async (scheduleId, staffId, status) => {
+        await apiUpdateStaffSchedule(scheduleId, {
+          scheduleDate: isoDate,
+          timeSlotId: Number(timeSlotId),
+          staffId: Number(staffId),
+          status,
+          notes: "",
+        });
+      };
+
+      // 1) kept => Scheduled (ưu tiên PUT nếu có schedule sẵn)
+      for (const staffId of kept) {
+        const scheduleId = resolveScheduleId(staffId);
+        if (scheduleId != null) await updateByPut(scheduleId, staffId, "Scheduled");
+        else await createByPost(staffId, "Scheduled");
+      }
+
+      // 2) removed => Off (nếu có schedule sẵn thì PUT Off)
+      for (const staffId of removed) {
+        const scheduleId = resolveScheduleId(staffId);
+        if (scheduleId != null) await updateByPut(scheduleId, staffId, "Off");
+        // nếu không có record thì thôi (không có gì để off)
+      }
+
+      // 3) added => Scheduled (nếu có record sẵn thì PUT, còn không thì POST)
+      for (const staffId of added) {
+        const scheduleId = resolveScheduleId(staffId);
+        if (scheduleId != null) await updateByPut(scheduleId, staffId, "Scheduled");
+        else await createByPost(staffId, "Scheduled");
+      }
 
       await fetchStaffDayAndCache(isoDate);
       await refreshAllStaffSchedule();
@@ -977,8 +1060,13 @@ export default function ManageSchedule() {
       cancelEditShift();
       message.success({ content: "Xếp lịch thành công!", key: loadingKey, duration: 2 });
     } catch (err) {
-      console.error("POST /staff-schedule/assign failed:", err);
-      message.error({ content: "Xếp lịch thất bại. Vui lòng thử lại.", key: loadingKey, duration: 3 });
+      console.error("Update staff schedule failed:", err);
+      const apiMsg = err?.response?.data?.message || err?.response?.data?.title;
+      message.error({
+        content: apiMsg || "Xếp lịch thất bại. Vui lòng thử lại.",
+        key: loadingKey,
+        duration: 3,
+      });
     }
   };
 
@@ -1035,7 +1123,6 @@ export default function ManageSchedule() {
       const onlyActive = (data || []).filter((x) => x?.isActive !== false);
       setTimeSlots(onlyActive);
 
-      // set default recTimeSlotId nếu chưa có
       if (recTimeSlotId == null && onlyActive.length) setRecTimeSlotId(onlyActive[0].id);
 
       message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
@@ -1050,9 +1137,6 @@ export default function ManageSchedule() {
 
   /** ================= Recurring submit ================= */
   const submitRecurring = async () => {
-    // ✅ RULES:
-    // - Start must be >= tomorrow
-    // - End must be >= start + 1 day
     const minStart = addDaysISO(todayISO(), 1);
     if (!recStart || !recEnd) return message.error("Vui lòng chọn ngày bắt đầu và kết thúc.");
     if (new Date(recStart) < new Date(minStart)) return message.error("Ngày bắt đầu phải sau hôm nay (từ ngày mai trở đi).");
@@ -1064,17 +1148,15 @@ export default function ManageSchedule() {
     if (recTimeSlotId == null) return message.error("Vui lòng chọn ca (TimeSlot).");
     if (!Array.isArray(recStaffIds) || recStaffIds.length === 0) return message.error("Vui lòng chọn ít nhất 1 nhân viên.");
 
-    // ✅ NEW: check conflict in [recStart..recEnd] for selected staff
     const checkKey = "recurring-check-conflict";
     message.loading({ content: "Đang kiểm tra lịch trùng trong khoảng thời gian...", key: checkKey, duration: 0 });
 
     try {
       const rows = await apiGetAllStaffSchedule();
 
-      // Map staffId -> name
       const staffNameMap = new Map((staffList || []).map((s) => [s.staffId, s.name || `Staff #${s.staffId}`]));
 
-      const conflictMap = new Map(); // staffId -> Set(dates)
+      const conflictMap = new Map();
       (rows || []).forEach((r) => {
         const staffId = r.staffId;
         if (!recStaffIds.includes(staffId)) return;
@@ -1082,11 +1164,8 @@ export default function ManageSchedule() {
         const iso = String(r.scheduleDate || "").slice(0, 10);
         if (!isIsoInRange(iso, recStart, recEnd)) return;
 
-        // Ignore "Off"
         if (!statusIsWorking(r.status)) return;
 
-        // If your business rule is "any schedule in range means conflict", keep this.
-        // If later you want "only conflict if same day", or "same timeslot", we can adjust.
         if (!conflictMap.has(staffId)) conflictMap.set(staffId, new Set());
         conflictMap.get(staffId).add(iso);
       });
@@ -1097,10 +1176,10 @@ export default function ManageSchedule() {
         const conflictLines = [];
         for (const [sid, dateSet] of conflictMap.entries()) {
           const name = staffNameMap.get(sid) || `Staff #${sid}`;
-          const dates = Array.from(dateSet).sort().slice(0, 5); // show first 5
+          const dates = Array.from(dateSet).sort().slice(0, 5);
           const more = dateSet.size > 5 ? ` (+${dateSet.size - 5} ngày khác)` : "";
           conflictLines.push(`- ${name}: ${dates.join(", ")}${more}`);
-          if (conflictLines.length >= 6) break; // avoid too long
+          if (conflictLines.length >= 6) break;
         }
         const moreStaff = conflictMap.size > 6 ? `\n... và ${conflictMap.size - 6} nhân viên khác` : "";
 
@@ -1148,7 +1227,6 @@ export default function ManageSchedule() {
     (async () => {
       await ensureCalendarPlugin();
 
-      // staff list
       const staffKey = "load-staff-list";
       message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
       try {
@@ -1160,10 +1238,8 @@ export default function ManageSchedule() {
         message.error({ content: "Không thể tải danh sách staff.", key: staffKey, duration: 2 });
       }
 
-      // ✅ load timeslot staff
       await loadStaffTimeSlots();
 
-      // init calendars empty
       staffDataRef.current = [];
       setAllStaffSchedule([]);
       rerenderStaffCalendar([]);
@@ -1172,7 +1248,6 @@ export default function ManageSchedule() {
       setAllTrainerSchedule([]);
       rerenderTrainerCalendar([]);
 
-      // load staff all + trainer
       await refreshAllStaffSchedule();
       await loadTrainerSchedule();
     })();
@@ -1265,9 +1340,7 @@ export default function ManageSchedule() {
             type="button"
             className="btn btn-danger"
             onClick={async () => {
-              // đảm bảo timeSlots có data khi mở modal
               if (!timeSlots.length) await loadStaffTimeSlots();
-              // ✅ ensure recurring start/end always valid when open
               const minStart = addDaysISO(todayISO(), 1);
               const nextMinEnd = addDaysISO(minStart, 1);
               if (new Date(recStart) < new Date(minStart)) setRecStart(minStart);
@@ -1306,12 +1379,6 @@ export default function ManageSchedule() {
                     <strong>{toDDMMYYYY(new Date(selectedEvent.rawDate || selectedEvent.date || selectedEvent.start))}</strong>
                   </div>
 
-                  {/* {readOnly && (
-                    <div className="alert alert-warning py-2">
-                      Ngày này là <b>hôm nay</b> hoặc <b>đã qua</b> → chỉ được <b>xem lịch</b>, không thể chỉnh sửa/xếp lịch.
-                    </div>
-                  )} */}
-
                   {(selectedEvent.shifts || []).map((shift, idx) => {
                     const isEditing = editingShiftIndex === idx;
                     const allShiftsForDay = selectedEvent.shifts || [];
@@ -1346,25 +1413,28 @@ export default function ManageSchedule() {
                         {!isEditing && (
                           <div className="mb-2">
                             <div className="fw-semibold mb-1">Staff trực:</div>
-                            {Array.isArray(shift.staff) && shift.staff.length > 0 ? (
-                              <div className="d-flex flex-wrap gap-2">
-                                {shift.staff.map((s, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#personDetailModal"
-                                    onClick={() => openPersonModal(s, s.status)}
-                                  >
-                                    {s.name || `Staff #${s.staffId}`}
-                                    <span className={statusBadgeClass(s.status)}>{s.status}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-muted">Chưa phân công staff.</div>
-                            )}
+                            {(() => {
+                              const scheduledStaff = (shift.staff || []).filter((s) => String(s?.status) === "Scheduled"); // ✅ chỉ hiện Scheduled
+                              return scheduledStaff.length > 0 ? (
+                                <div className="d-flex flex-wrap gap-2">
+                                  {scheduledStaff.map((s, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                                      data-bs-toggle="modal"
+                                      data-bs-target="#personDetailModal"
+                                      onClick={() => openPersonModal(s, s.status)}
+                                    >
+                                      {s.name || `Staff #${s.staffId}`}
+                                      <span className={statusBadgeClass(s.status)}>{s.status}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-muted">Chưa phân công staff.</div>
+                              );
+                            })()}
                           </div>
                         )}
 
@@ -1567,11 +1637,8 @@ export default function ManageSchedule() {
             <div className="modal-body">
               <div className="row g-3">
                 <div className="row g-3" style={{ width: "100%" }}>
-                  {/* Ngày bắt đầu */}
                   <div className="col-12 col-md-6">
-                    <label className="form-label fw-semibold mb-2">
-                      Ngày bắt đầu
-                    </label>
+                    <label className="form-label fw-semibold mb-2">Ngày bắt đầu</label>
                     <DatePicker
                       className="form-control w-100"
                       selected={isoToDate(recStart)}
@@ -1579,33 +1646,30 @@ export default function ManageSchedule() {
                         const picked = dateToISO(d);
                         setRecStart(picked);
 
-                        // đảm bảo end >= start + 1
                         const minEnd = addDaysISO(picked, 1);
                         if (new Date(recEnd) < new Date(minEnd)) setRecEnd(minEnd);
                       }}
-                      minDate={isoToDate(addDaysISO(todayISO(), 1))} // start >= tomorrow
+                      minDate={isoToDate(addDaysISO(todayISO(), 1))}
                       dateFormat="dd/MM/yyyy"
                       placeholderText="Chọn ngày"
                       showPopperArrow={false}
                     />
                   </div>
 
-                  {/* Ngày kết thúc */}
                   <div className="col-12 col-md-6">
-                    <label className="form-label fw-semibold mb-2">
-                      Ngày kết thúc
-                    </label>
+                    <label className="form-label fw-semibold mb-2">Ngày kết thúc</label>
                     <DatePicker
                       className="form-control w-100"
                       selected={isoToDate(recEnd)}
                       onChange={(d) => setRecEnd(dateToISO(d))}
-                      minDate={isoToDate(addDaysISO(recStart, 1))} // end >= start + 1
+                      minDate={isoToDate(addDaysISO(recStart, 1))}
                       dateFormat="dd/MM/yyyy"
                       placeholderText="Chọn ngày"
                       showPopperArrow={false}
                     />
                   </div>
                 </div>
+
                 <div className="col-12">
                   <div className="d-flex flex-nowrap gap-3">
                     <span className="fw-semibold">Chọn ngày trong tuần</span>
@@ -1619,10 +1683,7 @@ export default function ManageSchedule() {
                       { d: 5, label: "T6" },
                       { d: 6, label: "T7" },
                     ].map((x) => (
-                      <div
-                        key={x.d}
-                        className="form-check d-inline-flex align-items-center m-0"
-                      >
+                      <div key={x.d} className="form-check d-inline-flex align-items-center m-0">
                         <input
                           className="form-check-input m-0"
                           type="checkbox"
@@ -1637,6 +1698,7 @@ export default function ManageSchedule() {
                     ))}
                   </div>
                 </div>
+
                 <div className="col-12 col-md-6">
                   <label className="form-label fw-semibold">Ca làm (TimeSlot)</label>
                   <select
