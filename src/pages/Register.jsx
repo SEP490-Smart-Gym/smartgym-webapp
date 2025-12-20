@@ -76,7 +76,10 @@ export default function Register() {
       // Ví dụ endpoint theo swagger: /api/Auth/register
       await api.post("/Auth/register", payload);
 
-      alert("Đăng ký thành công! Vui lòng đăng nhập.");
+      Modal.success({
+        title: "Đăng ký thành công!",
+        content: "Vui lòng kiem tra email để xác nhận tài khoản.",
+      });
       navigate("/login");
     } catch (err) {
       // cố gắng đọc message từ server
