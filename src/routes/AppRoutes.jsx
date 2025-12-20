@@ -79,6 +79,7 @@ import ChatBox from "../pages/chat/ChatBox.jsx";
 import ChatList from "../pages/chat/ChatList.jsx";
 import EmptyChat from "../pages/chat/EmptyChat.jsx";
 import ChatLayout from "../pages/chat/ChatLayout.jsx";
+import ConfirmEmail from "../pages/ConfirmEmail.jsx";
 
 
 function Layout() {
@@ -109,6 +110,7 @@ export default function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/confirm-email" element={<ConfirmEmail />} />
       </Route>
       {/* ===== MAIN LAYOUT ===== */}
       <Route element={<Layout />}>
