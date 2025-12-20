@@ -3,6 +3,16 @@ import { AiOutlineClose } from "react-icons/ai";
 import { message } from "antd";
 import api from "../../config/axios";
 
+const FEEDBACK_TYPE_LABELS = {
+  GymRoom: "Phòng tập",
+  Equipment: "Thiết bị",
+  Facilities: "Cơ sở vật chất",
+  Service: "Dịch vụ",
+  Staff: "Nhân viên",
+  Cleanliness: "Vệ sinh",
+  Other: "Khác",
+};
+
 const styles = `
 .card-shadow { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); }
 .pkg-title { font-weight: 700; }
@@ -44,7 +54,6 @@ const styles = `
 }
 `;
 
-// ⭐ Component chọn Rating bằng sao
 function StarRating({ value, onChange, size = 24, disabled = false }) {
   const stars = [1, 2, 3, 4, 5];
 
@@ -108,26 +117,18 @@ function getStatus(pkg) {
   const start = new Date(pkg.startDate);
   const end = new Date(pkg.endDate);
 
-  // Ưu tiên trạng thái Cancelled từ API
   if (apiStatus === "cancelled") {
     return { text: "Đã hủy", className: "status-expired" };
   }
 
-  if (today < start)
-    return {
-      text: "Chưa bắt đầu",
-      className: "text-secondary fw-semibold",
-    };
-  if (today > end)
-    return {
-      text: "Hết hạn",
-      className: "status-expired",
-    };
+  if (today < start) {
+    return { text: "Chưa bắt đầu", className: "text-secondary fw-semibold" };
+  }
+  if (today > end) {
+    return { text: "Hết hạn", className: "status-expired" };
+  }
 
-  return {
-    text: "Đang hoạt động",
-    className: "status-active",
-  };
+  return { text: "Đang hoạt động", className: "status-active" };
 }
 
 function currencyVND(n) {
@@ -144,7 +145,6 @@ function currencyVND(n) {
   }
 }
 
-// Tính số tháng giữa start và end (gần đúng, để hiển thị label)
 function calcDurationMonths(startIso, endIso) {
   if (!startIso || !endIso) return null;
   const start = new Date(startIso);
@@ -152,14 +152,9 @@ function calcDurationMonths(startIso, endIso) {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
   const diffMs = end - start;
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return Math.round(diffDays / 30); // approx
+  return Math.round(diffDays / 30);
 }
 
-/**
- * Lấy số ngày còn lại hiển thị cho UI.
- * - Nếu gói đã hủy: dùng (endDate - cancellationDate) => cố định, không giảm theo thời gian thực
- * - Các trường hợp khác: dùng daysRemaining từ API (nếu là số)
- */
 function getDaysRemainingDisplay(pkg) {
   if (!pkg) return null;
 
@@ -185,19 +180,12 @@ function getDaysRemainingDisplay(pkg) {
   return diffDays > 0 ? diffDays : 0;
 }
 
-// ⭐ Map status đơn hoàn tiền -> text + màu
 function getRefundStatusDisplay(statusRaw) {
   const s = (statusRaw || "").toLowerCase();
 
-  if (s === "pending") {
-    return { text: "Chờ xác nhận", className: "text-warning fw-semibold" };
-  }
-  if (s === "rejected") {
-    return { text: "Từ chối hoàn tiền", className: "text-danger fw-semibold" };
-  }
-  if (s === "approved") {
-    return { text: "Hoàn tiền thành công", className: "text-success fw-semibold" };
-  }
+  if (s === "pending") return { text: "Chờ xác nhận", className: "text-warning fw-semibold" };
+  if (s === "rejected") return { text: "Từ chối hoàn tiền", className: "text-danger fw-semibold" };
+  if (s === "approved") return { text: "Hoàn tiền thành công", className: "text-success fw-semibold" };
 
   return { text: statusRaw || "—", className: "text-muted" };
 }
@@ -205,26 +193,19 @@ function getRefundStatusDisplay(statusRaw) {
 const ITEMS_PER_PAGE = 5;
 
 export default function MyPackage() {
-  // danh sách lịch sử gói (từ API my-packages)
   const [gymPackagesHistory, setGymPackagesHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
-  // danh sách đơn hoàn tiền của member
   const [refundRequests, setRefundRequests] = useState([]);
   const [refundRequestsLoading, setRefundRequestsLoading] = useState(false);
 
-  // filter tab: all / active / cancelled / expired
   const [filterStatus, setFilterStatus] = useState("all");
-
-  // phân trang
   const [currentPage, setCurrentPage] = useState(1);
 
-  // modal / confirm state
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(null); // {history, master?}
+  const [selected, setSelected] = useState(null);
 
-  // modal yêu cầu hoàn tiền
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [refundLoading, setRefundLoading] = useState(false);
@@ -232,26 +213,35 @@ export default function MyPackage() {
   const [refundCalcLoading, setRefundCalcLoading] = useState(false);
   const [refundRequestedAmount, setRefundRequestedAmount] = useState(0);
 
-  // modal xem chi tiết đơn hoàn tiền
   const [viewRefundOpen, setViewRefundOpen] = useState(false);
   const [viewRefund, setViewRefund] = useState(null);
 
   // feedback state
   const [gymRating, setGymRating] = useState(5);
-  const [gymFeedbackType, setGymFeedbackType] = useState("");
+
+  // ✅ dropdown type (key) + custom input cho Other
+  const [gymFeedbackType, setGymFeedbackType] = useState(""); // GymRoom/Equipment/.../Other
+  const [gymCustomFeedbackType, setGymCustomFeedbackType] = useState("");
+
   const [gymComments, setGymComments] = useState("");
   const [trainerRating, setTrainerRating] = useState(5);
   const [trainerComments, setTrainerComments] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
-  // ✅ CHECK: đã đánh giá trainer theo memberPackageId này chưa?
+  // ✅ check trainer feedback
   const [checkingTrainerFeedback, setCheckingTrainerFeedback] = useState(false);
   const [trainerFeedbackExists, setTrainerFeedbackExists] = useState(false);
   const [checkedTrainerFeedbackForPkgId, setCheckedTrainerFeedbackForPkgId] = useState(null);
 
+  // ✅ check gym feedback by memberPackageId (from /guest/feedback/gym)
+  const [checkingGymFeedback, setCheckingGymFeedback] = useState(false);
+  const [gymFeedbackExists, setGymFeedbackExists] = useState(false);
+  const [checkedGymFeedbackForPkgId, setCheckedGymFeedbackForPkgId] = useState(null);
+
   function resetFeedbackForms() {
     setGymRating(5);
     setGymFeedbackType("");
+    setGymCustomFeedbackType("");
     setGymComments("");
     setTrainerRating(5);
     setTrainerComments("");
@@ -276,7 +266,12 @@ export default function MyPackage() {
     setCheckedTrainerFeedbackForPkgId(null);
   };
 
-  // ===== GỌI API my-packages (history) =====
+  const resetGymFeedbackCheck = () => {
+    setCheckingGymFeedback(false);
+    setGymFeedbackExists(false);
+    setCheckedGymFeedbackForPkgId(null);
+  };
+
   const fetchPackages = async () => {
     try {
       setLoading(true);
@@ -284,7 +279,6 @@ export default function MyPackage() {
 
       const res = await api.get("/MemberPackage/my-packages");
       const data = res.data;
-
       const list = Array.isArray(data) ? data : [];
 
       const mapped = list.map((p) => ({
@@ -321,7 +315,6 @@ export default function MyPackage() {
     }
   };
 
-  // ===== GỌI API my-refund-requests =====
   const fetchRefundRequests = async () => {
     try {
       setRefundRequestsLoading(true);
@@ -356,7 +349,6 @@ export default function MyPackage() {
     fetchRefundRequests();
   }, []);
 
-  // helper: lấy đơn hoàn tiền còn hiệu lực (không tính Rejected)
   const getActiveRefundRequestForPackage = (pkgId) => {
     if (!pkgId) return null;
     return refundRequests.find((r) => {
@@ -365,7 +357,6 @@ export default function MyPackage() {
     });
   };
 
-  // ⭐ helper: lấy tất cả đơn hoàn tiền của 1 package, sort mới nhất trước
   const getRefundRequestsForPackage = (pkgId) => {
     if (!pkgId) return [];
     const list = refundRequests.filter((r) => r.memberPackageId === pkgId);
@@ -380,13 +371,11 @@ export default function MyPackage() {
       });
   };
 
-  // sort theo endDate (gói kết thúc gần nhất lên trên)
   const sortedPackages = useMemo(
     () => [...gymPackagesHistory].sort((a, b) => new Date(b.endDate) - new Date(a.endDate)),
     [gymPackagesHistory]
   );
 
-  // lọc theo tab
   const filteredPackages = useMemo(() => {
     const today = new Date();
 
@@ -410,31 +399,25 @@ export default function MyPackage() {
     });
   }, [sortedPackages, filterStatus]);
 
-  // tổng số trang
   const totalPages = Math.max(1, Math.ceil(filteredPackages.length / ITEMS_PER_PAGE) || 1);
 
-  // đảm bảo currentPage không vượt quá totalPages
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
 
-  // data 5 gói / trang
   const paginatedPackages = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredPackages.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredPackages, currentPage]);
 
-  // ✅ Check trainer feedback: /guest/trainers/{trainerId}/feedbacks
-  // Rule: nếu feedback.memberPackageId === selected.history.id => ẩn ô feedback trainer
+  // ✅ check trainer feedback: /guest/trainers/{trainerId}/feedbacks
   const checkTrainerFeedbackForPackage = async (pkg) => {
     const pkgId = Number(pkg?.id || 0);
     const trainerId = Number(pkg?.trainerId || 0);
 
-    // reset mặc định
     setTrainerFeedbackExists(false);
     setCheckedTrainerFeedbackForPkgId(pkgId || null);
 
-    // không có trainer thì không cần check
     if (!pkgId || !trainerId) return;
 
     try {
@@ -454,10 +437,43 @@ export default function MyPackage() {
       setTrainerFeedbackExists(exists);
     } catch (err) {
       console.error("Error checking trainer feedback:", err);
-      // nếu check lỗi thì cho hiện form (đỡ chặn nhầm)
       setTrainerFeedbackExists(false);
     } finally {
       setCheckingTrainerFeedback(false);
+    }
+  };
+
+  // ✅ check gym feedback: /guest/feedback/gym
+  // Rule user yêu cầu: nếu memberPackageId trùng với id package => ẩn phần viết gym feedback
+  const checkGymFeedbackForPackage = async (pkg) => {
+    const pkgId = Number(pkg?.id || 0);
+
+    setGymFeedbackExists(false);
+    setCheckedGymFeedbackForPkgId(pkgId || null);
+
+    if (!pkgId) return;
+
+    try {
+      setCheckingGymFeedback(true);
+      const res = await api.get("/guest/feedback/gym");
+      const raw = res.data;
+
+      const list = Array.isArray(raw)
+        ? raw
+        : raw?.items && Array.isArray(raw.items)
+        ? raw.items
+        : raw
+        ? [raw]
+        : [];
+
+      const exists = list.some((f) => Number(f.memberPackageId) === pkgId);
+      setGymFeedbackExists(exists);
+    } catch (err) {
+      console.error("Error checking gym feedback:", err);
+      // lỗi check thì cho hiện form để tránh chặn nhầm
+      setGymFeedbackExists(false);
+    } finally {
+      setCheckingGymFeedback(false);
     }
   };
 
@@ -466,10 +482,11 @@ export default function MyPackage() {
     setSelected({ history: historyItem, master });
     resetFeedbackForms();
     resetTrainerFeedbackCheck();
+    resetGymFeedbackCheck();
     setOpen(true);
 
-    // ✅ check ngay khi mở modal
     checkTrainerFeedbackForPackage(historyItem);
+    checkGymFeedbackForPackage(historyItem);
   };
 
   const handleClose = () => {
@@ -480,9 +497,9 @@ export default function MyPackage() {
     resetFeedbackForms();
     resetViewRefundState();
     resetTrainerFeedbackCheck();
+    resetGymFeedbackCheck();
   };
 
-  // ====== REFUND (TÍNH & GỬI YÊU CẦU) ======
   const fetchRefundCalculation = async (memberPackageId) => {
     if (!memberPackageId) return;
     try {
@@ -541,10 +558,9 @@ export default function MyPackage() {
     setSelected({ history: pkg, master: null });
     resetFeedbackForms();
     resetTrainerFeedbackCheck();
+    resetGymFeedbackCheck();
     setRefundOpen(true);
     fetchRefundCalculation(pkg.id);
-
-    // (không bắt buộc) nếu user mở refund từ list thì không cần check feedback
   };
 
   const handleRefundModalClose = () => {
@@ -599,7 +615,6 @@ export default function MyPackage() {
     }
   };
 
-  // ====== XEM CHI TIẾT ĐƠN HOÀN TIỀN ======
   const handleOpenViewRefund = (refund) => {
     if (!refund) return;
     setViewRefund(refund);
@@ -614,22 +629,40 @@ export default function MyPackage() {
   const handleSubmitGymFeedback = async () => {
     if (!selected || !selected.history) return;
 
+    // ✅ nếu đã có gym feedback theo memberPackageId này => chặn
+    if (gymFeedbackExists) {
+      message.warning("Bạn đã đánh giá cho phòng gym (theo gói này) rồi.");
+      return;
+    }
+
     if (!gymComments.trim()) {
       message.warning("Vui lòng nhập nội dung đánh giá cho phòng gym.");
       return;
     }
 
+    const finalType =
+      gymFeedbackType === "Other"
+        ? (gymCustomFeedbackType || "").trim() || "Other"
+        : gymFeedbackType || "GymRoom";
+
     try {
       setFeedbackLoading(true);
       const payload = {
+        memberPackageId: Number(selected.history.id), // ✅ để match backend dạng list /guest/feedback/gym
         rating: Number(gymRating) || 5,
-        feedbackType: gymFeedbackType || "GYM",
+        feedbackType: finalType,
         comments: gymComments.trim(),
       };
+
       await api.post("/member/feedback/gym", payload);
       message.success("Đã gửi đánh giá cho phòng gym. Cảm ơn bạn!");
+
       setGymComments("");
       setGymFeedbackType("");
+      setGymCustomFeedbackType("");
+
+      // ✅ ẩn UI ngay
+      setGymFeedbackExists(true);
     } catch (err) {
       console.error("Error sending gym feedback:", err);
       const detail =
@@ -646,7 +679,6 @@ export default function MyPackage() {
   const handleSubmitTrainerFeedback = async () => {
     if (!selected || !selected.history) return;
 
-    // ✅ nếu đã có feedback theo memberPackageId này => chặn + ẩn UI (UI đã ẩn sẵn)
     if (trainerFeedbackExists) {
       message.warning("Bạn đã đánh giá cho huấn luyện viên rồi.");
       return;
@@ -675,8 +707,6 @@ export default function MyPackage() {
       await api.post("/member/feedback/trainer", payload);
       message.success("Đã gửi đánh giá huấn luyện viên. Cảm ơn bạn!");
       setTrainerComments("");
-
-      // ✅ set luôn để ẩn form ngay (không cần gọi lại API)
       setTrainerFeedbackExists(true);
     } catch (err) {
       console.error("Error sending trainer feedback:", err);
@@ -771,7 +801,6 @@ export default function MyPackage() {
           </div>
         </div>
 
-        {/* Tabs filter */}
         {renderFilterTabs()}
 
         {loading && (
@@ -790,7 +819,6 @@ export default function MyPackage() {
           </div>
         )}
 
-        {/* Danh sách gói sau khi lọc + phân trang (5 gói / trang) */}
         {paginatedPackages.map((pkg) => {
           const status = getStatus(pkg);
           const daysRemainDisplay = getDaysRemainingDisplay(pkg);
@@ -805,7 +833,6 @@ export default function MyPackage() {
                 <div className="card shadow-0 border rounded-3 card-shadow">
                   <div className="card-body">
                     <div className="row g-3 align-items-start">
-                      {/* Cột tên gói */}
                       <div className="col-12 col-md-5">
                         <div className="pkg-title mb-1">{pkg.name}</div>
                         <div className="text-muted">
@@ -818,7 +845,6 @@ export default function MyPackage() {
                         )}
                       </div>
 
-                      {/* Cột ngày bắt đầu / kết thúc */}
                       <div className="col-12 col-md-3">
                         <div className="text-muted small">Ngày bắt đầu</div>
                         <div className="fw-semibold">{formatDDMMYYYY(pkg.startDate)}</div>
@@ -831,10 +857,8 @@ export default function MyPackage() {
                         )}
                       </div>
 
-                      {/* Cột button + status */}
                       <div className="col-12 col-md-4 d-flex flex-column align-items-md-end align-items-start">
                         <div className="d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap flex-md-nowrap">
-                          {/* Refund button: chỉ khi gói đã hủy & không có đơn Pending/Approved */}
                           {isCancelled && !activeRefund && (
                             <button className="btn btn-warning btn-sm" onClick={() => handleOpenRefundFromList(pkg)}>
                               {refundList.length > 0 ? "Yêu cầu hoàn tiền mới" : "Yêu cầu hoàn tiền"}
@@ -852,7 +876,6 @@ export default function MyPackage() {
                       </div>
                     </div>
 
-                    {/* Danh sách tất cả đơn hoàn tiền của gói này */}
                     {refundList.length > 0 && (
                       <div className="mt-3 border-top pt-2">
                         <div className="small fw-semibold mb-1">Đơn hủy gói ({refundList.length})</div>
@@ -888,7 +911,6 @@ export default function MyPackage() {
           );
         })}
 
-        {/* Phân trang: 5 gói / trang */}
         {!loading && !loadError && filteredPackages.length > 0 && (
           <div className="row justify-content-center mt-3">
             <div className="col-12 col-xl-10 d-flex justify-content-center">
@@ -933,7 +955,6 @@ export default function MyPackage() {
           </div>
         )}
 
-        {/* Không có gói trong tab hiện tại */}
         {!loading && !loadError && filteredPackages.length === 0 && sortedPackages.length > 0 && (
           <div className="row justify-content-center">
             <div className="col-12 col-xl-10">
@@ -944,7 +965,6 @@ export default function MyPackage() {
           </div>
         )}
 
-        {/* Không có lịch sử gói (tổng) */}
         {!loading && !loadError && sortedPackages.length === 0 && (
           <div className="row justify-content-center">
             <div className="col-12 col-xl-10">
@@ -967,7 +987,6 @@ export default function MyPackage() {
               </div>
 
               <div className="modal-body">
-                {/* Status + thời gian thực tế */}
                 <div className="mb-3">
                   {(() => {
                     const st = getStatus(selected.history);
@@ -1000,7 +1019,6 @@ export default function MyPackage() {
                   )}
                 </div>
 
-                {/* Info chi tiết */}
                 <div className="row g-3">
                   <div className="col-12 col-md-6">
                     <div className="text-muted small">Số buổi</div>
@@ -1033,44 +1051,93 @@ export default function MyPackage() {
                 {/* Feedback */}
                 <hr className="mt-4 mb-3" />
                 <h6 className="mb-3">Đánh giá & phản hồi</h6>
+
                 <div className="row g-3">
                   {/* Gym feedback */}
                   <div className="col-12 col-md-6">
                     <div className="border rounded p-3 h-100">
                       <h6 className="mb-2">Phòng gym</h6>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Mức độ hài lòng</label>
-                        <StarRating value={gymRating} onChange={setGymRating} disabled={feedbackLoading} />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Loại phản hồi (tuỳ chọn)</label>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="VD: Cơ sở vật chất, dịch vụ, không gian..."
-                          value={gymFeedbackType}
-                          onChange={(e) => setGymFeedbackType(e.target.value)}
-                          disabled={feedbackLoading}
-                        />
-                      </div>
-                      <div className="mb-2">
-                        <label className="form-label small mb-1">Nội dung đánh giá</label>
-                        <textarea
-                          className="form-control"
-                          rows={3}
-                          value={gymComments}
-                          onChange={(e) => setGymComments(e.target.value)}
-                          disabled={feedbackLoading}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-primary mt-1"
-                        onClick={handleSubmitGymFeedback}
-                        disabled={feedbackLoading}
-                      >
-                        {feedbackLoading ? "Đang gửi..." : "Gửi đánh giá phòng gym"}
-                      </button>
+
+                      {/* ✅ Loading check */}
+                      {checkingGymFeedback && checkedGymFeedbackForPkgId === Number(selected.history.id) && (
+                        <div className="alert alert-info py-2 small">
+                          Đang kiểm tra trạng thái đánh giá phòng gym...
+                        </div>
+                      )}
+
+                      {/* ✅ nếu đã có feedback theo memberPackageId => ẨN form */}
+                      {!checkingGymFeedback && gymFeedbackExists && (
+                        <div className="alert alert-success py-2 small mb-0" style={{ color: "#7c7c7cff" }}>
+                          Bạn đã đánh giá phòng gym cho gói này rồi.
+                        </div>
+                      )}
+
+                      {/* ✅ Form chỉ hiện khi CHƯA feedback */}
+                      {!gymFeedbackExists && (
+                        <>
+                          <div className="mb-2">
+                            <label className="form-label small mb-1">Mức độ hài lòng</label>
+                            <StarRating value={gymRating} onChange={setGymRating} disabled={feedbackLoading || checkingGymFeedback} />
+                          </div>
+
+                          {/* ✅ Dropdown feedback type từ FEEDBACK_TYPE_LABELS */}
+                          <div className="mb-2">
+                            <label className="form-label small mb-1">Loại phản hồi</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={gymFeedbackType}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setGymFeedbackType(v);
+                                if (v !== "Other") setGymCustomFeedbackType("");
+                              }}
+                              disabled={feedbackLoading || checkingGymFeedback}
+                            >
+                              <option value="">-- Chọn loại --</option>
+                              {Object.entries(FEEDBACK_TYPE_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* ✅ Nếu chọn Other thì show input */}
+                          {gymFeedbackType === "Other" && (
+                            <div className="mb-2">
+                              <label className="form-label small mb-1">Nhập loại phản hồi</label>
+                              <input
+                                type="text"
+                                className="form-control form-control-sm"
+                                placeholder="VD: Chỗ đậu xe, âm nhạc, nhiệt độ..."
+                                value={gymCustomFeedbackType}
+                                onChange={(e) => setGymCustomFeedbackType(e.target.value)}
+                                disabled={feedbackLoading || checkingGymFeedback}
+                              />
+                            </div>
+                          )}
+
+                          <div className="mb-2">
+                            <label className="form-label small mb-1">Nội dung đánh giá</label>
+                            <textarea
+                              className="form-control"
+                              rows={3}
+                              value={gymComments}
+                              onChange={(e) => setGymComments(e.target.value)}
+                              disabled={feedbackLoading || checkingGymFeedback}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary mt-1"
+                            onClick={handleSubmitGymFeedback}
+                            disabled={feedbackLoading || checkingGymFeedback}
+                          >
+                            {feedbackLoading ? "Đang gửi..." : "Gửi đánh giá phòng gym"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1079,25 +1146,21 @@ export default function MyPackage() {
                     <div className="col-12 col-md-6">
                       <div className="border rounded p-3 h-100">
                         <h6 className="mb-2">
-                          Huấn luyện viên{" "}
-                          <span className="fw-semibold">{selected.history.trainerName}</span>
+                          Huấn luyện viên <span className="fw-semibold">{selected.history.trainerName}</span>
                         </h6>
 
-                        {/* ✅ Loading check */}
                         {checkingTrainerFeedback && checkedTrainerFeedbackForPkgId === Number(selected.history.id) && (
                           <div className="alert alert-info py-2 small">
                             Đang kiểm tra trạng thái đánh giá huấn luyện viên...
                           </div>
                         )}
 
-                        {/* ✅ Nếu đã có feedback theo memberPackageId => ẨN form, chỉ show thông báo */}
                         {!checkingTrainerFeedback && trainerFeedbackExists && (
                           <div className="alert alert-success py-2 small mb-0" style={{ color: "#7c7c7cff" }}>
                             Bạn đã đánh giá cho huấn luyện viên rồi.
                           </div>
                         )}
 
-                        {/* ✅ Form chỉ hiện khi CHƯA feedback */}
                         {!trainerFeedbackExists && (
                           <>
                             <div className="mb-2">
@@ -1142,7 +1205,6 @@ export default function MyPackage() {
                   const hasActiveRefund = getActiveRefundRequestForPackage(hist.id);
                   if (hasActiveRefund) return null;
 
-                  // Gói đã hủy: vẫn cho yêu cầu hoàn tiền như cũ
                   if (apiStatusLower === "cancelled") {
                     return (
                       <button className="btn btn-warning" onClick={handleOpenRefund}>
@@ -1151,7 +1213,6 @@ export default function MyPackage() {
                     );
                   }
 
-                  // Gói đang hoạt động: nút Hủy gói sẽ mở luôn form hoàn tiền
                   if (apiStatusLower === "active") {
                     return (
                       <button className="btn btn-outline-secondary" onClick={handleOpenRefund}>
