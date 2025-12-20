@@ -166,7 +166,7 @@ export default function Login() {
                 Hoặc
               </div>
 
-              {/* <GoogleLoginButton /> */}
+              <GoogleLoginButton />
             </div>
           </div>
         </div>
