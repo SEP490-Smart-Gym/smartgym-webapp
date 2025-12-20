@@ -13,6 +13,7 @@ import NotFound from "../pages/NotFound.jsx";
 import Login from "../pages/Login.jsx";
 import Register from "../pages/Register.jsx";
 import Forbidden from "../pages/Forbidden.jsx";
+import ResetPassword from "../pages/reset-password.jsx";
 
 // Profiles
 import ProfileMember from "../pages/Member/ProfileMember.jsx";
@@ -103,15 +104,18 @@ function AuthLayout() {
 export default function AppRoutes() {
   return (
     <Routes>
-       {/* ===== AUTH (NO NAVBAR / FOOTER) ===== */}
+      {/* ===== AUTH (NO NAVBAR / FOOTER) ===== */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
       {/* ===== MAIN LAYOUT ===== */}
       <Route element={<Layout />}>
         {/* ===== Public ===== */}
         <Route index element={<Home />} />
+
+
 
         <Route path="contact" element={<Contact />} />
         <Route path="403" element={<Forbidden />} />
