@@ -223,8 +223,21 @@ const ProfileStaff = () => {
       // fallback preview nếu fail
       setPreview(null);
 
+      const serverMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.title ||
+        err?.response?.data?.error ||
+        "";
+
+      const isTooLarge =
+        String(serverMsg).toLowerCase().includes("file too large") ||
+        String(serverMsg).toLowerCase().includes("max allowed is 5 mb") ||
+        err?.response?.status === 413;
+
       message.error({
-        content: "Không thể tải ảnh lên, vui lòng thử lại!",
+        content: isTooLarge
+          ? "File ảnh vượt quá dung lượng 5MB. Vui lòng chọn ảnh khác."
+          : "Không thể tải ảnh lên, vui lòng thử lại!",
         key: loadingKey,
         duration: 3,
       });
