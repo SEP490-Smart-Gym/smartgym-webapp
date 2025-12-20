@@ -1,9 +1,18 @@
 import { BsArrowUp } from "react-icons/bs";
 import FloatingChatWidget from "./FloatingChatWidget";
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 export default function Footer() {
 
   const user = JSON.parse(localStorage.getItem("user")) || { roleName: "guest" };
+  const location = useLocation();
+
+  const isChatPage =
+    location.pathname.startsWith("/chat") ||
+    location.pathname.startsWith("/member/chat") ||
+    location.pathname.startsWith("/staff/chat") ||
+    location.pathname.startsWith("/trainer/chat");
+
   return (
     <>
       {/* Footer */}
@@ -128,13 +137,13 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      {(user.roleName === "Member" || user.roleName === "guest") && (
+      {!isChatPage && (user.roleName === "Member" || user.roleName === "guest") && (
         <FloatingChatWidget />
       )}
-      {(user.roleName === "Member" || user.roleName === "guest") && (
+
+      {!isChatPage && (user.roleName === "Member" || user.roleName === "guest") && (
         <>
-          {/* Back to Top */}
-          {user.roleName != "Admin" && (
+          {user.roleName !== "Admin" && (
             <div className="back-to-top">
               <button
                 className="btn"

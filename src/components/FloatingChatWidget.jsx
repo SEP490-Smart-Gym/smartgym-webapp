@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import ChatBot from "../pages/Member/ChatBox";
+import ChatBot from "../pages/chat/ChatBot";
 import { IoChatbubbleEllipses } from "react-icons/io5";
 import { IconButton, Box } from "@mui/material";
 

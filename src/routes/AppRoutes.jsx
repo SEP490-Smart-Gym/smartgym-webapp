@@ -36,8 +36,6 @@ import PaymentHistory from "../pages/Member/MyPayment.jsx";
 import PaymentPage from "../pages/Member/PaymentCont.jsx";
 import ExtraPoint from "../pages/Member/ExtraPoint.jsx";
 import WorkoutMealPlan from "../pages/Member/WorkoutMealPlan.jsx";
-import ChatPage from "../pages/Member/ChatPage.jsx";
-import ChatConversation from "../pages/Member/ChatConversation.jsx";
 import RewardGifts from "../pages/Member/RewardGifts.jsx";
 
 // Admin pages
@@ -55,11 +53,10 @@ import AdminPromotionGifts from "../pages/admin/ManagePromotion.jsx";
 // Staff
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import StaffMyRepairReports from "../pages/Staff/StaffMyRepairReports.jsx";
-import StaffUpcomingMaintenance from "../pages/Staff/StaffUpcomingMaintenance.jsx";
+import StaffMaintenance from "../pages/Staff/StaffMaintenance.jsx";
 import StaffSchedule from "../pages/Staff/Schedule.jsx";
 import StaffRewardRedemptions from "../pages/Staff/RewardRedemptions.jsx";
-import ChatBoxStaff from "../pages/Staff/chatBox.jsx";
-import StaffChatList from "../pages/Staff/StaffChatList.jsx";
+
 
 //Manager pages
 import RefundManagement from "../pages/Manager/ManageRefund.jsx";
@@ -71,10 +68,18 @@ import ManageSchedule from "../pages/Manager/Schedule.jsx";
 //Trainer
 import ScheduleTrainer from "../pages/Trainer/Schedule.jsx";
 import ManageMember from "../pages/Trainer/ManageMember.jsx";
-import ChatBoxTrainer from "../pages/Trainer/Chatbox.jsx";
 import TrainerChatList from "../pages/Trainer/TrainerChatList.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ManagerDashboard from "../pages/Manager/ManagerDashboard.jsx";
+
+
+//Chat
+import ChatBox from "../pages/chat/ChatBox.jsx";
+import ChatList from "../pages/chat/ChatList.jsx";
+import EmptyChat from "../pages/chat/EmptyChat.jsx";
+import ChatLayout from "../pages/chat/ChatLayout.jsx";
+
+
 function Layout() {
   return (
     <>
@@ -143,38 +148,44 @@ export default function AppRoutes() {
           <Route path="/member/profile" element={<ProfileMember />} />
           <Route path="/member/mypackages" element={<MyPackage />} />
           <Route path="/:id/cart/:id" element={<Payment />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat/:conversationId" element={<ChatConversation />} />
           <Route path="/member/voucher" element={<MemberVoucherList />} />
           <Route path="/member/my-payments" element={<PaymentHistory />} />
           <Route path="/member/payment/:id" element={<PaymentPage />} />
           <Route path="/member/points-history" element={<ExtraPoint />} />
           <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
           <Route path="/member/reward-gifts" element={<RewardGifts />} />
+          <Route path="/member/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
 
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
-          <Route path="/trainer/chatlist" element={<TrainerChatList />} />
           <Route path="/trainer/:id/schedule" element={<ScheduleTrainer />} />
           <Route path="/trainer/member-list" element={<ManageMember />} />
-          <Route path="/trainer/chat/:id" element={<ChatBoxTrainer />} />
+          <Route path="/trainer/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
 
         {/* ===== Staff protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Staff"]} />}>
-          <Route path="staff/dashboard" element={<Home />} />
-          <Route path="staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/dashboard" element={<Home />} />
-          <Route path="/profile/staff" element={<ProfileStaff />} />
+          <Route path="/staff/equipmentlist" element={<StaffEquipmentList />} />
           <Route path="/staff/schedule" element={<StaffSchedule />} />
           <Route path="/staff/myreports" element={<StaffMyRepairReports />} />
-          <Route path="/staff/upcomingschedule" element={<StaffUpcomingMaintenance />} />
+          <Route path="/staff/equipmentschedule" element={<StaffMaintenance />} />
           <Route path="/staff/reward-redemption" element={<StaffRewardRedemptions />} />
-          <Route path="/staff/chatlist" element={<StaffChatList />} />
-          <Route path="/staff/chat/:id" element={<ChatBoxStaff />} />
+
+          <Route path="/staff/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
+
 
         {/* ===== Admin protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
