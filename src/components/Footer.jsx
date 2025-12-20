@@ -137,11 +137,11 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      {!isChatPage && (user.roleName === "Member" || user.roleName === "guest") && (
+      {!isChatPage && (user.roleName === "Member" ) && (
         <FloatingChatWidget />
       )}
 
-      {!isChatPage && (user.roleName === "Member" || user.roleName === "guest") && (
+      {!isChatPage && (user.roleName === "Member") && (
         <>
           {user.roleName !== "Admin" && (
             <div className="back-to-top">
