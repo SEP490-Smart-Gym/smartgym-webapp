@@ -47,6 +47,63 @@ const ageValidatorRule = {
   },
 };
 
+/** ================== VALIDATORS ================== */
+
+// trim check (không cho toàn khoảng trắng)
+const requiredTrimRule = (msg) => ({
+  required: true,
+  validator: (_, v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return Promise.reject(new Error(msg));
+    return Promise.resolve();
+  },
+});
+
+// tên: cho chữ + khoảng trắng + dấu tiếng Việt + ' - .
+const nameFormatRule = (label = "Trường này") => ({
+  validator: (_, v) => {
+    if (v === undefined || v === null || String(v).trim() === "") return Promise.resolve();
+    const s = String(v).trim();
+    const ok = /^[A-Za-zÀ-ỹ\s.'-]+$/.test(s);
+    if (!ok) return Promise.reject(new Error(`${label} chỉ nên chứa chữ cái và khoảng trắng.`));
+    return Promise.resolve();
+  },
+});
+
+const phoneVnRule = {
+  validator: (_, v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return Promise.reject(new Error("Vui lòng nhập số điện thoại."));
+    // VN phổ biến: 0 + 9~10 số
+    if (!/^0\d{9,10}$/.test(s)) {
+      return Promise.reject(new Error("Số điện thoại không hợp lệ (VD: 0912345678)."));
+    }
+    return Promise.resolve();
+  },
+};
+
+const emailRuleRequired = {
+  required: true,
+  type: "email",
+  message: "Email không hợp lệ",
+};
+
+const optionalMinMaxTrimRule = (min, max, label) => ({
+  validator: (_, v) => {
+    if (v === undefined || v === null || String(v).trim() === "") return Promise.resolve();
+    const s = String(v).trim();
+    if (min != null && s.length < min) return Promise.reject(new Error(`${label} tối thiểu ${min} ký tự.`));
+    if (max != null && s.length > max) return Promise.reject(new Error(`${label} tối đa ${max} ký tự.`));
+    return Promise.resolve();
+  },
+});
+
+const requiredMinMaxTrimRule = (min, max, label, requiredMsg) => ([
+  requiredTrimRule(requiredMsg || `Vui lòng nhập ${label.toLowerCase()}.`),
+  { min, message: `${label} tối thiểu ${min} ký tự.` },
+  { max, message: `${label} tối đa ${max} ký tự.` },
+]);
+
 export default function AdminTrainerList() {
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,56 +120,59 @@ export default function AdminTrainerList() {
       chars[Math.floor(Math.random() * chars.length)]
     ).join("");
   };
-//helper to normalize trainer data
+
+  //helper to normalize trainer data
   const normalizeTrainer = (u = {}) => {
-  const firstName = u.firstName ?? "";
-  const lastName = u.lastName ?? "";
+    const firstName = u.firstName ?? "";
+    const lastName = u.lastName ?? "";
 
-  return {
-    // ===== IDENTIFIER =====
-    id: u.trainerId ?? null,
+    return {
+      // ===== IDENTIFIER =====
+      id: u.trainerId ?? null,
 
-    // ===== NAME =====
-    firstName,
-    lastName,
-    fullName:
-      `${firstName}${firstName && lastName ? " " : ""}${lastName}`.trim() ||
-      "—",
+      // ===== NAME =====
+      firstName,
+      lastName,
+      fullName:
+        `${firstName}${firstName && lastName ? " " : ""}${lastName}`.trim() ||
+        "—",
 
-    // ===== IMAGE =====
-    photo: u.imageUrl || "/img/useravt.jpg",
+      // ===== IMAGE =====
+      photo: u.imageUrl || "/img/useravt.jpg",
 
-    // ===== BASIC INFO =====
-    gender: u.gender ?? "Male",
-    dateOfBirth: u.dateOfBirth ?? null,
-    email: u.email ?? "—",
-    phoneNumber: u.phoneNumber ?? "—",
+      // ===== BASIC INFO =====
+      gender: u.gender ?? "Male",
+      dateOfBirth: u.dateOfBirth ?? null,
+      email: u.email ?? "—",
+      phoneNumber: u.phoneNumber ?? "—",
 
-    // ===== PROFESSIONAL INFO =====
-    specialization: u.specialization ?? "—",
-    trainerRating:
-      typeof u.trainerRating === "number" ? u.trainerRating : null,
-    totalReviews:
-      typeof u.totalReviews === "number" ? u.totalReviews : 0,
-    yearsOfExperience:
-      typeof u.yearsOfExperience === "number"
-        ? u.yearsOfExperience
-        : null,
-    workingShift: u.workingShift ?? null,
+      // ===== PROFESSIONAL INFO =====
+      specialization: u.specialization ?? "—",
+      trainerRating:
+        typeof u.trainerRating === "number" ? u.trainerRating : null,
+      totalReviews:
+        typeof u.totalReviews === "number" ? u.totalReviews : 0,
+      yearsOfExperience:
+        typeof u.yearsOfExperience === "number"
+          ? u.yearsOfExperience
+          : null,
+      workingShift: u.workingShift ?? null,
 
-    // ===== STATUS =====
-    isAvailableForNewClients: Boolean(u.isAvailableForNewClients),
+      // ===== STATUS =====
+      isAvailableForNewClients: Boolean(u.isAvailableForNewClients),
 
-    // ===== CERTIFICATES =====
-    certificates: Array.isArray(u.certificates)
-      ? u.certificates.map((c) => ({
-          name: c.certificateName ?? "—",
-          detail: c.certificateDetail ?? "—",
-        }))
-      : [],
+      // ===== CERTIFICATES =====
+      certificates: Array.isArray(u.certificates)
+        ? u.certificates.map((c) => ({
+            name: c.certificateName ?? "—",
+            detail: c.certificateDetail ?? "—",
+            // giữ fieldName gốc nếu cần edit lại
+            certificateName: c.certificateName ?? "",
+            certificateDetail: c.certificateDetail ?? "",
+          }))
+        : [],
+    };
   };
-};
-
 
   // Fetch trainers
   const fetchTrainers = async () => {
@@ -161,9 +221,9 @@ export default function AdminTrainerList() {
       certificates:
         values.certificates && Array.isArray(values.certificates)
           ? values.certificates.map((c) => ({
-            certificateName: c.certificateName || "",
-            certificateDetail: c.certificateDetail || "",
-          }))
+              certificateName: c.certificateName || "",
+              certificateDetail: c.certificateDetail || "",
+            }))
           : [],
     };
 
@@ -248,7 +308,6 @@ export default function AdminTrainerList() {
     });
   };
 
-
   // OPEN edit modal
   const openEdit = (record) => {
     setEditing(record);
@@ -265,7 +324,10 @@ export default function AdminTrainerList() {
       isAvailableForNewClients: record.isAvailableForNewClients,
       certificates:
         record.certificates && record.certificates.length
-          ? record.certificates
+          ? record.certificates.map((c) => ({
+              certificateName: c.certificateName ?? c.name ?? "",
+              certificateDetail: c.certificateDetail ?? c.detail ?? "",
+            }))
           : [{ certificateName: "", certificateDetail: "" }],
     });
     setEditOpen(true);
@@ -291,6 +353,8 @@ export default function AdminTrainerList() {
         certificateName: c.certificateName || "",
         certificateDetail: c.certificateDetail || "",
       })),
+      // salary giữ như bạn đang có field (nếu backend nhận)
+      salary: values.salary,
     };
 
     try {
@@ -332,9 +396,9 @@ export default function AdminTrainerList() {
         <div>
           {record.certificates.map((c, idx) => (
             <div key={idx} style={{ marginBottom: 12 }}>
-              <strong>{c.certificateName}</strong>
+              <strong>{c.certificateName ?? c.name}</strong>
               <br />
-              <span>{c.certificateDetail}</span>
+              <span>{c.certificateDetail ?? c.detail}</span>
               <hr />
             </div>
           ))}
@@ -443,27 +507,31 @@ export default function AdminTrainerList() {
                   gender: "Male",
                   salary: 0,
                   isAvailableForNewClients: true,
-                  certificates: [
-                    { certificateName: "", certificateDetail: "" },
-                  ],
+                  certificates: [{ certificateName: "", certificateDetail: "" }],
                 }}
               >
                 <div className="row g-3">
                   <div className="col-md-6">
                     <Form.Item
                       name="lastName"
-                      rules={[{ required: true, message: "Nhập họ" }]}
+                      rules={[
+                        ...requiredMinMaxTrimRule(1, 30, "Họ", "Nhập họ"),
+                        nameFormatRule("Họ"),
+                      ]}
                     >
-                      <Input placeholder="Họ" />
+                      <Input placeholder="Họ" maxLength={30} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
                     <Form.Item
                       name="firstName"
-                      rules={[{ required: true, message: "Nhập tên" }]}
+                      rules={[
+                        ...requiredMinMaxTrimRule(1, 30, "Tên", "Nhập tên"),
+                        nameFormatRule("Tên"),
+                      ]}
                     >
-                      <Input placeholder="Tên" />
+                      <Input placeholder="Tên" maxLength={30} />
                     </Form.Item>
                   </div>
 
@@ -471,37 +539,31 @@ export default function AdminTrainerList() {
                     <Form.Item
                       name="email"
                       rules={[
-                        {
-                          required: true,
-                          type: "email",
-                          message: "Email không hợp lệ",
-                        },
+                        emailRuleRequired,
+                        { max: 120, message: "Email tối đa 120 ký tự." },
                       ]}
                     >
-                      <Input placeholder="Email" />
+                      <Input placeholder="Email" maxLength={120} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item
-                      name="phoneNumber"
-                      rules={[{ required: true, message: "Nhập số điện thoại" }]}
-                    >
-                      <Input placeholder="Số điện thoại" />
+                    <Form.Item name="phoneNumber" rules={[phoneVnRule]}>
+                      <Input placeholder="Số điện thoại" maxLength={11} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-4">
-                    <Form.Item name="gender">
+                    <Form.Item
+                      name="gender"
+                      rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
+                    >
                       <Select options={GENDER_OPTIONS} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-4">
-                    <Form.Item
-                      name="dateOfBirth"
-                      rules={[ageValidatorRule]}
-                    >
+                    <Form.Item name="dateOfBirth" rules={[ageValidatorRule]}>
                       <DatePicker
                         style={{ width: "100%" }}
                         placeholder="Ngày sinh"
@@ -512,26 +574,25 @@ export default function AdminTrainerList() {
                     </Form.Item>
                   </div>
 
-                  {/* <div className="col-md-4">
-                    <Form.Item name="salary">
-                      <InputNumber
-                        style={{ width: "100%" }}
-                        min={0}
-                        formatter={(v) => (v ? `${v}` : v)}
-                        placeholder="Lương"
-                      />
-                    </Form.Item>
-                  </div> */}
-
                   <div className="col-md-12">
-                    <Form.Item name="address">
-                      <Input placeholder="Địa chỉ" />
+                    <Form.Item
+                      name="address"
+                      rules={[optionalMinMaxTrimRule(3, 255, "Địa chỉ")]}
+                    >
+                      <Input placeholder="Địa chỉ" maxLength={255} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-6">
-                    <Form.Item name="specialization">
-                      <Input placeholder="Chuyên môn" />
+                    <Form.Item
+                      name="specialization"
+                      rules={[
+                        requiredTrimRule("Vui lòng nhập chuyên môn."),
+                        { min: 2, message: "Chuyên môn tối thiểu 2 ký tự." },
+                        { max: 100, message: "Chuyên môn tối đa 100 ký tự." },
+                      ]}
+                    >
+                      <Input placeholder="Chuyên môn" maxLength={100} />
                     </Form.Item>
                   </div>
 
@@ -546,10 +607,15 @@ export default function AdminTrainerList() {
                   </div>
 
                   <div className="col-md-12">
-                    <Form.Item name="trainerBio">
+                    <Form.Item
+                      name="trainerBio"
+                      rules={[optionalMinMaxTrimRule(0, 1000, "Mô tả")]}
+                    >
                       <Input.TextArea
                         placeholder="Mô tả / giới thiệu"
                         rows={3}
+                        maxLength={1000}
+                        showCount
                       />
                     </Form.Item>
                   </div>
@@ -574,13 +640,12 @@ export default function AdminTrainerList() {
                                 name={[field.name, "certificateName"]}
                                 fieldKey={[field.fieldKey, "certificateName"]}
                                 rules={[
-                                  {
-                                    required: true,
-                                    message: "Tên certificate required",
-                                  },
+                                  requiredTrimRule("Tên chứng chỉ bắt buộc."),
+                                  { min: 2, message: "Tên chứng chỉ tối thiểu 2 ký tự." },
+                                  { max: 100, message: "Tên chứng chỉ tối đa 100 ký tự." },
                                 ]}
                               >
-                                <Input placeholder="Tên chứng chỉ" />
+                                <Input placeholder="Tên chứng chỉ" maxLength={100} />
                               </Form.Item>
 
                               <Form.Item
@@ -588,30 +653,22 @@ export default function AdminTrainerList() {
                                 name={[field.name, "certificateDetail"]}
                                 fieldKey={[field.fieldKey, "certificateDetail"]}
                                 rules={[
-                                  {
-                                    required: true,
-                                    message: "Chi tiết required",
-                                  },
+                                  requiredTrimRule("Chi tiết chứng chỉ bắt buộc."),
+                                  { min: 2, message: "Chi tiết tối thiểu 2 ký tự." },
+                                  { max: 255, message: "Chi tiết tối đa 255 ký tự." },
                                 ]}
                               >
-                                <Input placeholder="Chi tiết" />
+                                <Input placeholder="Chi tiết" maxLength={255} />
                               </Form.Item>
 
-                              <Button
-                                danger
-                                onClick={() => remove(field.name)}
-                              >
+                              <Button danger onClick={() => remove(field.name)}>
                                 Xóa
                               </Button>
                             </Space>
                           ))}
 
                           <Form.Item>
-                            <Button
-                              type="dashed"
-                              onClick={() => add()}
-                              block
-                            >
+                            <Button type="dashed" onClick={() => add()} block>
                               Thêm chứng chỉ
                             </Button>
                           </Form.Item>
@@ -668,62 +725,95 @@ export default function AdminTrainerList() {
         cancelText="Huỷ"
         destroyOnClose
       >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={saveEdit}
-          preserve={false}
-        >
+        <Form form={editForm} layout="vertical" onFinish={saveEdit} preserve={false}>
           <Form.Item
             name="firstName"
             label="Tên"
-            rules={[{ required: true }]}
+            rules={[
+              ...requiredMinMaxTrimRule(1, 30, "Tên", "Vui lòng nhập tên."),
+              nameFormatRule("Tên"),
+            ]}
           >
-            <Input />
+            <Input maxLength={30} />
           </Form.Item>
 
-          <Form.Item name="lastName" label="Họ" rules={[{ required: true }]}>
-            <Input />
+          <Form.Item
+            name="lastName"
+            label="Họ"
+            rules={[
+              ...requiredMinMaxTrimRule(1, 30, "Họ", "Vui lòng nhập họ."),
+              nameFormatRule("Họ"),
+            ]}
+          >
+            <Input maxLength={30} />
           </Form.Item>
 
           <Form.Item
             name="email"
             label="Email"
-            rules={[{ type: "email" }]}
+            rules={[
+              { type: "email", message: "Email không hợp lệ" },
+              { max: 120, message: "Email tối đa 120 ký tự." },
+            ]}
           >
-            <Input />
+            <Input maxLength={120} />
           </Form.Item>
 
-          <Form.Item name="phoneNumber" label="SĐT">
-            <Input />
-          </Form.Item>
-
-          <Form.Item name="gender" label="Giới tính">
-            <Select options={GENDER_OPTIONS} />
+          <Form.Item name="phoneNumber" label="SĐT" rules={[phoneVnRule]}>
+            <Input maxLength={11} />
           </Form.Item>
 
           <Form.Item
-            name="dateOfBirth"
-            label="Ngày sinh"
-            rules={[ageValidatorRule]}
+            name="gender"
+            label="Giới tính"
+            rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
           >
+            <Select options={GENDER_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item name="dateOfBirth" label="Ngày sinh" rules={[ageValidatorRule]}>
             <DatePicker
               style={{ width: "100%" }}
               disabledDate={disabledBirthDate}
-              // nếu chưa có DOB thì panel mở ở năm (today - 18)
               defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
             />
           </Form.Item>
 
-          <Form.Item name="specialization" label="Chuyên môn">
-            <Input />
+          <Form.Item
+            name="specialization"
+            label="Chuyên môn"
+            rules={[
+              requiredTrimRule("Vui lòng nhập chuyên môn."),
+              { min: 2, message: "Chuyên môn tối thiểu 2 ký tự." },
+              { max: 100, message: "Chuyên môn tối đa 100 ký tự." },
+            ]}
+          >
+            <Input maxLength={100} />
           </Form.Item>
 
-          <Form.Item name="trainerBio" label="Mô tả">
-            <Input.TextArea rows={3} />
+          <Form.Item
+            name="trainerBio"
+            label="Mô tả"
+            rules={[optionalMinMaxTrimRule(0, 1000, "Mô tả")]}
+          >
+            <Input.TextArea rows={3} maxLength={1000} showCount />
           </Form.Item>
 
-          <Form.Item name="salary" label="Lương">
+          <Form.Item
+            name="salary"
+            label="Lương"
+            rules={[
+              {
+                validator: (_, v) => {
+                  if (v === undefined || v === null || v === "") return Promise.resolve();
+                  const n = Number(v);
+                  if (Number.isNaN(n)) return Promise.reject(new Error("Lương không hợp lệ."));
+                  if (n < 0) return Promise.reject(new Error("Lương phải >= 0."));
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
             <InputNumber style={{ width: "100%" }} min={0} />
           </Form.Item>
 
@@ -739,23 +829,18 @@ export default function AdminTrainerList() {
             {(fields, { add, remove }) => (
               <div>
                 {fields.map((field) => (
-                  <Space
-                    key={field.key}
-                    align="start"
-                    style={{ display: "flex", marginBottom: 8 }}
-                  >
+                  <Space key={field.key} align="start" style={{ display: "flex", marginBottom: 8 }}>
                     <Form.Item
                       {...field}
                       name={[field.name, "certificateName"]}
                       fieldKey={[field.fieldKey, "certificateName"]}
                       rules={[
-                        {
-                          required: true,
-                          message: "Tên certificate required",
-                        },
+                        requiredTrimRule("Tên chứng chỉ bắt buộc."),
+                        { min: 2, message: "Tên chứng chỉ tối thiểu 2 ký tự." },
+                        { max: 100, message: "Tên chứng chỉ tối đa 100 ký tự." },
                       ]}
                     >
-                      <Input placeholder="Tên chứng chỉ" />
+                      <Input placeholder="Tên chứng chỉ" maxLength={100} />
                     </Form.Item>
 
                     <Form.Item
@@ -763,13 +848,12 @@ export default function AdminTrainerList() {
                       name={[field.name, "certificateDetail"]}
                       fieldKey={[field.fieldKey, "certificateDetail"]}
                       rules={[
-                        {
-                          required: true,
-                          message: "Chi tiết required",
-                        },
+                        requiredTrimRule("Chi tiết chứng chỉ bắt buộc."),
+                        { min: 2, message: "Chi tiết tối thiểu 2 ký tự." },
+                        { max: 255, message: "Chi tiết tối đa 255 ký tự." },
                       ]}
                     >
-                      <Input placeholder="Chi tiết" />
+                      <Input placeholder="Chi tiết" maxLength={255} />
                     </Form.Item>
 
                     <Button danger onClick={() => remove(field.name)}>
