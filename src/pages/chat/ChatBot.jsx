@@ -43,10 +43,10 @@ const MessageContainer = styled(Box)({
 const MessageBubble = styled(Paper)(({ isUser }) => ({
   padding: "8px 12px",
 
-  
-  inlineSize: "fit-content",        
-  maxInlineSize: "420px",          
-  
+
+  inlineSize: "fit-content",
+  maxInlineSize: "420px",
+
   alignSelf: isUser ? "flex-end" : "flex-start",
   backgroundColor: isUser ? "#0c1844" : "#ffffff",
   color: isUser ? "#ffffff" : "#000000",
@@ -72,16 +72,26 @@ export default function ChatBot({ isPopup = false, onClose }) {
 
   /* ======================= INIT CONVERSATION ======================= */
   useEffect(() => {
+    let isMounted = true;
+
     const initConversation = async () => {
       try {
         const res = await api.get("/member-ai-chat/conversation");
+        if (!isMounted) return;
+
         setConversationId(res.data.conversationId);
       } catch (err) {
-        console.error("Init AI conversation error", err);
+        if (err.code !== "ECONNABORTED") {
+          console.error("Init AI conversation error", err);
+        }
       }
     };
 
     initConversation();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   /* ======================= FETCH MESSAGES ======================= */
