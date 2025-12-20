@@ -78,7 +78,8 @@ export default function ChatBot({ isPopup = false, onClose }) {
       try {
         const res = await api.get("/member-ai-chat/conversation");
         if (!isMounted) return;
-        setConversation(res.data);
+
+        setConversationId(res.data.conversationId);
       } catch (err) {
         if (err.code !== "ECONNABORTED") {
           console.error("Init AI conversation error", err);
@@ -92,7 +93,6 @@ export default function ChatBot({ isPopup = false, onClose }) {
       isMounted = false;
     };
   }, []);
-
 
   /* ======================= FETCH MESSAGES ======================= */
   const fetchMessages = async (cid) => {
