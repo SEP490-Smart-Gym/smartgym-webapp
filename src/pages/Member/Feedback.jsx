@@ -13,60 +13,238 @@ const FEEDBACK_TYPE_LABELS = {
   Other: "Khác",
 };
 
+const STYLES = `
+.gfs-wrap{position:relative;}
+.gfs-header{
+  border-radius: 18px;
+  padding: 22px 22px;
+  background: linear-gradient(135deg, rgba(12,24,68,.95), rgba(31,59,182,.75));
+  color:#fff;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18);
+}
+.gfs-header h3{margin:0; font-weight:800; letter-spacing:.2px;}
+.gfs-sub{opacity:.9; margin-top:6px;}
+.gfs-card{
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.08);
+  overflow:hidden;
+  background:#fff;
+}
+.gfs-card .card-body{padding: 18px 18px;}
+.gfs-muted{color:#6b7280;}
+.gfs-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 8px 12px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.14);
+  color:#fff;
+  font-weight:600;
+}
+.gfs-chip-dark{
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(15,23,42,.04);
+  color:#0f172a;
+  font-weight:600;
+  font-size:.85rem;
+}
+.gfs-star{color:#fbbf24;}
+.gfs-kpi{display:flex; align-items:end; gap:10px; flex-wrap:wrap;}
+.gfs-kpi .score{font-size: 40px; font-weight: 900; line-height: 1;}
+.gfs-kpi .outof{opacity:.9; font-weight:700;}
+.gfs-progress{
+  height: 10px; border-radius: 999px; background: rgba(15,23,42,.08);
+  overflow:hidden;
+}
+.gfs-progress > div{
+  height:100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.gfs-filter{display:flex; gap:8px; flex-wrap:wrap;}
+.gfs-filter button{
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.08);
+  padding: 7px 12px;
+  background: #fff;
+  font-weight:700;
+  font-size:.9rem;
+}
+.gfs-filter button.active{
+  background:#0c1844;
+  color:#fff;
+  border-color:#0c1844;
+}
+.gfs-list{
+  max-height: 520px;
+  overflow:auto;
+  padding-right: 6px;
+}
+.gfs-list::-webkit-scrollbar{width:8px;}
+.gfs-list::-webkit-scrollbar-thumb{background: rgba(0,0,0,.12); border-radius:999px;}
+.gfs-item{
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 16px;
+  padding: 14px 14px;
+  transition: transform .12s ease, box-shadow .12s ease;
+  background:#fff;
+}
+.gfs-item:hover{transform: translateY(-1px); box-shadow: 0 12px 26px rgba(0,0,0,.08);}
+.gfs-item.mine{
+  border-color: rgba(31,59,182,.22);
+  background: linear-gradient(180deg, rgba(31,59,182,.06), rgba(255,255,255,1));
+}
+.gfs-top{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+.gfs-name{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.gfs-avatar{
+  width: 34px; height:34px; border-radius: 999px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900; color:#fff;
+  background: linear-gradient(135deg, #0c1844, #1f3bb6);
+  box-shadow: 0 8px 18px rgba(12,24,68,.18);
+  flex: 0 0 auto;
+}
+.gfs-meta{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.gfs-type{font-size:.9rem; color:#475569; font-weight:700;}
+.gfs-comment{margin-top:6px; color:#0f172a; white-space:normal; word-break:break-word;}
+.gfs-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:10px;}
+.gfs-actions .btn{border-radius: 10px;}
+.gfs-reply{
+  margin-top: 10px;
+  border-left: 4px solid rgba(31,59,182,.25);
+  padding-left: 12px;
+  background: rgba(31,59,182,.05);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.gfs-reply .title{font-weight:800; color:#0c1844;}
+.gfs-textarea{
+  width:100%;
+  border: 1px solid rgba(0,0,0,.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline:none;
+  resize: vertical;
+}
+.gfs-hint{font-size:.85rem; color:#64748b;}
+.gfs-control{
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 12px;
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+}
+`;
+
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
+}
+
+function initials(name) {
+  const s = (name || "").trim();
+  if (!s) return "U";
+  const parts = s.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] || "U";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
+function renderSolidStars(rating = 0) {
+  const r = clamp(Number(rating) || 0, 0, 5);
+  return (
+    <span style={{ letterSpacing: 1 }}>
+      {"★".repeat(r)}
+      {"☆".repeat(5 - r)}
+    </span>
+  );
+}
+
+function getFeedbackDateObj(fb) {
+  const raw =
+    fb?.feedbackDate ||
+    fb?.createdAt ||
+    fb?.createdDate ||
+    fb?.date ||
+    fb?.submittedAt ||
+    null;
+
+  if (!raw) return null;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDDMMYYYY(d) {
+  if (!d) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function getFbMemberPackageId(fb) {
+  const raw =
+    fb?.memberPackageId ??
+    fb?.memberPackageID ??
+    fb?.member_package_id ??
+    fb?.member_packageId ??
+    null;
+
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export default function GymFeedbackSection() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [user, setUser] = useState(null);
 
-  const [form, setForm] = useState({
-    rating: 5,
-    feedbackType: "", // code: GymRoom, Equipment, ...
-    customFeedbackType: "", // text khi chọn Khác
-    comments: "",
-  });
+  const [availability, setAvailability] = useState(null);
+  const [myPackageIds, setMyPackageIds] = useState([]);
 
-  // dropdown loại feedback
-  const [openTypeMenu, setOpenTypeMenu] = useState(false);
+  // ✅ filter thời gian: all | 7d | 30d | mine
+  const [filter, setFilter] = useState("all");
 
-  // ==== STATE CHO STAFF REPLY ====
+  // ✅ NEW: lọc theo số sao (0 = tất cả)
+  const [starFilter, setStarFilter] = useState(0);
+
+  // ✅ NEW: sort theo thời gian
+  // newest | oldest
+  const [sortOrder, setSortOrder] = useState("newest");
+
+  // STAFF REPLY
   const [editingFeedbackId, setEditingFeedbackId] = useState(null);
   const [replyDraft, setReplyDraft] = useState("");
   const [savingReplyId, setSavingReplyId] = useState(null);
 
-  // ==== STATE CHO MEMBER EDIT FEEDBACK CỦA CHÍNH MÌNH ====
+  // MEMBER EDIT
   const [editingMyFeedbackId, setEditingMyFeedbackId] = useState(null);
   const [myEdit, setMyEdit] = useState({ rating: 5, comments: "" });
   const [savingMyFeedbackId, setSavingMyFeedbackId] = useState(null);
 
-  // Lấy user từ localStorage (để biết role + tên hiển thị)
   useEffect(() => {
     const stored = localStorage.getItem("user");
     setUser(stored ? JSON.parse(stored) : null);
   }, []);
 
-  const isMember = user && user.roleName === "Member";
-  const isStaffRole =
-    user && ["Staff", "Manager", "Admin"].includes(user.roleName);
+  const isMember = user?.roleName === "Member";
+  const isStaffRole = ["Staff", "Manager", "Admin"].includes(user?.roleName);
 
-  // memberName hiển thị giống Navbar
-  const memberDisplayName =
-    user && user.lastName && user.firstName
-      ? `${user.lastName} ${user.firstName}`
-      : null;
+  /** ================= API ================= */
 
-  // ===== GET /guest/feedback/gym =====
   const fetchFeedbacks = async () => {
     try {
       setLoadingList(true);
       setError("");
       const res = await api.get("/guest/feedback/gym");
-      const data = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
-      setFeedbacks(data);
+      const list = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
+      setFeedbacks(list);
     } catch (err) {
-      console.error("Error fetching feedback:", err);
+      console.error(err);
       setError("Không tải được danh sách phản hồi.");
       setFeedbacks([]);
     } finally {
@@ -74,455 +252,527 @@ export default function GymFeedbackSection() {
     }
   };
 
+  const fetchAvailability = async () => {
+    if (!isMember) return setAvailability(null);
+    try {
+      const res = await api.get("/member/feedback/gym/availability");
+      setAvailability(res?.data ?? null);
+    } catch (err) {
+      console.error(err);
+      setAvailability(null);
+    }
+  };
+
+  const fetchMyPackages = async () => {
+    if (!isMember) return setMyPackageIds([]);
+    try {
+      // ưu tiên list
+      const res = await api.get("/MemberPackage/my-packages");
+      const data = res?.data;
+      const list = Array.isArray(data) ? data : data?.items && Array.isArray(data.items) ? data.items : [];
+
+      const ids = list
+        .map((p) => Number(p?.id ?? p?.memberPackageId ?? p?.memberPackageID ?? 0))
+        .filter((x) => Number.isFinite(x) && x > 0);
+
+      if (ids.length > 0) {
+        setMyPackageIds(Array.from(new Set(ids)));
+        return;
+      }
+
+      // fallback 1 gói
+      const res2 = await api.get("/MemberPackage/my-package");
+      const data2 = res2?.data;
+      const arr2 = Array.isArray(data2) ? data2 : data2 ? [data2] : [];
+      const ids2 = arr2
+        .map((p) => Number(p?.id ?? p?.memberPackageId ?? p?.memberPackageID ?? 0))
+        .filter((x) => Number.isFinite(x) && x > 0);
+
+      setMyPackageIds(Array.from(new Set(ids2)));
+    } catch (err) {
+      console.error(err);
+      setMyPackageIds([]);
+    }
+  };
+
   useEffect(() => {
     fetchFeedbacks();
   }, []);
 
-  const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  useEffect(() => {
+    fetchAvailability();
+    fetchMyPackages();
+    // eslint-disable-next-line
+  }, [isMember]);
 
-  // ===== POST /member/feedback/gym =====
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  /** ================= DERIVED ================= */
 
-    if (!isMember) {
-      message.warning(
-        "Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi."
-      );
-      return;
-    }
+  const latest = availability?.latest ?? null;
+  const latestFeedbackId = latest?.feedbackId ?? null;
+  const latestStatus = latest?.status ?? null;
 
-    if (!form.rating || !form.comments.trim()) {
-      message.warning("Vui lòng nhập nội dung và chọn số sao.");
-      return;
-    }
+  const canEditLatest =
+    isMember &&
+    latestFeedbackId &&
+    String(latestStatus || "").toLowerCase() !== "responded";
 
-    // Xử lý loại phản hồi gửi lên API
-    const finalType =
-      form.feedbackType === "Other"
-        ? form.customFeedbackType.trim() || "Other"
-        : form.feedbackType || "General";
+  const isMyLatestFeedback = (fb) =>
+    Number(fb?.id ?? fb?.feedbackId ?? 0) === Number(latestFeedbackId);
 
-    try {
-      setSubmitLoading(true);
-      await api.post("/member/feedback/gym", {
-        rating: Number(form.rating),
-        feedbackType: finalType,
-        comments: form.comments.trim(),
-      });
-
-      message.success("Cảm ơn bạn đã gửi phản hồi!");
-
-      setForm({
-        rating: 5,
-        feedbackType: "",
-        customFeedbackType: "",
-        comments: "",
-      });
-      setOpenTypeMenu(false);
-
-      // reload list để thấy feedback mới
-      fetchFeedbacks();
-    } catch (err) {
-      console.error("Error submitting feedback:", err);
-      const msg =
-        err?.response?.data?.title ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Gửi phản hồi thất bại.";
-      message.error(msg);
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  // ===== TÍNH ĐIỂM TRUNG BÌNH =====
-  const { avgRating, total } = useMemo(() => {
-    if (!feedbacks.length) return { avgRating: 0, total: 0 };
-    const sum = feedbacks.reduce(
-      (acc, fb) => acc + Number(fb.rating || 0),
-      0
-    );
-    return {
-      avgRating: sum / feedbacks.length,
-      total: feedbacks.length,
-    };
-  }, [feedbacks]);
-
-  // Render sao cho trung bình (có thể có .5)
-  const renderAvgStars = (rating) => {
-    if (!rating) return null;
-    const full = Math.floor(rating);
-    const hasHalf = rating - full >= 0.5;
-    const empty = 5 - full - (hasHalf ? 1 : 0);
-
-    const stars = [];
-    for (let i = 0; i < full; i += 1) {
-      stars.push(
-        <i key={`full-${i}`} className="fas fa-star text-warning me-1"></i>
-      );
-    }
-    if (hasHalf) {
-      stars.push(
-        <i
-          key="half"
-          className="fas fa-star-half-alt text-warning me-1"
-        ></i>
-      );
-    }
-    for (let i = 0; i < empty; i += 1) {
-      stars.push(
-        <i key={`empty-${i}`} className="far fa-star text-warning me-1"></i>
-      );
-    }
-    return stars;
-  };
-
-  // Render sao đầy / rỗng cho từng feedback (nguyên số)
-  const renderSolidStars = (rating = 0) => {
-    const r = Number(rating) || 0;
-    return (
-      <>
-        {"★".repeat(r)}
-        {"☆".repeat(5 - r)}
-      </>
-    );
-  };
-
-  const ratingLabel = {
-    5: "Rất hài lòng",
-    4: "Hài lòng",
-    3: "Bình thường",
-    2: "Chưa hài lòng",
-    1: "Rất tệ",
-  };
-
-  // Lấy nhãn hiển thị cho feedbackType trong list
-  const getTypeLabel = (typeRaw) => {
-    if (!typeRaw) return "Khác";
-    if (FEEDBACK_TYPE_LABELS[typeRaw]) {
-      return FEEDBACK_TYPE_LABELS[typeRaw];
-    }
-    // custom text (khi gửi Other + input)
-    return typeRaw;
-  };
-
-  // Hiển thị text trên nút "select"
-  const getSelectedTypeText = () => {
-    if (form.feedbackType === "Other") {
-      if (form.customFeedbackType.trim()) {
-        return form.customFeedbackType;
-      }
-      return "Khác";
-    }
-    if (!form.feedbackType) return "-- Chọn loại --";
-    return FEEDBACK_TYPE_LABELS[form.feedbackType] || form.feedbackType;
-  };
-
-  // ==== LẤY REPLY TỪ FEEDBACK (tùy backend đặt tên field) ====
-  const getReplyText = (fb) => {
-    return (
-      fb?.staffResponse ||
-      fb?.responseText ||
-      fb?.replyText ||
-      fb?.reply ||
-      ""
-    );
-  };
-
-  // Xác định feedback có phải của chính member đang login không
   const isMyFeedback = (fb) => {
-    if (!isMember || !memberDisplayName) return false;
-    if (!fb.memberName) return false;
-    return fb.memberName === memberDisplayName;
+    if (!isMember) return false;
+
+    const fid = Number(fb?.id ?? fb?.feedbackId ?? 0);
+    if (latestFeedbackId && fid === Number(latestFeedbackId)) return true;
+
+    const mpId = getFbMemberPackageId(fb);
+    if (!mpId) return false;
+
+    return myPackageIds.includes(mpId);
   };
 
-  // Khi staff bấm "Thêm phản hồi" hoặc "Chỉnh sửa" reply
+  const getDisplayName = (fb) => (isMyFeedback(fb) ? "Tôi" : fb.memberName || "Hội viên ẩn danh");
+  const getTypeLabel = (type) => FEEDBACK_TYPE_LABELS[type] || type || "Khác";
+  const getReplyText = (fb) => fb.staffResponse || fb.responseText || fb.replyText || "";
+
+  const canShowEditButton = (fb) => canEditLatest && isMyLatestFeedback(fb) && isMyFeedback(fb);
+
+  // ✅ sort theo newest/oldest ngay từ đầu
+  const sortedFeedbacks = useMemo(() => {
+    const list = [...feedbacks];
+    list.sort((a, b) => {
+      const da = getFeedbackDateObj(a)?.getTime() ?? 0;
+      const db = getFeedbackDateObj(b)?.getTime() ?? 0;
+      return sortOrder === "oldest" ? da - db : db - da;
+    });
+    return list;
+  }, [feedbacks, sortOrder]);
+
+  const avgData = useMemo(() => {
+    if (!sortedFeedbacks.length) return { avg: 0, total: 0, buckets: [0, 0, 0, 0, 0] };
+    const buckets = [0, 0, 0, 0, 0];
+    let sum = 0;
+    sortedFeedbacks.forEach((fb) => {
+      const r = clamp(Number(fb.rating || 0), 0, 5);
+      sum += r;
+      if (r >= 1 && r <= 5) buckets[r - 1] += 1;
+    });
+    return { avg: sum / sortedFeedbacks.length, total: sortedFeedbacks.length, buckets };
+  }, [sortedFeedbacks]);
+
+  const filteredFeedbacks = useMemo(() => {
+    const now = Date.now();
+    let list = [...sortedFeedbacks];
+
+    // ✅ lọc thời gian/mine
+    if (filter === "mine") {
+      list = list.filter((fb) => isMyFeedback(fb));
+    } else if (filter === "7d" || filter === "30d") {
+      const days = filter === "7d" ? 7 : 30;
+      const minTime = now - days * 24 * 60 * 60 * 1000;
+      list = list.filter((fb) => {
+        const t = getFeedbackDateObj(fb)?.getTime();
+        if (!t) return false;
+        return t >= minTime;
+      });
+    }
+
+    // ✅ NEW: lọc theo số sao
+    if (Number(starFilter) >= 1 && Number(starFilter) <= 5) {
+      list = list.filter((fb) => clamp(Number(fb.rating || 0), 0, 5) === Number(starFilter));
+    }
+
+    return list;
+    // eslint-disable-next-line
+  }, [sortedFeedbacks, filter, latestFeedbackId, myPackageIds, isMember, starFilter]);
+
+  /** ================= STAFF REPLY ================= */
+
   const handleStartEditReply = (fb) => {
     const id = fb.id || fb.feedbackId;
-    if (!id) {
-      message.error("Không xác định được ID phản hồi.");
-      return;
-    }
     setEditingFeedbackId(id);
-    setReplyDraft(getReplyText(fb) || "");
+    setReplyDraft(getReplyText(fb));
   };
 
-  // Lưu reply (POST hoặc PUT) /staff/feedback/gym/{feedbackId}/reply
   const handleSaveReply = async (fb) => {
-    const feedbackId = fb.id || fb.feedbackId;
-    if (!feedbackId) {
-      message.error("Không xác định được ID phản hồi.");
-      return;
-    }
-
-    const text = replyDraft.trim();
-    if (!text) {
+    const id = fb.id || fb.feedbackId;
+    if (!replyDraft.trim()) {
       message.warning("Vui lòng nhập nội dung phản hồi.");
       return;
     }
 
-    const existingReply = getReplyText(fb);
-    const method = existingReply ? "put" : "post";
-    const url = `/staff/feedback/gym/${feedbackId}/reply`;
-
     try {
-      setSavingReplyId(feedbackId);
-      await api[method](url, { responseText: text });
-      message.success(
-        existingReply
-          ? "Cập nhật phản hồi thành công."
-          : "Đã gửi phản hồi đến hội viên."
-      );
+      setSavingReplyId(id);
+      const hasReply = Boolean(getReplyText(fb));
+      await api[hasReply ? "put" : "post"](`/staff/feedback/gym/${id}/reply`, {
+        responseText: replyDraft.trim(),
+      });
+      message.success("Lưu phản hồi thành công.");
       setEditingFeedbackId(null);
       setReplyDraft("");
-      fetchFeedbacks(); // reload để thấy reply mới/đã cập nhật
+      fetchFeedbacks();
+      fetchAvailability();
     } catch (err) {
-      console.error("Error saving reply:", err);
-      const msg =
-        err?.response?.data?.title ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Lưu phản hồi thất bại.";
-      message.error(msg);
+      console.error(err);
+      message.error("Lưu phản hồi thất bại.");
     } finally {
       setSavingReplyId(null);
     }
   };
 
-  // ==== MEMBER: BẮT ĐẦU CHỈNH SỬA FEEDBACK CỦA MÌNH ====
+  /** ================= MEMBER EDIT ================= */
+
   const handleStartEditMyFeedback = (fb) => {
+    if (!canShowEditButton(fb)) return;
     const id = fb.id || fb.feedbackId;
-    if (!id) {
-      message.error("Không xác định được ID phản hồi.");
-      return;
-    }
     setEditingMyFeedbackId(id);
-    setMyEdit({
-      rating: Number(fb.rating) || 5,
-      comments: fb.comments || "",
-    });
+    setMyEdit({ rating: Number(fb.rating) || 5, comments: fb.comments || "" });
   };
 
-  // Lưu feedback đã chỉnh sửa (member) – PUT /member/feedback/gym/{feedbackId}
   const handleSaveMyFeedback = async (fb) => {
-    const feedbackId = fb.id || fb.feedbackId;
-    if (!feedbackId) {
-      message.error("Không xác định được ID phản hồi.");
+    const id = fb.id || fb.feedbackId;
+    if (!canShowEditButton(fb)) return;
+
+    if (!myEdit.comments.trim()) {
+      message.warning("Vui lòng nhập nội dung.");
       return;
     }
 
-    const text = myEdit.comments.trim();
-    if (!myEdit.rating || !text) {
-      message.warning("Vui lòng nhập nội dung và chọn số sao.");
+    const memberPackageId = getFbMemberPackageId(fb);
+    if (!memberPackageId) {
+      message.error("Feedback này không có memberPackageId nên không thể cập nhật.");
       return;
     }
-
-    const url = `/member/feedback/gym/${feedbackId}`;
 
     try {
-      setSavingMyFeedbackId(feedbackId);
-      await api.put(url, {
+      setSavingMyFeedbackId(id);
+      await api.put(`/member/feedback/gym/${id}`, {
+        memberPackageId: Number(memberPackageId),
         rating: Number(myEdit.rating),
-        feedbackType: fb.feedbackType || "General", // giữ nguyên loại cũ
-        comments: text,
+        feedbackType: fb.feedbackType || "General",
+        comments: myEdit.comments.trim(),
       });
-      message.success("Cập nhật đánh giá của bạn thành công.");
+
+      message.success("Cập nhật đánh giá thành công.");
+
       setEditingMyFeedbackId(null);
       setMyEdit({ rating: 5, comments: "" });
+
       fetchFeedbacks();
+      fetchAvailability();
+      fetchMyPackages();
     } catch (err) {
-      console.error("Error updating my feedback:", err);
+      console.error(err);
       const msg =
-        err?.response?.data?.title ||
         err?.response?.data?.message ||
+        err?.response?.data?.title ||
         err?.message ||
-        "Cập nhật phản hồi thất bại.";
+        "Cập nhật thất bại.";
       message.error(msg);
     } finally {
       setSavingMyFeedbackId(null);
     }
   };
 
-  return (
-    <section id="feedback-section" className="py-5 bg-light">
-      <div className="container py-4">
-        {/* Title + average rating lớn phía trên */}
-        <div className="text-center mb-4">
-          <h4 className="text-primary">Phản hồi khách hàng</h4>
-          <h1 className="display-6 mb-2">Trải nghiệm tại phòng gym</h1>
-          <p className="text-muted mb-3">
-            Lắng nghe chia sẻ từ hội viên và cùng chúng tôi cải thiện dịch vụ
-            tốt hơn.
-          </p>
+  /** ================= UI HELPERS ================= */
 
-          {total > 0 && (
-            <div className="d-flex justify-content-center align-items-center">
-              <div>{renderAvgStars(avgRating)}</div>
-              <span className="ms-2 fw-semibold">
-                {avgRating.toFixed(1)}/5
-              </span>
-              <span className="text-muted small ms-2">
-                ({total} đánh giá)
-              </span>
+  const StarRow = ({ value, editable, onChange }) => {
+    const v = clamp(Number(value || 0), 0, 5);
+    return (
+      <div className="d-flex align-items-center">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <span
+            key={s}
+            onClick={() => editable && onChange?.(s)}
+            title={`${s} sao`}
+            style={{
+              cursor: editable ? "pointer" : "default",
+              fontSize: "1.25rem",
+              lineHeight: 1,
+              marginRight: 3,
+              color: s <= v ? "#fbbf24" : "#e5e7eb",
+              userSelect: "none",
+            }}
+          >
+            ★
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const bucketPct = (i) => {
+    const count = avgData.buckets[i] || 0;
+    if (!avgData.total) return 0;
+    return (count / avgData.total) * 100;
+  };
+
+  return (
+    <section className="py-5 bg-light gfs-wrap">
+      <style>{STYLES}</style>
+
+      <div className="container">
+        {/* Header */}
+        <div className="gfs-header mb-4">
+          <div className="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+              <h3>Phản hồi khách hàng</h3>
+              <div className="gfs-sub">Tổng hợp đánh giá từ hội viên để cải thiện trải nghiệm phòng gym.</div>
             </div>
-          )}
+
+            <div className="d-flex flex-wrap gap-2 align-items-center">
+              <span className="gfs-chip">
+                <span className="gfs-star">★</span>
+                <span>{avgData.total ? avgData.avg.toFixed(1) : "—"}/5</span>
+              </span>
+              <span className="gfs-chip">
+                <span>📝</span>
+                <span>{avgData.total} đánh giá</span>
+              </span>
+              {isMember && (
+                <span className="gfs-chip" title={`My packages: ${myPackageIds.length}`}>
+                  <span>👤</span>
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="row g-4">
-          {/* Cột trái: danh sách feedback */}
-          <div className="col-12 col-lg-7">
-            <div className="card shadow-sm h-100">
+          {/* LEFT */}
+          <div className="col-12 col-lg-4">
+            <div className="gfs-card mb-3">
               <div className="card-body">
-                {/* Header trái: tiêu đề + rating summary ngang hàng */}
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h5 className="mb-0">Phản hồi gần đây</h5>
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <div className="text-uppercase gfs-muted" style={{ fontSize: ".8rem", fontWeight: 800 }}>
+                      Điểm trung bình
+                    </div>
+                    <div className="gfs-kpi mt-1">
+                      <div className="score">{avgData.total ? avgData.avg.toFixed(1) : "0.0"}</div>
+                      <div className="outof">/ 5.0</div>
+                    </div>
+                    <div className="mt-2 text-warning">{renderSolidStars(Math.round(avgData.avg || 0))}</div>
+                    <div className="gfs-hint mt-1">Dựa trên {avgData.total} đánh giá gần đây</div>
+                  </div>
 
-                  <div className="d-flex align-items-center">
-                    <span
-                      className="text-warning me-1"
-                      style={{ fontSize: "1.2rem" }}
-                    >
-                      {"★".repeat(Math.round(avgRating || 0))}
-                      {"☆".repeat(5 - Math.round(avgRating || 0))}
+                  {isMember && (
+                    <span className="gfs-chip-dark" title="Bạn">
+                      <span style={{ fontWeight: 900 }}>Bạn</span>
                     </span>
+                  )}
+                </div>
 
-                    <span className="ms-2 fw-semibold">
-                      {total ? avgRating.toFixed(1) : "—"}/5
-                    </span>
+                <hr className="my-3" />
 
-                    <span className="text-muted small ms-2">
-                      ({total} đánh giá)
-                    </span>
+                <div className="d-flex flex-column gap-2">
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const idx = star - 1;
+                    const pct = bucketPct(idx);
+                    return (
+                      <div key={star} className="d-flex align-items-center gap-2">
+                        <div style={{ width: 52, fontWeight: 800, color: "#0f172a" }}>{star}★</div>
+                        <div className="gfs-progress flex-grow-1">
+                          <div style={{ width: `${pct}%` }} />
+                        </div>
+                        <div style={{ width: 52, textAlign: "right" }} className="gfs-muted">
+                          {Math.round(pct)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* FILTER CARD */}
+            <div className="gfs-card">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div style={{ fontWeight: 900, color: "#0f172a" }}>Bộ lọc</div>
+                  <div className="gfs-hint">{filteredFeedbacks.length} kết quả</div>
+                </div>
+
+                {/* ✅ SORT (newest/oldest) */}
+                <div className="mb-3">
+                  <div className="gfs-hint mb-1" style={{ fontWeight: 800 }}>
+                    Sắp xếp theo thời gian
+                  </div>
+                  <select
+                    className="gfs-control"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    style={{ background: "#ffffffff" }}
+                  >
+                    <option value="newest">Gần nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                  </select>
+                </div>
+
+                {/* ✅ FILTER THEO THỜI GIAN */}
+                <div className="mb-3">
+                  <div className="gfs-hint mb-1" style={{ fontWeight: 800 }}>
+                    Thời gian
+                  </div>
+                  <div className="gfs-filter">
+                    <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>
+                      Tất cả
+                    </button>
+                    <button type="button" className={filter === "7d" ? "active" : ""} onClick={() => setFilter("7d")}>
+                      7 ngày
+                    </button>
+                    <button type="button" className={filter === "30d" ? "active" : ""} onClick={() => setFilter("30d")}>
+                      30 ngày
+                    </button>
                   </div>
                 </div>
 
-                {loadingList && (
-                  <div className="alert alert-info mb-0">
-                    Đang tải phản hồi...
+                {/* ✅ NEW: FILTER THEO SỐ SAO */}
+                <div className="mb-2">
+                  <div className="gfs-hint mb-1" style={{ fontWeight: 800 }}>
+                    Số sao
                   </div>
-                )}
-
-                {error && !loadingList && (
-                  <div className="alert alert-danger mb-0">{error}</div>
-                )}
-
-                {!loadingList && !error && feedbacks.length === 0 && (
-                  <div className="alert alert-light border mb-0">
-                    Chưa có phản hồi nào. Hãy là người đầu tiên chia sẻ cảm
-                    nhận của bạn!
-                  </div>
-                )}
-
-                {!loadingList &&
-                  !error &&
-                  feedbacks.map((fb) => {
-                    const id = fb.id || fb.feedbackId || Math.random();
-                    const replyText = getReplyText(fb);
-                    const mine = isMyFeedback(fb);
-
-                    return (
-                      <div
-                        key={id}
-                        className="border-bottom pb-3 mb-3"
+                  <div className="gfs-filter">
+                    <button
+                      type="button"
+                      className={starFilter === 0 ? "active" : ""}
+                      onClick={() => setStarFilter(0)}
+                      title="Tất cả số sao"
+                    >
+                      Tất cả
+                    </button>
+                    {[5, 4, 3, 2, 1].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className={starFilter === s ? "active" : ""}
+                        onClick={() => setStarFilter(s)}
+                        title={`${s} sao`}
                       >
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                          <strong>
-                            {mine
-                              ? "Me"
-                              : fb.memberName || "Hội viên ẩn danh"}
-                          </strong>
+                        {s}★
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                          {/* Nếu là feedback của mình và đang edit → hiển thị sao editable */}
-                          {mine && editingMyFeedbackId === (fb.id || fb.feedbackId) ? (
-                            <div className="d-flex align-items-center">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  onClick={() =>
-                                    setMyEdit((prev) => ({
-                                      ...prev,
-                                      rating: star,
-                                    }))
-                                  }
-                                  style={{
-                                    cursor: "pointer",
-                                    fontSize: "1.3rem",
-                                    color:
-                                      star <= myEdit.rating
-                                        ? "#ffc107"
-                                        : "#e4e5e9",
-                                    marginRight: 2,
+                {isMember && latestFeedbackId && (
+                  <div className="gfs-hint mt-2">
+                    {canEditLatest ? "Bạn có thể chỉnh sửa đánh giá gần nhất." : "Đánh giá gần nhất không thể chỉnh sửa."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div className="col-12 col-lg-8">
+            <div className="gfs-card">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div style={{ fontWeight: 900, color: "#0f172a", fontSize: "1.05rem" }}>Phản hồi gần đây</div>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => {
+                      fetchFeedbacks();
+                      fetchAvailability();
+                      fetchMyPackages();
+                    }}
+                    disabled={loadingList}
+                    style={{ borderRadius: 10 }}
+                  >
+                    {loadingList ? "Đang tải..." : "Tải lại"}
+                  </button>
+                </div>
+
+                {loadingList && <div className="alert alert-info mb-0">Đang tải phản hồi...</div>}
+                {error && !loadingList && <div className="alert alert-danger mb-0">{error}</div>}
+
+                {!loadingList && !error && filteredFeedbacks.length === 0 && (
+                  <div className="alert alert-light border mb-0">Không có phản hồi phù hợp với bộ lọc hiện tại.</div>
+                )}
+
+                {!loadingList && !error && filteredFeedbacks.length > 0 && (
+                  <div className="gfs-list">
+                    {filteredFeedbacks.map((fb) => {
+                      const id = fb.id || fb.feedbackId;
+                      const replyText = getReplyText(fb);
+
+                      const mineAny = isMyFeedback(fb);
+                      const canShowEdit = canShowEditButton(fb);
+                      const isEditingMine = editingMyFeedbackId === id;
+
+                      const d = getFeedbackDateObj(fb);
+
+                      return (
+                        <div key={id} className={`gfs-item mb-3 ${mineAny ? "mine" : ""}`}>
+                          <div className="gfs-top">
+                            <div className="gfs-name">
+                              <div className="gfs-avatar">{initials(getDisplayName(fb))}</div>
+                              <div>
+                                <div className="d-flex flex-wrap align-items-center gap-2">
+                                  <div style={{ fontWeight: 900, color: "#0f172a" }}>{getDisplayName(fb)}</div>
+                                </div>
+
+                                <div className="gfs-meta mt-1">
+                                  <span className="gfs-type">{getTypeLabel(fb.feedbackType)}</span>
+                                  {d && <span className="gfs-hint">• {formatDDMMYYYY(d)}</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {canShowEdit && isEditingMine ? (
+                              <StarRow
+                                value={myEdit.rating}
+                                editable
+                                onChange={(v) => setMyEdit((p) => ({ ...p, rating: v }))}
+                              />
+                            ) : (
+                              <div className="text-warning small" style={{ fontWeight: 800 }}>
+                                {renderSolidStars(Number(fb.rating) || 0)}
+                              </div>
+                            )}
+                          </div>
+
+                          {canShowEdit && isEditingMine ? (
+                            <div className="mt-2">
+                              <textarea
+                                className="gfs-textarea"
+                                rows={3}
+                                value={myEdit.comments}
+                                onChange={(e) => setMyEdit((p) => ({ ...p, comments: e.target.value }))}
+                                placeholder="Cập nhật nội dung đánh giá..."
+                                style={{ background: "#ffffffff" }}
+                              />
+                              <div className="gfs-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-light btn-sm"
+                                  onClick={() => {
+                                    setEditingMyFeedbackId(null);
+                                    setMyEdit({ rating: 5, comments: "" });
                                   }}
                                 >
-                                  ★
-                                </span>
-                              ))}
+                                  Hủy
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm"
+                                  disabled={savingMyFeedbackId === id}
+                                  onClick={() => handleSaveMyFeedback(fb)}
+                                >
+                                  {savingMyFeedbackId === id ? "Đang lưu..." : "Lưu"}
+                                </button>
+                              </div>
+                              <div className="gfs-hint">Chỉ có thể sửa khi phòng gym chưa phản hồi.</div>
                             </div>
                           ) : (
-                            <span className="text-warning small">
-                              {renderSolidStars(fb.rating)}
-                            </span>
+                            <div className="gfs-comment">{fb.comments || "Không có nội dung"}</div>
                           )}
-                        </div>
 
-                        <div className="text-muted small mb-1">
-                          {getTypeLabel(fb.feedbackType)}
-                        </div>
-
-                        {/* Nội dung feedback: nếu là của mình và đang edit → textarea, else text */}
-                        {mine && editingMyFeedbackId === (fb.id || fb.feedbackId) ? (
-                          <div className="small">
-                            <textarea
-                              className="form-control form-control-sm"
-                              rows={3}
-                              value={myEdit.comments}
-                              onChange={(e) =>
-                                setMyEdit((prev) => ({
-                                  ...prev,
-                                  comments: e.target.value,
-                                }))
-                              }
-                            />
-                            <div className="mt-2 d-flex justify-content-end">
-                              <button
-                                type="button"
-                                className="btn btn-light btn-sm me-2"
-                                onClick={() => {
-                                  setEditingMyFeedbackId(null);
-                                  setMyEdit({ rating: 5, comments: "" });
-                                }}
-                              >
-                                Hủy
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                disabled={
-                                  savingMyFeedbackId ===
-                                  (fb.id || fb.feedbackId)
-                                }
-                                onClick={() => handleSaveMyFeedback(fb)}
-                              >
-                                {savingMyFeedbackId ===
-                                (fb.id || fb.feedbackId)
-                                  ? "Đang lưu..."
-                                  : "Lưu"}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="small">
-                            {fb.comments || "Không có nội dung"}
-                          </div>
-                        )}
-
-                        {/* Nếu là feedback của mình và không trong trạng thái edit → nút chỉnh sửa */}
-                        {mine &&
-                          editingMyFeedbackId !==
-                            (fb.id || fb.feedbackId) && (
-                            <div className="mt-1">
+                          {canShowEdit && !isEditingMine && (
+                            <div className="mt-2">
                               <button
                                 type="button"
                                 className="btn btn-link btn-sm px-0"
@@ -533,243 +783,69 @@ export default function GymFeedbackSection() {
                             </div>
                           )}
 
-                        {/* ==== STAFF REPLY SECTION ==== */}
-                        {(replyText || isStaffRole) && (
-                          <div className="mt-2 ps-3 border-start small">
-                            {/* Hiển thị reply (nếu có) */}
-                            {replyText && (
-                              <div className="mb-1">
-                                <span className="fw-semibold">
-                                  Phản hồi từ phòng gym:
-                                </span>
-                                <div>{replyText}</div>
-                              </div>
-                            )}
+                          {(replyText || isStaffRole) && (
+                            <div className="gfs-reply">
+                              {replyText && (
+                                <div className="mb-1">
+                                  <div className="title">Phản hồi từ phòng gym</div>
+                                  <div style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{replyText}</div>
+                                </div>
+                              )}
 
-                            {/* Nếu là staff role: cho phép thêm / sửa reply */}
-                            {isStaffRole && (
-                              <>
-                                {editingFeedbackId !==
-                                  (fb.id || fb.feedbackId) && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-link btn-sm px-0"
-                                    onClick={() => handleStartEditReply(fb)}
-                                  >
-                                    {replyText
-                                      ? "Chỉnh sửa phản hồi"
-                                      : "Phản hồi"}
-                                  </button>
-                                )}
+                              {isStaffRole && editingFeedbackId !== id && (
+                                <button
+                                  type="button"
+                                  className="btn btn-link btn-sm px-0"
+                                  onClick={() => handleStartEditReply(fb)}
+                                >
+                                  {replyText ? "Chỉnh sửa phản hồi" : "Phản hồi"}
+                                </button>
+                              )}
 
-                                {editingFeedbackId ===
-                                  (fb.id || fb.feedbackId) && (
-                                  <div className="mt-2">
-                                    <textarea
-                                      className="form-control"
-                                      rows={3}
-                                      value={replyDraft}
-                                      onChange={(e) =>
-                                        setReplyDraft(e.target.value)
-                                      }
-                                      placeholder="Nhập phản hồi gửi đến hội viên..."
-                                    />
-                                    <div className="mt-2 d-flex justify-content-end">
-                                      <button
-                                        type="button"
-                                        className="btn btn-light btn-sm me-2"
-                                        onClick={() => {
-                                          setEditingFeedbackId(null);
-                                          setReplyDraft("");
-                                        }}
-                                      >
-                                        Hủy
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-primary btn-sm"
-                                        disabled={
-                                          savingReplyId ===
-                                          (fb.id || fb.feedbackId)
-                                        }
-                                        onClick={() => handleSaveReply(fb)}
-                                      >
-                                        {savingReplyId ===
-                                        (fb.id || fb.feedbackId)
-                                          ? "Đang lưu..."
-                                          : "Gửi"}
-                                      </button>
-                                    </div>
+                              {isStaffRole && editingFeedbackId === id && (
+                                <div className="mt-2">
+                                  <textarea
+                                    className="gfs-textarea"
+                                    rows={3}
+                                    value={replyDraft}
+                                    onChange={(e) => setReplyDraft(e.target.value)}
+                                    placeholder="Nhập phản hồi gửi đến hội viên..."
+                                    style={{ background: "#ffffffff" }}
+                                  />
+                                  <div className="gfs-actions">
+                                    <button
+                                      type="button"
+                                      className="btn btn-light btn-sm"
+                                      onClick={() => {
+                                        setEditingFeedbackId(null);
+                                        setReplyDraft("");
+                                      }}
+                                    >
+                                      Hủy
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      disabled={savingReplyId === id}
+                                      onClick={() => handleSaveReply(fb)}
+                                    >
+                                      {savingReplyId === id ? "Đang lưu..." : "Gửi"}
+                                    </button>
                                   </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-
-          {/* Cột phải: form gửi feedback */}
-          <div className="col-12 col-lg-5">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <h5 className="mb-3">Gửi phản hồi của bạn</h5>
-
-                {!isMember ? (
-                  <div className="alert alert-warning mb-0">
-                    Vui lòng{" "}
-                    <a href="/login" className="alert-link">
-                      đăng nhập
-                    </a>{" "}
-                    bằng tài khoản hội viên để gửi phản hồi.
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit}>
-                    {/* Rating - chọn sao */}
-                    <div className="mb-3">
-                      <label className="form-label">Đánh giá</label>
-                      <div className="d-flex align-items-center">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            onClick={() =>
-                              handleChange("rating", star)
-                            }
-                            style={{
-                              cursor: "pointer",
-                              fontSize: "1.8rem",
-                              color:
-                                star <= form.rating
-                                  ? "#ffc107"
-                                  : "#e4e5e9",
-                              marginRight: 4,
-                            }}
-                          >
-                            ★
-                          </span>
-                        ))}
-                        <span className="ms-2 small text-muted">
-                          {ratingLabel[form.rating]}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Loại phản hồi - custom dropdown + input "Khác" */}
-                    <div className="mb-3">
-                      <label className="form-label">
-                        Loại phản hồi
-                      </label>
-
-                      <div className="position-relative">
-                        <button
-                          type="button"
-                          className="form-select text-start"
-                          onClick={() =>
-                            setOpenTypeMenu((prev) => !prev)
-                          }
-                        >
-                          {getSelectedTypeText()}
-                        </button>
-
-                        {openTypeMenu && (
-                          <div
-                            className="border rounded bg-white shadow position-absolute w-100 mt-1"
-                            style={{ zIndex: 999 }}
-                          >
-                            {/* Các loại chuẩn */}
-                            {Object.entries(
-                              FEEDBACK_TYPE_LABELS
-                            ).map(
-                              ([key, label]) =>
-                                key !== "Other" && (
-                                  <div
-                                    key={key}
-                                    className="dropdown-item py-2 px-3"
-                                    style={{ cursor: "pointer" }}
-                                    onClick={() => {
-                                      handleChange(
-                                        "feedbackType",
-                                        key
-                                      );
-                                      handleChange(
-                                        "customFeedbackType",
-                                        ""
-                                      );
-                                      setOpenTypeMenu(false);
-                                    }}
-                                  >
-                                    {label}
-                                  </div>
-                                )
-                            )}
-
-                            {/* Khác */}
-                            <div className="dropdown-item py-2 px-3">
-                              <div
-                                style={{ cursor: "pointer" }}
-                                onClick={() =>
-                                  handleChange(
-                                    "feedbackType",
-                                    "Other"
-                                  )
-                                }
-                              >
-                                Khác
-                              </div>
-
-                              {form.feedbackType === "Other" && (
-                                <input
-                                  type="text"
-                                  className="form-control mt-2"
-                                  placeholder="Nhập loại phản hồi..."
-                                  value={
-                                    form.customFeedbackType || ""
-                                  }
-                                  onChange={(e) =>
-                                    handleChange(
-                                      "customFeedbackType",
-                                      e.target.value
-                                    )
-                                  }
-                                  autoFocus
-                                />
+                                </div>
                               )}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Comments */}
-                    <div className="mb-3">
-                      <label className="form-label">
-                        Nội dung chi tiết
-                      </label>
-                      <textarea
-                        className="form-control"
-                        rows={4}
-                        value={form.comments}
-                        onChange={(e) =>
-                          handleChange("comments", e.target.value)
-                        }
-                        placeholder="Chia sẻ trải nghiệm của bạn tại phòng gym..."
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="btn btn-primary w-100"
-                      disabled={submitLoading}
-                    >
-                      {submitLoading ? "Đang gửi..." : "Gửi phản hồi"}
-                    </button>
-                  </form>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
+            </div>
+
+            <div className="text-center gfs-muted mt-3" style={{ fontSize: ".9rem" }}>
+              * Màn này chỉ hiển thị danh sách phản hồi. Không có form viết đánh giá.
             </div>
           </div>
         </div>
