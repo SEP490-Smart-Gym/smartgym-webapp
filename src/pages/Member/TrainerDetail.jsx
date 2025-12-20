@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -56,9 +56,7 @@ function calculateAge(dobIso) {
   const today = new Date();
   let age = today.getFullYear() - d.getFullYear();
   const m = today.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
-    age--;
-  }
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
   return age >= 0 ? age : null;
 }
 
@@ -70,9 +68,7 @@ function calculateYearsFrom(startIso) {
   const today = new Date();
   let years = today.getFullYear() - d.getFullYear();
   const m = today.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) {
-    years--;
-  }
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) years--;
   return years >= 0 ? years : null;
 }
 
@@ -87,6 +83,11 @@ function formatDate(iso) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+// ✅ Rule mới: cho update feedback với mọi status TRỪ Responded
+function canMemberEditStatus(status) {
+  return String(status || "").toLowerCase() !== "responded";
+}
+
 const TrainerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -95,15 +96,12 @@ const TrainerDetail = () => {
   const [trainer, setTrainer] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 thông tin user & gói để được quyền feedback
+  // 🔐 thông tin user
   const [user, setUser] = useState(null);
-  const [memberPackageId, setMemberPackageId] = useState(null);
-  const [loadingPackage, setLoadingPackage] = useState(false);
 
-  // ✍️ state cho feedback form (member)
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackComment, setFeedbackComment] = useState("");
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  // ✅ lưu TẤT CẢ packageId của member với trainer này (để đổi tên "Tôi" đúng cho mọi feedback)
+  const [myPackageIds, setMyPackageIds] = useState(new Set());
+  const [loadingPackage, setLoadingPackage] = useState(false);
 
   // 🔁 list feedbacks
   const [feedbacks, setFeedbacks] = useState([]);
@@ -113,6 +111,12 @@ const TrainerDetail = () => {
   const [replyingFeedbackId, setReplyingFeedbackId] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  // ✏️ Member edit feedback
+  const [editingFeedbackId, setEditingFeedbackId] = useState(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
+  const [savingEditId, setSavingEditId] = useState(null);
 
   // scroll to top khi vào trang
   useEffect(() => {
@@ -125,6 +129,8 @@ const TrainerDetail = () => {
     setUser(stored ? JSON.parse(stored) : null);
   }, []);
 
+  const isMember = !!user && user.roleName === "Member";
+
   // 🔥 Lấy data trainer từ API /guest/trainers/:id
   useEffect(() => {
     const fetchTrainer = async () => {
@@ -134,7 +140,7 @@ const TrainerDetail = () => {
         const data = res.data;
 
         const fullName =
-          `${data.lastName || ""} ${data.firstName || ""} `.trim() ||
+          `${data.lastName || ""} ${data.firstName || ""}`.trim() ||
           "Huấn luyện viên";
 
         let genderText = "";
@@ -152,10 +158,8 @@ const TrainerDetail = () => {
               .filter(Boolean)
           : [];
 
-        // 👉 Tuổi từ dateOfBirth
         const age = calculateAge(data.profile?.dateOfBirth);
 
-        // 👉 Năm kinh nghiệm: ưu tiên yearsOfExperience, fallback từ startWorkingDate
         let experienceYears = null;
         if (
           typeof data.profile?.yearsOfExperience === "number" &&
@@ -169,9 +173,9 @@ const TrainerDetail = () => {
 
         const mappedTrainer = {
           id: data.trainerId,
-          avatar: data.imageUrl ?? "/img/team-1.jpg", // TODO: backend trả avatar thì map lại
+          avatar: data.imageUrl ?? "/img/team-1.jpg",
           name: fullName,
-          age: age,
+          age,
           gender: genderText || "Đang cập nhật",
           experienceYears,
           specialization: specializationArray,
@@ -203,7 +207,7 @@ const TrainerDetail = () => {
     if (id) fetchTrainer();
   }, [id]);
 
-  // 🔗 Lấy memberPackageId: GET /MemberPackage/my-packages
+  // 🔗 Lấy tất cả packageId của member với trainer này: GET /MemberPackage/my-packages
   useEffect(() => {
     const fetchMyPackages = async () => {
       try {
@@ -217,35 +221,27 @@ const TrainerDetail = () => {
         else if (raw && typeof raw === "object") list = [raw];
 
         const trainerIdNum = Number(id);
-
         const forThisTrainer = list.filter(
           (pkg) => Number(pkg.trainerId) === trainerIdNum
         );
 
-        if (!forThisTrainer.length) {
-          setMemberPackageId(null);
-          return;
-        }
-
-        forThisTrainer.sort((a, b) => {
-          const da = new Date(a.purchaseDate || a.startDate || 0).getTime();
-          const db = new Date(b.purchaseDate || b.startDate || 0).getTime();
-          return db - da;
-        });
-
-        setMemberPackageId(forThisTrainer[0].id);
+        const ids = new Set(
+          forThisTrainer.map((p) => Number(p.id)).filter(Boolean)
+        );
+        setMyPackageIds(ids);
       } catch (err) {
         console.error("Error fetching my-packages:", err);
-        setMemberPackageId(null);
+        setMyPackageIds(new Set());
       } finally {
         setLoadingPackage(false);
       }
     };
 
-    if (id) fetchMyPackages();
-  }, [id]);
+    if (id && isMember) fetchMyPackages();
+    if (!isMember) setMyPackageIds(new Set());
+  }, [id, isMember]);
 
-  // ✅ fetch feedbacks (tái sử dụng cho reload)
+  // ✅ fetch feedbacks
   const fetchFeedbacks = useCallback(async () => {
     try {
       setLoadingFeedbacks(true);
@@ -262,6 +258,8 @@ const TrainerDetail = () => {
 
       const mapped = list.map((f) => ({
         id: f.feedbackId,
+        memberPackageId: f.memberPackageId,
+        trainerId: f.trainerId,
         rating: f.rating,
         comments: f.comments,
         status: f.status,
@@ -287,31 +285,21 @@ const TrainerDetail = () => {
   }, [id, fetchFeedbacks]);
 
   // ⭐ Rating trung bình
-  const averageRating = (() => {
+  const averageRating = useMemo(() => {
     if (trainer?.rating != null && !Number.isNaN(trainer.rating)) {
       return Number(trainer.rating);
     }
     if (feedbacks.length) {
-      const sum = feedbacks.reduce(
-        (acc, f) => acc + (Number(f.rating) || 0),
-        0
-      );
+      const sum = feedbacks.reduce((acc, f) => acc + (Number(f.rating) || 0), 0);
       return sum / feedbacks.length;
     }
     return 0;
-  })();
+  }, [trainer?.rating, feedbacks]);
 
   const totalReviews =
     trainer?.totalReviews != null && trainer.totalReviews > 0
       ? trainer.totalReviews
       : feedbacks.length;
-
-  // member có đủ điều kiện để gửi feedback?
-  const canSendFeedback =
-    !!user &&
-    user.roleName === "Member" &&
-    !!memberPackageId &&
-    !loadingPackage;
 
   // trainer có đủ điều kiện để reply? (Trainer + đúng profile của mình)
   const isTrainerRole = !!user && user.roleName === "Trainer";
@@ -320,46 +308,7 @@ const TrainerDetail = () => {
   const isViewingOwnTrainerProfile =
     isTrainerRole && !!trainer?.id && myTrainerId === Number(trainer.id);
 
-  // 📨 Gửi feedback (Member): POST /member/feedback/trainer
-  const handleSubmitFeedback = async () => {
-    if (!canSendFeedback) return;
-
-    if (!feedbackComment.trim()) {
-      message.warning("Vui lòng nhập nội dung đánh giá.");
-      return;
-    }
-
-    const key = "submit-feedback";
-    message.loading({ content: "Đang gửi đánh giá...", key, duration: 0 });
-
-    try {
-      setSubmittingFeedback(true);
-      await api.post("/member/feedback/trainer", {
-        memberPackageId,
-        rating: Number(feedbackRating) || 0,
-        comments: feedbackComment.trim(),
-      });
-
-      message.success({ content: "Cảm ơn bạn đã gửi đánh giá!", key, duration: 2 });
-
-      setFeedbackRating(5);
-      setFeedbackComment("");
-
-      await fetchFeedbacks();
-    } catch (err) {
-      console.error("Error submitting trainer feedback:", err);
-      const msg =
-        err?.response?.data?.title ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Gửi đánh giá thất bại.";
-      message.error({ content: msg, key, duration: 3 });
-    } finally {
-      setSubmittingFeedback(false);
-    }
-  };
-
-  // 🗣️ Trainer reply feedback: POST/PUT /trainer/feedback/{feedbackId}/reply
+  // 🗣️ Trainer reply feedback
   const handleStartReply = (fb) => {
     setReplyingFeedbackId(fb.id);
     setReplyText(fb.responseText || "");
@@ -385,16 +334,23 @@ const TrainerDetail = () => {
     try {
       setSubmittingReply(true);
 
-      const endpoint = `/trainer/feedback/${fb.id}/reply`; // nếu backend yêu cầu /api thì đổi thành `/api/trainer/feedback/${fb.id}/reply`
+      const endpoint = `/trainer/feedback/${fb.id}/reply`;
       const payload = { responseText: text };
 
-      // ✅ nếu đã có responseText => PUT (edit), chưa có => POST (reply mới)
       if (fb.responseText && String(fb.responseText).trim()) {
         await api.put(endpoint, payload);
-        message.success({ content: "Cập nhật phản hồi thành công!", key, duration: 2 });
+        message.success({
+          content: "Cập nhật phản hồi thành công!",
+          key,
+          duration: 2,
+        });
       } else {
         await api.post(endpoint, payload);
-        message.success({ content: "Gửi phản hồi thành công!", key, duration: 2 });
+        message.success({
+          content: "Gửi phản hồi thành công!",
+          key,
+          duration: 2,
+        });
       }
 
       handleCancelReply();
@@ -412,10 +368,83 @@ const TrainerDetail = () => {
     }
   };
 
+  // ✏️ Member edit feedback: chỉ khi feedback thuộc packageIds của mình AND status != Responded
+  const handleStartEditMyFeedback = (fb) => {
+    if (!isMember) return;
+
+    const isMyFb = myPackageIds.has(Number(fb.memberPackageId));
+    if (!isMyFb) return;
+
+    if (!canMemberEditStatus(fb.status)) {
+      message.warning("Đánh giá này đã được phản hồi nên không thể chỉnh sửa.");
+      return;
+    }
+
+    setEditingFeedbackId(fb.id);
+    setEditRating(Number(fb.rating) || 5);
+    setEditComment(fb.comments || "");
+  };
+
+  const handleCancelEditMyFeedback = () => {
+    setEditingFeedbackId(null);
+    setEditRating(5);
+    setEditComment("");
+  };
+
+  const handleSaveEditMyFeedback = async (fb) => {
+    if (!isMember) return;
+
+    const isMyFb = myPackageIds.has(Number(fb.memberPackageId));
+    if (!isMyFb) return;
+
+    if (!canMemberEditStatus(fb.status)) {
+      message.warning("Đánh giá này đã được phản hồi nên không thể chỉnh sửa.");
+      return;
+    }
+
+    const text = (editComment || "").trim();
+    if (!text) {
+      message.warning("Vui lòng nhập nội dung đánh giá.");
+      return;
+    }
+
+    const key = "edit-feedback";
+    message.loading({ content: "Đang lưu chỉnh sửa...", key, duration: 0 });
+
+    try {
+      setSavingEditId(fb.id);
+      await api.put(`/member/feedback/trainer/${fb.id}`, {
+        rating: Number(editRating) || 0,
+        comments: text,
+      });
+
+      message.success({
+        content: "Cập nhật đánh giá thành công!",
+        key,
+        duration: 2,
+      });
+
+      handleCancelEditMyFeedback();
+      await fetchFeedbacks();
+    } catch (err) {
+      console.error("Edit trainer feedback error:", err);
+      const msg =
+        err?.response?.data?.title ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Cập nhật thất bại.";
+      message.error({ content: msg, key, duration: 3 });
+    } finally {
+      setSavingEditId(null);
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 10, textAlign: "center" }}>
-        <Typography variant="h6">Đang tải thông tin huấn luyện viên...</Typography>
+        <Typography variant="h6">
+          Đang tải thông tin huấn luyện viên...
+        </Typography>
       </Container>
     );
   }
@@ -451,7 +480,9 @@ const TrainerDetail = () => {
               </Typography>
 
               <Typography variant="subtitle1" color="text.secondary">
-                {trainer.age != null ? `${trainer.age} tuổi` : "Tuổi: đang cập nhật"}
+                {trainer.age != null
+                  ? `${trainer.age} tuổi`
+                  : "Tuổi: đang cập nhật"}
               </Typography>
 
               <Box
@@ -472,9 +503,17 @@ const TrainerDetail = () => {
                   color="primary"
                   variant="outlined"
                 />
-                <Chip label={trainer.gender || "Giới tính: đang cập nhật"} color="primary" variant="outlined" />
+                <Chip
+                  label={trainer.gender || "Giới tính: đang cập nhật"}
+                  color="primary"
+                  variant="outlined"
+                />
                 {trainer.isAvailable && (
-                  <Chip label="Đang nhận hội viên mới" color="success" variant="filled" />
+                  <Chip
+                    label="Đang nhận hội viên mới"
+                    color="success"
+                    variant="filled"
+                  />
                 )}
               </Box>
             </Box>
@@ -494,7 +533,12 @@ const TrainerDetail = () => {
                   flexDirection: "column",
                 }}
               >
-                <Typography variant="h6" gutterBottom color="primary" sx={{ flexShrink: 0, fontWeight: "bold" }}>
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  color="primary"
+                  sx={{ flexShrink: 0, fontWeight: "bold" }}
+                >
                   Giới thiệu huấn luyện viên
                 </Typography>
 
@@ -505,11 +549,19 @@ const TrainerDetail = () => {
                     pr: 1,
                     scrollbarWidth: "none",
                     "&::-webkit-scrollbar": { display: "none" },
-                    "&:hover::-webkit-scrollbar": { display: "block", width: 6 },
-                    "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(0,0,0,0.15)", borderRadius: 3 },
+                    "&:hover::-webkit-scrollbar": {
+                      display: "block",
+                      width: 6,
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      backgroundColor: "rgba(0,0,0,0.15)",
+                      borderRadius: 3,
+                    },
                   }}
                 >
-                  <Typography sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                  <Typography
+                    sx={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                  >
                     {trainer.about}
                   </Typography>
                 </Box>
@@ -518,10 +570,27 @@ const TrainerDetail = () => {
 
             {/* Kỹ năng & Liên hệ */}
             <Grid item xs={12} sx={{ width: "100%" }}>
-              <Grid container spacing={2} sx={{ display: "flex", flexWrap: "nowrap", width: "100%" }}>
+              <Grid
+                container
+                spacing={2}
+                sx={{ display: "flex", flexWrap: "nowrap", width: "100%" }}
+              >
                 <Grid item xs={12} md={6} sx={{ flex: 1, display: "flex" }}>
-                  <InfoCard sx={{ flex: 1, height: 170, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                    <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold" }}>
+                  <InfoCard
+                    sx={{
+                      flex: 1,
+                      height: 170,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      color="primary"
+                      sx={{ fontWeight: "bold" }}
+                    >
                       Kỹ năng
                     </Typography>
                     <Box
@@ -530,13 +599,25 @@ const TrainerDetail = () => {
                         overflowY: "auto",
                         pr: 1,
                         "&::-webkit-scrollbar": { width: 6 },
-                        "&::-webkit-scrollbar-thumb": { background: "transparent" },
-                        "&:hover::-webkit-scrollbar-thumb": { background: "rgba(0,0,0,0.15)", borderRadius: 3 },
+                        "&::-webkit-scrollbar-thumb": {
+                          background: "transparent",
+                        },
+                        "&:hover::-webkit-scrollbar-thumb": {
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: 3,
+                        },
                       }}
                     >
                       {trainer.skills && trainer.skills.length > 0 ? (
                         trainer.skills.map((s, idx) => (
-                          <Typography key={idx} variant="body2" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                          <Typography
+                            key={idx}
+                            variant="body2"
+                            sx={{
+                              whiteSpace: "normal",
+                              wordBreak: "break-word",
+                            }}
+                          >
                             • {s.name}
                           </Typography>
                         ))
@@ -550,8 +631,21 @@ const TrainerDetail = () => {
                 </Grid>
 
                 <Grid item xs={12} md={6} sx={{ flex: 1, display: "flex" }}>
-                  <InfoCard sx={{ flex: 1, height: 170, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                    <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold" }}>
+                  <InfoCard
+                    sx={{
+                      flex: 1,
+                      height: 170,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      color="primary"
+                      sx={{ fontWeight: "bold" }}
+                    >
                       Thông tin liên hệ
                     </Typography>
                     <Box
@@ -560,8 +654,13 @@ const TrainerDetail = () => {
                         overflowY: "auto",
                         pr: 1,
                         "&::-webkit-scrollbar": { width: 6 },
-                        "&::-webkit-scrollbar-thumb": { background: "transparent" },
-                        "&:hover::-webkit-scrollbar-thumb": { background: "rgba(0,0,0,0.15)", borderRadius: 3 },
+                        "&::-webkit-scrollbar-thumb": {
+                          background: "transparent",
+                        },
+                        "&:hover::-webkit-scrollbar-thumb": {
+                          background: "rgba(0,0,0,0.15)",
+                          borderRadius: 3,
+                        },
                       }}
                     >
                       <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
@@ -578,8 +677,21 @@ const TrainerDetail = () => {
 
             {/* Chứng chỉ */}
             <Grid item xs={12} sx={{ width: "100%" }}>
-              <InfoCard sx={{ height: 160, width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold" }}>
+              <InfoCard
+                sx={{
+                  height: 160,
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  color="primary"
+                  sx={{ fontWeight: "bold" }}
+                >
                   Chứng chỉ
                 </Typography>
 
@@ -590,12 +702,18 @@ const TrainerDetail = () => {
                     pr: 1,
                     "&::-webkit-scrollbar": { width: 6 },
                     "&::-webkit-scrollbar-thumb": { background: "transparent" },
-                    "&:hover::-webkit-scrollbar-thumb": { background: "rgba(0,0,0,0.15)", borderRadius: 3 },
+                    "&:hover::-webkit-scrollbar-thumb": {
+                      background: "rgba(0,0,0,0.15)",
+                      borderRadius: 3,
+                    },
                   }}
                 >
                   {trainer.certificates && trainer.certificates.length > 0 ? (
                     trainer.certificates.map((c, i) => (
-                      <Typography key={i} sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                      <Typography
+                        key={i}
+                        sx={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                      >
                         🏅 {c.title} – {c.detail}
                       </Typography>
                     ))
@@ -610,7 +728,15 @@ const TrainerDetail = () => {
 
             {/* Feedbacks */}
             <Grid item xs={12} sx={{ width: "100%" }}>
-              <InfoCard sx={{ height: 420, width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <InfoCard
+                sx={{
+                  height: 420,
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                }}
+              >
                 <Box sx={{ flexShrink: 0 }}>
                   <Typography variant="h6" gutterBottom color="primary" sx={{ fontWeight: "bold" }}>
                     Đánh giá & nhận xét
@@ -649,11 +775,17 @@ const TrainerDetail = () => {
                     feedbacks.map((fb) => {
                       const isEditingThisReply = replyingFeedbackId === fb.id;
 
+                      const isMyFb = isMember && myPackageIds.has(Number(fb.memberPackageId));
+                      const displayName = isMyFb ? "Tôi" : fb.memberName || "Hội viên";
+
+                      // ✅ đổi rule: chỉ cấm khi Responded
+                      const canEditMyFb =
+                        isMyFb && canMemberEditStatus(fb.status) && !loadingPackage;
+
+                      const isEditingMyFeedback = editingFeedbackId === fb.id;
+
                       return (
-                        <Box
-                          key={fb.id}
-                          sx={{ mb: 2, pb: 2, borderBottom: "1px dashed #e0e0e0" }}
-                        >
+                        <Box key={fb.id} sx={{ mb: 2, pb: 2, borderBottom: "1px dashed #e0e0e0" }}>
                           <Box
                             sx={{
                               display: "flex",
@@ -664,30 +796,93 @@ const TrainerDetail = () => {
                             }}
                           >
                             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                              {fb.memberName || "Hội viên"}
+                              {displayName}
                             </Typography>
+
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
-                              <Rating value={Number(fb.rating) || 0} size="small" readOnly />
+                              {isEditingMyFeedback ? (
+                                <Rating value={editRating} onChange={(_, v) => setEditRating(v || 0)} size="small" />
+                              ) : (
+                                <Rating value={Number(fb.rating) || 0} size="small" readOnly />
+                              )}
+
                               <Typography variant="caption" color="text.secondary">
                                 {formatDate(fb.feedbackDate)}
                               </Typography>
                             </Box>
                           </Box>
 
-                          <Typography variant="body2" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-                            {fb.comments}
-                          </Typography>
+                          {isEditingMyFeedback ? (
+                            <Box sx={{ mt: 0.5 }}>
+                              <textarea
+                                value={editComment}
+                                onChange={(e) => setEditComment(e.target.value)}
+                                rows={3}
+                                style={{
+                                  width: "100%",
+                                  border: "1px solid #ccc",
+                                  borderRadius: 8,
+                                  padding: "8px 10px",
+                                  outline: "none",
+                                  resize: "vertical",
+                                  backgroundColor: "#fff",
+                                  color: "#000",
+                                }}
+                                placeholder="Nhập nội dung đánh giá..."
+                              />
+
+                              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 1 }}>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={handleCancelEditMyFeedback}
+                                  sx={{ textTransform: "none" }}
+                                  disabled={savingEditId === fb.id}
+                                >
+                                  Hủy
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  onClick={() => handleSaveEditMyFeedback(fb)}
+                                  sx={{
+                                    backgroundColor: "#0c1844",
+                                    textTransform: "none",
+                                    "&:hover": { backgroundColor: "#1f3bb6ff" },
+                                  }}
+                                  disabled={savingEditId === fb.id}
+                                >
+                                  {savingEditId === fb.id ? "Đang lưu..." : "Lưu"}
+                                </Button>
+                              </Box>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                              {fb.comments}
+                            </Typography>
+                          )}
+
+                          {canEditMyFb && !isEditingMyFeedback && (
+                            <Box sx={{ mt: 0.5 }}>
+                              <Button
+                                variant="text"
+                                size="small"
+                                onClick={() => handleStartEditMyFeedback(fb)}
+                                sx={{ textTransform: "none", paddingLeft: 0 }}
+                              >
+                                Chỉnh sửa đánh giá
+                              </Button>
+                            </Box>
+                          )}
 
                           {/* Response section */}
                           {fb.responseText && !isEditingThisReply && (
                             <Box sx={{ mt: 1, ml: 1, pl: 1, borderLeft: "3px solid #e0e7ff" }}>
                               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
                                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                                  Phản hồi từ huấn luyện viên
-                                  {fb.responderName ? ` (${fb.responderName})` : ""}:
+                                  Phản hồi từ huấn luyện viên{fb.responderName ? ` (${fb.responderName})` : ""}:
                                 </Typography>
 
-                                {/* ✅ Trainer: Edit reply */}
                                 {isViewingOwnTrainerProfile && (
                                   <Button
                                     variant="text"
@@ -712,7 +907,7 @@ const TrainerDetail = () => {
                             </Box>
                           )}
 
-                          {/* ✅ Trainer: Reply / Edit UI */}
+                          {/* Trainer: Reply / Edit UI */}
                           {isViewingOwnTrainerProfile && (
                             <Box sx={{ mt: 1 }}>
                               {!fb.responseText && !isEditingThisReply && (
@@ -791,59 +986,7 @@ const TrainerDetail = () => {
                   )}
                 </Box>
 
-                {/* Form gửi feedback (Member) */}
-                {canSendFeedback && (
-                  <>
-                    <Divider sx={{ mt: "auto", mb: 1 }} />
-                    <Box sx={{ flexShrink: 0, display: "flex", flexDirection: "column", gap: 1 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ mr: 1 }}>
-                          Đánh giá của bạn:
-                        </Typography>
-                        <Rating value={feedbackRating} onChange={(_, value) => setFeedbackRating(value || 0)} />
-                      </Box>
-
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <input
-                          type="text"
-                          placeholder="Nhập nhận xét của bạn..."
-                          value={feedbackComment}
-                          onChange={(e) => setFeedbackComment(e.target.value)}
-                          style={{
-                            flex: 1,
-                            border: "1px solid #ccc",
-                            borderRadius: 6,
-                            padding: "8px 10px",
-                            outline: "none",
-                            backgroundColor: "#fff",
-                            color: "#000",
-                          }}
-                        />
-                        <Button
-                          variant="contained"
-                          size="small"
-                          sx={{
-                            backgroundColor: "#0c1844",
-                            whiteSpace: "nowrap",
-                            "&:hover": { backgroundColor: "#1f3bb6ff" },
-                          }}
-                          disabled={submittingFeedback}
-                          onClick={handleSubmitFeedback}
-                        >
-                          {submittingFeedback ? "Đang gửi..." : "Gửi"}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </>
-                )}
+                {/* ✅ ĐÃ XÓA phần viết đánh giá */}
               </InfoCard>
             </Grid>
           </Grid>

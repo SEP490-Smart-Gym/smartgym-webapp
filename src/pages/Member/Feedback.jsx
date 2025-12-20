@@ -25,6 +25,10 @@ export default function GymFeedbackSection() {
   const [availability, setAvailability] = useState(null);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
+  // ==== ACTIVE PACKAGE (member) ====
+  const [activePackage, setActivePackage] = useState(null);
+  const [loadingActivePackage, setLoadingActivePackage] = useState(false);
+
   const [form, setForm] = useState({
     rating: 5,
     feedbackType: "", // code: GymRoom, Equipment, ...
@@ -53,10 +57,6 @@ export default function GymFeedbackSection() {
 
   const isMember = user && user.roleName === "Member";
   const isStaffRole = user && ["Staff", "Manager", "Admin"].includes(user.roleName);
-
-  // memberName hiển thị giống Navbar
-  const memberDisplayName =
-    user && user.lastName && user.firstName ? `${user.lastName} ${user.firstName}` : null;
 
   /** ================== API ================== */
 
@@ -95,13 +95,36 @@ export default function GymFeedbackSection() {
     }
   };
 
+  // ===== GET /MemberPackage/my-active-package (chỉ khi là member) =====
+  const fetchMyActivePackage = async () => {
+    if (!isMember) {
+      setActivePackage(null);
+      return;
+    }
+
+    try {
+      setLoadingActivePackage(true);
+      const res = await api.get("/MemberPackage/my-active-package");
+      // Backend có thể trả object hoặc null/404
+      const pkg = res?.data ?? null;
+      setActivePackage(pkg);
+    } catch (err) {
+      // nếu 404 hoặc lỗi => coi như chưa có gói active
+      console.error("Error fetching my active package:", err);
+      setActivePackage(null);
+    } finally {
+      setLoadingActivePackage(false);
+    }
+  };
+
   useEffect(() => {
     fetchFeedbacks();
   }, []);
 
   useEffect(() => {
-    // mỗi khi user đổi / đăng nhập -> tải availability
+    // mỗi khi user đổi / đăng nhập -> tải availability + active package
     fetchAvailability();
+    fetchMyActivePackage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMember]);
 
@@ -109,12 +132,22 @@ export default function GymFeedbackSection() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // ====== RULE: phải có gói active mới được đánh giá ======
+  const activeMemberPackageId = activePackage?.id ?? null;
+  const canMemberSendFeedback = Boolean(isMember && activeMemberPackageId);
+
   // ===== POST /member/feedback/gym =====
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!isMember) {
       message.warning("Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi.");
+      return;
+    }
+
+    // ✅ chặn nếu chưa có gói active
+    if (!activeMemberPackageId) {
+      message.warning("Vui lòng đăng ký và sử dụng gói trước khi đánh giá.");
       return;
     }
 
@@ -131,7 +164,9 @@ export default function GymFeedbackSection() {
 
     try {
       setSubmitLoading(true);
+
       await api.post("/member/feedback/gym", {
+        memberPackageId: Number(activeMemberPackageId),
         rating: Number(form.rating),
         feedbackType: finalType,
         comments: form.comments.trim(),
@@ -148,7 +183,7 @@ export default function GymFeedbackSection() {
       setOpenTypeMenu(false);
 
       // reload list + availability
-      await Promise.all([fetchFeedbacks(), fetchAvailability()]);
+      await Promise.all([fetchFeedbacks(), fetchAvailability(), fetchMyActivePackage()]);
     } catch (err) {
       console.error("Error submitting feedback:", err);
       const msg =
@@ -240,9 +275,11 @@ export default function GymFeedbackSection() {
   const latestFeedbackId = availability?.latest?.feedbackId ?? null;
   const latestStatus = availability?.latest?.status ?? null;
 
-  // Cho phép sửa chỉ khi: là member, có latestFeedbackId, và status != Responded
-  // (Bạn có thể mở rộng rule thêm nếu backend cho sửa theo trạng thái khác)
-  const canEditLatest = Boolean(isMember && latestFeedbackId && latestStatus !== "Responded");
+  // Cho phép sửa chỉ khi: là member, có latestFeedbackId, status != Responded
+  // + và ✅ phải có active package (rule mới)
+  const canEditLatest = Boolean(
+    isMember && latestFeedbackId && latestStatus !== "Responded" && activeMemberPackageId
+  );
 
   const isMyLatestFeedback = (fb) => {
     const id = fb.id || fb.feedbackId;
@@ -336,6 +373,12 @@ export default function GymFeedbackSection() {
       return;
     }
 
+    // ✅ chặn nếu chưa có gói active
+    if (!activeMemberPackageId) {
+      message.warning("Vui lòng đăng ký và sử dụng gói trước khi đánh giá.");
+      return;
+    }
+
     // CHỈ cho sửa nếu đúng latest và canEditLatest
     if (!isMyLatestFeedback(fb) || !canEditLatest) return;
 
@@ -349,9 +392,9 @@ export default function GymFeedbackSection() {
 
     try {
       setSavingMyFeedbackId(feedbackId);
+
       await api.put(url, {
-        // backend yêu cầu đủ model
-        memberPackageId: fb.memberPackageId ?? 0,
+        memberPackageId: Number(activeMemberPackageId), // ✅ lấy từ my-active-package
         rating: Number(myEdit.rating),
         feedbackType: fb.feedbackType || "General", // giữ nguyên loại cũ
         comments: text,
@@ -362,7 +405,7 @@ export default function GymFeedbackSection() {
       setEditingMyFeedbackId(null);
       setMyEdit({ rating: 5, comments: "" });
 
-      await Promise.all([fetchFeedbacks(), fetchAvailability()]);
+      await Promise.all([fetchFeedbacks(), fetchAvailability(), fetchMyActivePackage()]);
     } catch (err) {
       console.error("Error updating my feedback:", err);
 
@@ -419,13 +462,11 @@ export default function GymFeedbackSection() {
                     </span>
 
                     <span className="ms-2 fw-semibold">{total ? avgRating.toFixed(1) : "—"}/5</span>
-
                     <span className="text-muted small ms-2">({total} đánh giá)</span>
                   </div>
                 </div>
 
                 {loadingList && <div className="alert alert-info mb-0">Đang tải phản hồi...</div>}
-
                 {error && !loadingList && <div className="alert alert-danger mb-0">{error}</div>}
 
                 {!loadingList && !error && feedbacks.length === 0 && (
@@ -442,7 +483,6 @@ export default function GymFeedbackSection() {
 
                     const isLatestMine = isMyLatestFeedback(fb);
                     const canShowEdit = isLatestMine && canEditLatest; // ✅ nếu không thể update => ẩn
-
                     const isEditingMine = editingMyFeedbackId === (fb.id || fb.feedbackId);
 
                     return (
@@ -482,7 +522,9 @@ export default function GymFeedbackSection() {
                               className="form-control form-control-sm"
                               rows={3}
                               value={myEdit.comments}
-                              onChange={(e) => setMyEdit((prev) => ({ ...prev, comments: e.target.value }))}
+                              onChange={(e) =>
+                                setMyEdit((prev) => ({ ...prev, comments: e.target.value }))
+                              }
                             />
                             <div className="mt-2 d-flex justify-content-end">
                               <button
@@ -604,14 +646,20 @@ export default function GymFeedbackSection() {
                   </div>
                 ) : (
                   <>
-                    {/* Thông tin availability (optional) */}
-                    {loadingAvailability && (
+                    {/* Loading state */}
+                    {(loadingAvailability || loadingActivePackage) && (
                       <div className="alert alert-info py-2 small">
                         Đang kiểm tra điều kiện gửi phản hồi...
                       </div>
                     )}
 
-                    {/* Form gửi */}
+                    {/* ✅ Nếu chưa có gói active => show alert và CHẶN form */}
+                    {!loadingActivePackage && !activeMemberPackageId && (
+                      <div className="alert alert-warning">
+                        Vui lòng đăng ký và sử dụng gói trước khi đánh giá.
+                      </div>
+                    )}
+
                     <form onSubmit={handleSubmit}>
                       {/* Rating - chọn sao */}
                       <div className="mb-3">
@@ -708,7 +756,12 @@ export default function GymFeedbackSection() {
                         />
                       </div>
 
-                      <button type="submit" className="btn btn-primary w-100" disabled={submitLoading}>
+                      <button
+                        type="submit"
+                        className="btn btn-primary w-100"
+                        disabled={submitLoading || !canMemberSendFeedback}
+                        title={!canMemberSendFeedback ? "Cần có gói đang sử dụng để đánh giá" : ""}
+                      >
                         {submitLoading ? "Đang gửi..." : "Gửi phản hồi"}
                       </button>
                     </form>
