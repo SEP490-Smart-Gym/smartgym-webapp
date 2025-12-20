@@ -218,7 +218,7 @@ export default function Calendar() {
 
     setTrainerBusyLoading(true);
     try {
-      const res = await api.get(`/TrainingSession/trainer/${trId}`);
+      const res = await api.get(`/TrainerSchedule/busy?trainerId=${trId}`);
       const sessions = Array.isArray(res.data) ? res.data : [];
 
       const active = sessions.filter((s) => {
@@ -295,11 +295,14 @@ export default function Calendar() {
 
             // ✅ remaining sessions: cố gắng map nhiều field phổ biến
             const rem =
+              pkg.remainingSessionsCount ??
+              pkg.remainingSessionCount ??
               pkg.remainingSessions ??
               pkg.remainingSession ??
               pkg.sessionsRemaining ??
               pkg.remaining ??
               pkg.numberOfSessionsLeft ??
+              pkg.remainingSessionsLeft ??   // thêm dự phòng
               null;
             setRemainingSessions(rem != null ? Number(rem) : null);
           } else {
