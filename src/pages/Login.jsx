@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../config/axios";
 import GoogleLoginButton from "../components/GoogleLoginButton";
+import { ArrowLeftOutlined } from "@ant-design/icons";
+
 
 export default function Login() {
   const navigate = useNavigate();
@@ -92,13 +94,38 @@ export default function Login() {
     <div
       className="login-bg container-fluid py-5"
       style={{
-        backgroundImage: 'url("/img/header-1.jpg")',
+        backgroundImage: 'url("/img/gymbg.jpg")',
         backgroundSize: "cover",
         minHeight: "100vh",
       }}
     >
       <div className="row justify-content-center">
         <div className="col-sm-10 col-md-8 col-lg-5">
+          <div className="d-flex justify-content-start mb-3">
+            <button
+              onClick={() => navigate("/")}
+              style={{
+                position: "absolute",
+                top: 24,
+                left: 24,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "rgba(255,255,255,0.85)",
+                border: "none",
+                padding: "6px 12px",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+                boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+              }}
+            >
+              ← Trang chủ
+            </button>
+
+          </div>
+
           <div className="card shadow-sm">
             <div className="card-body p-4">
               <h3 className="text-center mb-3">Đăng nhập</h3>
@@ -112,9 +139,8 @@ export default function Login() {
                 <div className="mb-3">
                   <label className="form-label">Email</label>
                   <input
-                    className={`form-control ${
-                      errors.email ? "is-invalid" : ""
-                    }`}
+                    className={`form-control ${errors.email ? "is-invalid" : ""
+                      }`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Nhập email"
@@ -130,9 +156,8 @@ export default function Login() {
                   <div className="input-group">
                     <input
                       type={showPass ? "text" : "password"}
-                      className={`form-control ${
-                        errors.password ? "is-invalid" : ""
-                      }`}
+                      className={`form-control ${errors.password ? "is-invalid" : ""
+                        }`}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Nhập mật khẩu"
@@ -167,6 +192,21 @@ export default function Login() {
               </div>
 
               <GoogleLoginButton />
+              <div className="text-center mt-3">
+                <span className="text-muted">Bạn chưa có tài khoản? </span>
+                <span
+                  onClick={() => navigate("/register")}
+                  style={{
+                    color: "#c4002f",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Đăng ký
+                </span>
+              </div>
+
             </div>
           </div>
         </div>

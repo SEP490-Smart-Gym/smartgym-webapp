@@ -91,15 +91,27 @@ function Layout() {
     </>
   );
 }
+function AuthLayout() {
+  return (
+    <main className="min-vh-100">
+      <Outlet />
+    </main>
+  );
+}
+
 
 export default function AppRoutes() {
   return (
     <Routes>
+       {/* ===== AUTH (NO NAVBAR / FOOTER) ===== */}
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+      </Route>
+      {/* ===== MAIN LAYOUT ===== */}
       <Route element={<Layout />}>
         {/* ===== Public ===== */}
         <Route index element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
 
         <Route path="contact" element={<Contact />} />
         <Route path="403" element={<Forbidden />} />
