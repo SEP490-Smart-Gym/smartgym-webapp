@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../config/axios";
+import { Modal } from "antd";
 
 export default function Register() {
   const navigate = useNavigate();
