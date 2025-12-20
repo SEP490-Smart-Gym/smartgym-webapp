@@ -562,8 +562,7 @@ const ProfileStaff = () => {
                               </div>
 
                               <div className="mt-1" style={{ color: "#ffd700", fontStyle: "italic" }}>
-                                Tuổi: {age !== "" ? age : "--"}{" "}
-                                <span style={{ opacity: 0.85 }}>(Yêu cầu ≥ 18)</span>
+                                Tuổi: {age !== "" ? age : "--"}
                               </div>
                             </FormGroup>
                           </Col>

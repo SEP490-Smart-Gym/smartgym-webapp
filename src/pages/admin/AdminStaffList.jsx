@@ -23,7 +23,24 @@ const GENDER_OPTIONS = [
 
 const MIN_AGE = 18;
 
-// ❌ Không cho chọn ngày sinh nhỏ hơn 18 tuổi (và ngày trong tương lai)
+/** ================== VALIDATORS ================== */
+const trimValue = (v) => (typeof v === "string" ? v.trim() : v);
+
+const nameRegex = /^[^\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]+$/; // không cho số/ký tự đặc biệt (chấp nhận dấu & khoảng trắng)
+const phoneVNRegex = /^(0|\+84)(3|5|7|8|9)\d{8}$/; // phổ biến VN (03/05/07/08/09)
+
+const normalizePhone = (v) => {
+  const raw = String(v || "").trim();
+  if (!raw) return "";
+  // bỏ khoảng trắng/dấu chấm/gạch
+  let x = raw.replace(/[^\d+]/g, "");
+  // +84xxxxxxxxx -> 0xxxxxxxxx
+  if (x.startsWith("+84")) x = "0" + x.slice(3);
+  if (x.startsWith("84") && x.length >= 11) x = "0" + x.slice(2);
+  return x;
+};
+
+// ✅ Không cho chọn ngày sinh nhỏ hơn 18 tuổi (và ngày trong tương lai)
 const disabledBirthDate = (current) => {
   if (!current) return false;
   // lớn hơn hôm nay - 18 năm => dưới 18 tuổi => disable
@@ -39,14 +56,79 @@ const ageValidatorRule = {
     }
     const age = dayjs().diff(value, "year");
     if (age < MIN_AGE) {
-      return Promise.reject(
-        new Error(`Nhân viên phải ít nhất ${MIN_AGE} tuổi`)
-      );
+      return Promise.reject(new Error(`Nhân viên phải ít nhất ${MIN_AGE} tuổi`));
+    }
+    // chặn tương lai/hôm nay
+    if (dayjs(value).isAfter(dayjs(), "day") || dayjs(value).isSame(dayjs(), "day")) {
+      return Promise.reject(new Error("Ngày sinh không hợp lệ (không được là hôm nay/tương lai)."));
     }
     return Promise.resolve();
   },
 };
 
+const firstNameRules = [
+  { required: true, message: "Nhập tên" },
+  { transform: trimValue, message: "Tên không hợp lệ" },
+  { min: 1, message: "Tên không được để trống" },
+  { max: 30, message: "Tên tối đa 30 ký tự" },
+  {
+    validator: (_, v) => {
+      const val = String(v || "").trim();
+      if (!val) return Promise.reject(new Error("Tên không được để trống"));
+      if (!nameRegex.test(val)) return Promise.reject(new Error("Tên không hợp lệ (không chứa số/ký tự đặc biệt)."));
+      return Promise.resolve();
+    },
+  },
+];
+
+const lastNameRules = [
+  { required: true, message: "Nhập họ" },
+  { transform: trimValue, message: "Họ không hợp lệ" },
+  { min: 1, message: "Họ không được để trống" },
+  { max: 40, message: "Họ tối đa 40 ký tự" },
+  {
+    validator: (_, v) => {
+      const val = String(v || "").trim();
+      if (!val) return Promise.reject(new Error("Họ không được để trống"));
+      if (!nameRegex.test(val)) return Promise.reject(new Error("Họ không hợp lệ (không chứa số/ký tự đặc biệt)."));
+      return Promise.resolve();
+    },
+  },
+];
+
+const emailRules = [
+  { required: true, message: "Email không được để trống" },
+  { type: "email", message: "Email không hợp lệ" },
+  { max: 100, message: "Email tối đa 100 ký tự" },
+];
+
+const phoneRules = [
+  { required: true, message: "Nhập số điện thoại" },
+  {
+    validator: (_, v) => {
+      const p = normalizePhone(v);
+      if (!p) return Promise.reject(new Error("Số điện thoại không được để trống"));
+      if (!phoneVNRegex.test(p)) return Promise.reject(new Error("SĐT không hợp lệ (VD: 0912345678 hoặc +84912345678)."));
+      return Promise.resolve();
+    },
+  },
+];
+
+const genderRules = [{ required: true, message: "Vui lòng chọn giới tính" }];
+
+const addressRules = [
+  {
+    validator: (_, v) => {
+      const val = String(v || "").trim();
+      if (!val) return Promise.resolve(); // địa chỉ optional
+      if (val.length < 3) return Promise.reject(new Error("Địa chỉ quá ngắn"));
+      if (val.length > 200) return Promise.reject(new Error("Địa chỉ tối đa 200 ký tự"));
+      return Promise.resolve();
+    },
+  },
+];
+
+/** ================== COMPONENT ================== */
 export default function AdminStaffList() {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -106,13 +188,13 @@ export default function AdminStaffList() {
     const autoPassword = generatePassword();
 
     const body = {
-      email: values.email,
+      email: String(values.email || "").trim(),
       password: autoPassword,
-      firstName: values.firstName,
-      lastName: values.lastName,
-      phoneNumber: values.phoneNumber,
+      firstName: String(values.firstName || "").trim(),
+      lastName: String(values.lastName || "").trim(),
+      phoneNumber: normalizePhone(values.phoneNumber),
       gender: values.gender,
-      address: values.address || "",
+      address: String(values.address || "").trim(),
       dateOfBirth: values.dateOfBirth
         ? dayjs(values.dateOfBirth).toISOString()
         : new Date().toISOString(),
@@ -146,50 +228,50 @@ export default function AdminStaffList() {
 
   // ===== Xóa (DELETE) =====
   const handleDelete = (record) => {
-  Modal.confirm({
-    title: "Xác nhận xoá Nhân viên",
-    content: (
-      <>
-        <p>
-          Bạn có chắc chắn muốn xoá nhân viên:
-          <strong>
-            {" "}
-            {record.lastName} {record.firstName}
-          </strong>
-          ?
-        </p>
-      </>
-    ),
-    okText: "Xoá",
-    okType: "danger",
-    cancelText: "Huỷ",
-    async onOk() {
-      try {
-        const id = record?.id || record?.raw?.userId;
-
-        if (!id) {
-          // fallback local
-          setTrainers((prev) => prev.filter((t) => t !== record));
-          message.success("Đã xoá (local)");
-          return;
-        }
-
-        // call API
+    Modal.confirm({
+      title: "Xác nhận xoá Nhân viên",
+      content: (
+        <>
+          <p>
+            Bạn có chắc chắn muốn xoá nhân viên:
+            <strong>
+              {" "}
+              {record.lastName} {record.firstName}
+            </strong>
+            ?
+          </p>
+        </>
+      ),
+      okText: "Xoá",
+      okType: "danger",
+      cancelText: "Huỷ",
+      async onOk() {
         try {
-          await api.delete(`/Admin/user/${id}`);
-        } catch {
+          const id = record?.id || record?.raw?.userId;
 
+          if (!id) {
+            // fallback local
+            setStaffs((prev) => prev.filter((t) => t !== record));
+            message.success("Đã xoá (local)");
+            return;
+          }
+
+          // call API
+          try {
+            await api.delete(`/Admin/user/${id}`);
+          } catch {
+            // nếu backend trả lỗi vẫn cho fetch lại
+          }
+
+          message.success("Xoá nhân viên thành công");
+          await fetchStaffs();
+        } catch (err) {
+          console.error("delete staff error", err);
+          message.error("Xoá nhân viên thất bại");
         }
-
-        message.success("Xoá nhân viên thành công");
-        await fetchTrainers();
-      } catch (err) {
-        console.error("delete staff error", err);
-        message.error("Xoá nhân viên thất bại");
-      }
-    },
-  });
-};
+      },
+    });
+  };
 
   // ===== Mở modal edit =====
   const openEdit = (record) => {
@@ -206,7 +288,7 @@ export default function AdminStaffList() {
         record.last_name ||
         (record.name ? record.name.split(" ").slice(1).join(" ") : ""),
       email: record.email,
-      phoneNumber: record.phoneNumber || record.phone || "",
+      phoneNumber: normalizePhone(record.phoneNumber || record.phone || ""),
       gender: record.gender || "Male",
       address: record.address || "",
       dateOfBirth: record.dateOfBirth ? dayjs(record.dateOfBirth) : null,
@@ -221,13 +303,13 @@ export default function AdminStaffList() {
     if (!editingStaff) return;
     const id = editingStaff.id;
     const body = {
-      email: values.email,
+      email: String(values.email || "").trim(),
       // password optional khi cập nhật - nếu backend bắt password khi tạo, để trống khi cập nhật
-      firstName: values.firstName,
-      lastName: values.lastName,
-      phoneNumber: values.phoneNumber,
+      firstName: String(values.firstName || "").trim(),
+      lastName: String(values.lastName || "").trim(),
+      phoneNumber: normalizePhone(values.phoneNumber),
       gender: values.gender,
-      address: values.address || "",
+      address: String(values.address || "").trim(),
       dateOfBirth: values.dateOfBirth
         ? values.dateOfBirth.toISOString()
         : null,
@@ -329,11 +411,7 @@ export default function AdminStaffList() {
           <Button size="small" onClick={() => openEdit(record)}>
             Sửa
           </Button>
-          <Button
-            size="small"
-            danger
-            onClick={() => handleDelete(record)}
-          >
+          <Button size="small" danger onClick={() => handleDelete(record)}>
             Xóa
           </Button>
         </Space>
@@ -361,48 +439,27 @@ export default function AdminStaffList() {
               >
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <Form.Item
-                      name="lastName"
-                      rules={[{ required: true, message: "Nhập họ" }]}
-                    >
+                    <Form.Item name="lastName" rules={lastNameRules}>
                       <Input placeholder="Họ" />
                     </Form.Item>
                   </div>
                   <div className="col-md-6">
-                    <Form.Item
-                      name="firstName"
-                      rules={[{ required: true, message: "Nhập tên" }]}
-                    >
+                    <Form.Item name="firstName" rules={firstNameRules}>
                       <Input placeholder="Tên " />
                     </Form.Item>
                   </div>
                   <div className="col-md-4">
-                    <Form.Item
-                      name="email"
-                      rules={[
-                        {
-                          required: true,
-                          type: "email",
-                          message: "Email không hợp lệ",
-                        },
-                      ]}
-                    >
+                    <Form.Item name="email" rules={emailRules}>
                       <Input placeholder="Email" />
                     </Form.Item>
                   </div>
                   <div className="col-md-3">
-                    <Form.Item
-                      name="phoneNumber"
-                      rules={[{ required: true, message: "Nhập số điện thoại" }]}
-                    >
+                    <Form.Item name="phoneNumber" rules={phoneRules}>
                       <Input placeholder="Số điện thoại" />
                     </Form.Item>
                   </div>
                   <div className="col-md-3">
-                    <Form.Item
-                      name="dateOfBirth"
-                      rules={[ageValidatorRule]}
-                    >
+                    <Form.Item name="dateOfBirth" rules={[ageValidatorRule]}>
                       <DatePicker
                         style={{ width: "100%" }}
                         placeholder="Ngày sinh"
@@ -413,13 +470,13 @@ export default function AdminStaffList() {
                     </Form.Item>
                   </div>
                   <div className="col-md-2">
-                    <Form.Item name="gender">
+                    <Form.Item name="gender" rules={genderRules}>
                       <Select options={GENDER_OPTIONS} />
                     </Form.Item>
                   </div>
 
                   <div className="col-md-12">
-                    <Form.Item name="address">
+                    <Form.Item name="address" rules={addressRules}>
                       <Input placeholder="Địa chỉ" />
                     </Form.Item>
                   </div>
@@ -473,43 +530,27 @@ export default function AdminStaffList() {
         destroyOnClose
       >
         <Form form={editForm} layout="vertical" onFinish={saveEdit}>
-          <Form.Item
-            name="firstName"
-            label="Tên"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="firstName" label="Tên" rules={firstNameRules}>
             <Input />
           </Form.Item>
 
-          <Form.Item
-            name="lastName"
-            label="Họ"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="lastName" label="Họ" rules={lastNameRules}>
             <Input />
           </Form.Item>
 
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[{ required: true, type: "email" }]}
-          >
+          <Form.Item name="email" label="Email" rules={emailRules}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="phoneNumber" label="SĐT">
+          <Form.Item name="phoneNumber" label="SĐT" rules={phoneRules}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="gender" label="Giới tính">
+          <Form.Item name="gender" label="Giới tính" rules={genderRules}>
             <Select options={GENDER_OPTIONS} />
           </Form.Item>
 
-          <Form.Item
-            name="dateOfBirth"
-            label="Ngày sinh"
-            rules={[ageValidatorRule]}
-          >
+          <Form.Item name="dateOfBirth" label="Ngày sinh" rules={[ageValidatorRule]}>
             <DatePicker
               style={{ width: "100%" }}
               disabledDate={disabledBirthDate}
@@ -518,7 +559,7 @@ export default function AdminStaffList() {
             />
           </Form.Item>
 
-          <Form.Item name="address" label="Địa chỉ">
+          <Form.Item name="address" label="Địa chỉ" rules={addressRules}>
             <Input />
           </Form.Item>
         </Form>
