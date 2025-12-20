@@ -210,7 +210,7 @@ export default function Home() {
         )}
 
         {/* ✅ Header */}
-        <Header />
+        {/* <Header /> */}
 
         {/* ABOUT – GIỚI THIỆU */}
         <div id="about-section" className="container-fluid about pt-5">
