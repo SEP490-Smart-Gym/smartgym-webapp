@@ -21,6 +21,10 @@ export default function GymFeedbackSection() {
 
   const [user, setUser] = useState(null);
 
+  // availability (member) => biết latest feedbackId + status + canSubmit + nextReminderAt
+  const [availability, setAvailability] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+
   const [form, setForm] = useState({
     rating: 5,
     feedbackType: "", // code: GymRoom, Equipment, ...
@@ -48,14 +52,13 @@ export default function GymFeedbackSection() {
   }, []);
 
   const isMember = user && user.roleName === "Member";
-  const isStaffRole =
-    user && ["Staff", "Manager", "Admin"].includes(user.roleName);
+  const isStaffRole = user && ["Staff", "Manager", "Admin"].includes(user.roleName);
 
   // memberName hiển thị giống Navbar
   const memberDisplayName =
-    user && user.lastName && user.firstName
-      ? `${user.lastName} ${user.firstName}`
-      : null;
+    user && user.lastName && user.firstName ? `${user.lastName} ${user.firstName}` : null;
+
+  /** ================== API ================== */
 
   // ===== GET /guest/feedback/gym =====
   const fetchFeedbacks = async () => {
@@ -74,9 +77,33 @@ export default function GymFeedbackSection() {
     }
   };
 
+  // ===== GET /member/feedback/gym/availability (chỉ khi là member) =====
+  const fetchAvailability = async () => {
+    if (!isMember) {
+      setAvailability(null);
+      return;
+    }
+    try {
+      setLoadingAvailability(true);
+      const res = await api.get("/member/feedback/gym/availability");
+      setAvailability(res?.data ?? null);
+    } catch (err) {
+      console.error("Error fetching availability:", err);
+      setAvailability(null);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
   useEffect(() => {
     fetchFeedbacks();
   }, []);
+
+  useEffect(() => {
+    // mỗi khi user đổi / đăng nhập -> tải availability
+    fetchAvailability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMember]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,9 +114,7 @@ export default function GymFeedbackSection() {
     e.preventDefault();
 
     if (!isMember) {
-      message.warning(
-        "Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi."
-      );
+      message.warning("Bạn cần đăng nhập bằng tài khoản hội viên để gửi phản hồi.");
       return;
     }
 
@@ -122,8 +147,8 @@ export default function GymFeedbackSection() {
       });
       setOpenTypeMenu(false);
 
-      // reload list để thấy feedback mới
-      fetchFeedbacks();
+      // reload list + availability
+      await Promise.all([fetchFeedbacks(), fetchAvailability()]);
     } catch (err) {
       console.error("Error submitting feedback:", err);
       const msg =
@@ -137,13 +162,12 @@ export default function GymFeedbackSection() {
     }
   };
 
+  /** ================== DERIVED ================== */
+
   // ===== TÍNH ĐIỂM TRUNG BÌNH =====
   const { avgRating, total } = useMemo(() => {
     if (!feedbacks.length) return { avgRating: 0, total: 0 };
-    const sum = feedbacks.reduce(
-      (acc, fb) => acc + Number(fb.rating || 0),
-      0
-    );
+    const sum = feedbacks.reduce((acc, fb) => acc + Number(fb.rating || 0), 0);
     return {
       avgRating: sum / feedbacks.length,
       total: feedbacks.length,
@@ -159,22 +183,13 @@ export default function GymFeedbackSection() {
 
     const stars = [];
     for (let i = 0; i < full; i += 1) {
-      stars.push(
-        <i key={`full-${i}`} className="fas fa-star text-warning me-1"></i>
-      );
+      stars.push(<i key={`full-${i}`} className="fas fa-star text-warning me-1"></i>);
     }
     if (hasHalf) {
-      stars.push(
-        <i
-          key="half"
-          className="fas fa-star-half-alt text-warning me-1"
-        ></i>
-      );
+      stars.push(<i key="half" className="fas fa-star-half-alt text-warning me-1"></i>);
     }
     for (let i = 0; i < empty; i += 1) {
-      stars.push(
-        <i key={`empty-${i}`} className="far fa-star text-warning me-1"></i>
-      );
+      stars.push(<i key={`empty-${i}`} className="far fa-star text-warning me-1"></i>);
     }
     return stars;
   };
@@ -201,9 +216,7 @@ export default function GymFeedbackSection() {
   // Lấy nhãn hiển thị cho feedbackType trong list
   const getTypeLabel = (typeRaw) => {
     if (!typeRaw) return "Khác";
-    if (FEEDBACK_TYPE_LABELS[typeRaw]) {
-      return FEEDBACK_TYPE_LABELS[typeRaw];
-    }
+    if (FEEDBACK_TYPE_LABELS[typeRaw]) return FEEDBACK_TYPE_LABELS[typeRaw];
     // custom text (khi gửi Other + input)
     return typeRaw;
   };
@@ -211,9 +224,7 @@ export default function GymFeedbackSection() {
   // Hiển thị text trên nút "select"
   const getSelectedTypeText = () => {
     if (form.feedbackType === "Other") {
-      if (form.customFeedbackType.trim()) {
-        return form.customFeedbackType;
-      }
+      if (form.customFeedbackType.trim()) return form.customFeedbackType;
       return "Khác";
     }
     if (!form.feedbackType) return "-- Chọn loại --";
@@ -222,23 +233,34 @@ export default function GymFeedbackSection() {
 
   // ==== LẤY REPLY TỪ FEEDBACK (tùy backend đặt tên field) ====
   const getReplyText = (fb) => {
-    return (
-      fb?.staffResponse ||
-      fb?.responseText ||
-      fb?.replyText ||
-      fb?.reply ||
-      ""
-    );
+    return fb?.staffResponse || fb?.responseText || fb?.replyText || fb?.reply || "";
   };
 
-  // Xác định feedback có phải của chính member đang login không
-  const isMyFeedback = (fb) => {
-    if (!isMember || !memberDisplayName) return false;
-    if (!fb.memberName) return false;
-    return fb.memberName === memberDisplayName;
+  // ======= MY LATEST + EDITABILITY (theo availability) =======
+  const latestFeedbackId = availability?.latest?.feedbackId ?? null;
+  const latestStatus = availability?.latest?.status ?? null;
+
+  // Cho phép sửa chỉ khi: là member, có latestFeedbackId, và status != Responded
+  // (Bạn có thể mở rộng rule thêm nếu backend cho sửa theo trạng thái khác)
+  const canEditLatest = Boolean(isMember && latestFeedbackId && latestStatus !== "Responded");
+
+  const isMyLatestFeedback = (fb) => {
+    const id = fb.id || fb.feedbackId;
+    if (!id || !latestFeedbackId) return false;
+    return Number(id) === Number(latestFeedbackId);
   };
 
-  // Khi staff bấm "Thêm phản hồi" hoặc "Chỉnh sửa" reply
+  // Tên hiển thị:
+  // - Nếu feedbackId == latestFeedbackId => hiển thị "Tôi"
+  // - else nếu fb.memberName có => dùng memberName
+  // - else "Hội viên ẩn danh"
+  const getDisplayName = (fb) => {
+    if (isMember && isMyLatestFeedback(fb)) return "Tôi";
+    return fb.memberName || "Hội viên ẩn danh";
+  };
+
+  /** ================== STAFF REPLY ================== */
+
   const handleStartEditReply = (fb) => {
     const id = fb.id || fb.feedbackId;
     if (!id) {
@@ -270,14 +292,10 @@ export default function GymFeedbackSection() {
     try {
       setSavingReplyId(feedbackId);
       await api[method](url, { responseText: text });
-      message.success(
-        existingReply
-          ? "Cập nhật phản hồi thành công."
-          : "Đã gửi phản hồi đến hội viên."
-      );
+      message.success(existingReply ? "Cập nhật phản hồi thành công." : "Đã gửi phản hồi đến hội viên.");
       setEditingFeedbackId(null);
       setReplyDraft("");
-      fetchFeedbacks(); // reload để thấy reply mới/đã cập nhật
+      await fetchFeedbacks();
     } catch (err) {
       console.error("Error saving reply:", err);
       const msg =
@@ -291,13 +309,18 @@ export default function GymFeedbackSection() {
     }
   };
 
-  // ==== MEMBER: BẮT ĐẦU CHỈNH SỬA FEEDBACK CỦA MÌNH ====
+  /** ================== MEMBER EDIT MY FEEDBACK (LATEST ONLY) ================== */
+
   const handleStartEditMyFeedback = (fb) => {
     const id = fb.id || fb.feedbackId;
     if (!id) {
       message.error("Không xác định được ID phản hồi.");
       return;
     }
+
+    // CHỈ cho sửa nếu đúng latest và canEditLatest
+    if (!isMyLatestFeedback(fb) || !canEditLatest) return;
+
     setEditingMyFeedbackId(id);
     setMyEdit({
       rating: Number(fb.rating) || 5,
@@ -305,13 +328,16 @@ export default function GymFeedbackSection() {
     });
   };
 
-  // Lưu feedback đã chỉnh sửa (member) – PUT /member/feedback/gym/{feedbackId}
+  // PUT /member/feedback/gym/{feedbackId}
   const handleSaveMyFeedback = async (fb) => {
     const feedbackId = fb.id || fb.feedbackId;
     if (!feedbackId) {
       message.error("Không xác định được ID phản hồi.");
       return;
     }
+
+    // CHỈ cho sửa nếu đúng latest và canEditLatest
+    if (!isMyLatestFeedback(fb) || !canEditLatest) return;
 
     const text = myEdit.comments.trim();
     if (!myEdit.rating || !text) {
@@ -324,26 +350,38 @@ export default function GymFeedbackSection() {
     try {
       setSavingMyFeedbackId(feedbackId);
       await api.put(url, {
+        // backend yêu cầu đủ model
+        memberPackageId: fb.memberPackageId ?? 0,
         rating: Number(myEdit.rating),
         feedbackType: fb.feedbackType || "General", // giữ nguyên loại cũ
         comments: text,
       });
+
       message.success("Cập nhật đánh giá của bạn thành công.");
+
       setEditingMyFeedbackId(null);
       setMyEdit({ rating: 5, comments: "" });
-      fetchFeedbacks();
+
+      await Promise.all([fetchFeedbacks(), fetchAvailability()]);
     } catch (err) {
       console.error("Error updating my feedback:", err);
-      const msg =
-        err?.response?.data?.title ||
-        err?.response?.data?.message ||
-        err?.message ||
-        "Cập nhật phản hồi thất bại.";
-      message.error(msg);
+
+      const apiMsg = err?.response?.data?.message || err?.response?.data?.title || err?.message;
+
+      // Nếu backend báo không cho sửa nữa => đóng edit + ẩn nút (vì availability sẽ cập nhật)
+      if (String(apiMsg || "").toLowerCase().includes("no longer be edited")) {
+        setEditingMyFeedbackId(null);
+        setMyEdit({ rating: 5, comments: "" });
+        await fetchAvailability();
+      }
+
+      message.error(apiMsg || "Cập nhật phản hồi thất bại.");
     } finally {
       setSavingMyFeedbackId(null);
     }
   };
+
+  /** ================== UI ================== */
 
   return (
     <section id="feedback-section" className="py-5 bg-light">
@@ -353,19 +391,14 @@ export default function GymFeedbackSection() {
           <h4 className="text-primary">Phản hồi khách hàng</h4>
           <h1 className="display-6 mb-2">Trải nghiệm tại phòng gym</h1>
           <p className="text-muted mb-3">
-            Lắng nghe chia sẻ từ hội viên và cùng chúng tôi cải thiện dịch vụ
-            tốt hơn.
+            Lắng nghe chia sẻ từ hội viên và cùng chúng tôi cải thiện dịch vụ tốt hơn.
           </p>
 
           {total > 0 && (
             <div className="d-flex justify-content-center align-items-center">
               <div>{renderAvgStars(avgRating)}</div>
-              <span className="ms-2 fw-semibold">
-                {avgRating.toFixed(1)}/5
-              </span>
-              <span className="text-muted small ms-2">
-                ({total} đánh giá)
-              </span>
+              <span className="ms-2 fw-semibold">{avgRating.toFixed(1)}/5</span>
+              <span className="text-muted small ms-2">({total} đánh giá)</span>
             </div>
           )}
         </div>
@@ -380,38 +413,24 @@ export default function GymFeedbackSection() {
                   <h5 className="mb-0">Phản hồi gần đây</h5>
 
                   <div className="d-flex align-items-center">
-                    <span
-                      className="text-warning me-1"
-                      style={{ fontSize: "1.2rem" }}
-                    >
+                    <span className="text-warning me-1" style={{ fontSize: "1.2rem" }}>
                       {"★".repeat(Math.round(avgRating || 0))}
                       {"☆".repeat(5 - Math.round(avgRating || 0))}
                     </span>
 
-                    <span className="ms-2 fw-semibold">
-                      {total ? avgRating.toFixed(1) : "—"}/5
-                    </span>
+                    <span className="ms-2 fw-semibold">{total ? avgRating.toFixed(1) : "—"}/5</span>
 
-                    <span className="text-muted small ms-2">
-                      ({total} đánh giá)
-                    </span>
+                    <span className="text-muted small ms-2">({total} đánh giá)</span>
                   </div>
                 </div>
 
-                {loadingList && (
-                  <div className="alert alert-info mb-0">
-                    Đang tải phản hồi...
-                  </div>
-                )}
+                {loadingList && <div className="alert alert-info mb-0">Đang tải phản hồi...</div>}
 
-                {error && !loadingList && (
-                  <div className="alert alert-danger mb-0">{error}</div>
-                )}
+                {error && !loadingList && <div className="alert alert-danger mb-0">{error}</div>}
 
                 {!loadingList && !error && feedbacks.length === 0 && (
                   <div className="alert alert-light border mb-0">
-                    Chưa có phản hồi nào. Hãy là người đầu tiên chia sẻ cảm
-                    nhận của bạn!
+                    Chưa có phản hồi nào. Hãy là người đầu tiên chia sẻ cảm nhận của bạn!
                   </div>
                 )}
 
@@ -420,39 +439,28 @@ export default function GymFeedbackSection() {
                   feedbacks.map((fb) => {
                     const id = fb.id || fb.feedbackId || Math.random();
                     const replyText = getReplyText(fb);
-                    const mine = isMyFeedback(fb);
+
+                    const isLatestMine = isMyLatestFeedback(fb);
+                    const canShowEdit = isLatestMine && canEditLatest; // ✅ nếu không thể update => ẩn
+
+                    const isEditingMine = editingMyFeedbackId === (fb.id || fb.feedbackId);
 
                     return (
-                      <div
-                        key={id}
-                        className="border-bottom pb-3 mb-3"
-                      >
+                      <div key={id} className="border-bottom pb-3 mb-3">
                         <div className="d-flex justify-content-between align-items-center mb-1">
-                          <strong>
-                            {mine
-                              ? "Me"
-                              : fb.memberName || "Hội viên ẩn danh"}
-                          </strong>
+                          <strong>{getDisplayName(fb)}</strong>
 
-                          {/* Nếu là feedback của mình và đang edit → hiển thị sao editable */}
-                          {mine && editingMyFeedbackId === (fb.id || fb.feedbackId) ? (
+                          {/* Nếu là latest của mình và đang edit → hiển thị sao editable */}
+                          {canShowEdit && isEditingMine ? (
                             <div className="d-flex align-items-center">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <span
                                   key={star}
-                                  onClick={() =>
-                                    setMyEdit((prev) => ({
-                                      ...prev,
-                                      rating: star,
-                                    }))
-                                  }
+                                  onClick={() => setMyEdit((prev) => ({ ...prev, rating: star }))}
                                   style={{
                                     cursor: "pointer",
                                     fontSize: "1.3rem",
-                                    color:
-                                      star <= myEdit.rating
-                                        ? "#ffc107"
-                                        : "#e4e5e9",
+                                    color: star <= myEdit.rating ? "#ffc107" : "#e4e5e9",
                                     marginRight: 2,
                                   }}
                                 >
@@ -461,29 +469,20 @@ export default function GymFeedbackSection() {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-warning small">
-                              {renderSolidStars(fb.rating)}
-                            </span>
+                            <span className="text-warning small">{renderSolidStars(fb.rating)}</span>
                           )}
                         </div>
 
-                        <div className="text-muted small mb-1">
-                          {getTypeLabel(fb.feedbackType)}
-                        </div>
+                        <div className="text-muted small mb-1">{getTypeLabel(fb.feedbackType)}</div>
 
-                        {/* Nội dung feedback: nếu là của mình và đang edit → textarea, else text */}
-                        {mine && editingMyFeedbackId === (fb.id || fb.feedbackId) ? (
+                        {/* Nội dung feedback: nếu là latest của mình và đang edit → textarea, else text */}
+                        {canShowEdit && isEditingMine ? (
                           <div className="small">
                             <textarea
                               className="form-control form-control-sm"
                               rows={3}
                               value={myEdit.comments}
-                              onChange={(e) =>
-                                setMyEdit((prev) => ({
-                                  ...prev,
-                                  comments: e.target.value,
-                                }))
-                              }
+                              onChange={(e) => setMyEdit((prev) => ({ ...prev, comments: e.target.value }))}
                             />
                             <div className="mt-2 d-flex justify-content-end">
                               <button
@@ -499,39 +498,29 @@ export default function GymFeedbackSection() {
                               <button
                                 type="button"
                                 className="btn btn-primary btn-sm"
-                                disabled={
-                                  savingMyFeedbackId ===
-                                  (fb.id || fb.feedbackId)
-                                }
+                                disabled={savingMyFeedbackId === (fb.id || fb.feedbackId)}
                                 onClick={() => handleSaveMyFeedback(fb)}
                               >
-                                {savingMyFeedbackId ===
-                                (fb.id || fb.feedbackId)
-                                  ? "Đang lưu..."
-                                  : "Lưu"}
+                                {savingMyFeedbackId === (fb.id || fb.feedbackId) ? "Đang lưu..." : "Lưu"}
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="small">
-                            {fb.comments || "Không có nội dung"}
-                          </div>
+                          <div className="small">{fb.comments || "Không có nội dung"}</div>
                         )}
 
-                        {/* Nếu là feedback của mình và không trong trạng thái edit → nút chỉnh sửa */}
-                        {mine &&
-                          editingMyFeedbackId !==
-                            (fb.id || fb.feedbackId) && (
-                            <div className="mt-1">
-                              <button
-                                type="button"
-                                className="btn btn-link btn-sm px-0"
-                                onClick={() => handleStartEditMyFeedback(fb)}
-                              >
-                                Chỉnh sửa đánh giá
-                              </button>
-                            </div>
-                          )}
+                        {/* ✅ NÚT CHỈNH SỬA: CHỈ HIỆN KHI THỰC SỰ CÓ THỂ UPDATE */}
+                        {canShowEdit && !isEditingMine && (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm px-0"
+                              onClick={() => handleStartEditMyFeedback(fb)}
+                            >
+                              Chỉnh sửa đánh giá
+                            </button>
+                          </div>
+                        )}
 
                         {/* ==== STAFF REPLY SECTION ==== */}
                         {(replyText || isStaffRole) && (
@@ -539,9 +528,7 @@ export default function GymFeedbackSection() {
                             {/* Hiển thị reply (nếu có) */}
                             {replyText && (
                               <div className="mb-1">
-                                <span className="fw-semibold">
-                                  Phản hồi từ phòng gym:
-                                </span>
+                                <span className="fw-semibold">Phản hồi từ phòng gym:</span>
                                 <div>{replyText}</div>
                               </div>
                             )}
@@ -549,29 +536,23 @@ export default function GymFeedbackSection() {
                             {/* Nếu là staff role: cho phép thêm / sửa reply */}
                             {isStaffRole && (
                               <>
-                                {editingFeedbackId !==
-                                  (fb.id || fb.feedbackId) && (
+                                {editingFeedbackId !== (fb.id || fb.feedbackId) && (
                                   <button
                                     type="button"
                                     className="btn btn-link btn-sm px-0"
                                     onClick={() => handleStartEditReply(fb)}
                                   >
-                                    {replyText
-                                      ? "Chỉnh sửa phản hồi"
-                                      : "Phản hồi"}
+                                    {replyText ? "Chỉnh sửa phản hồi" : "Phản hồi"}
                                   </button>
                                 )}
 
-                                {editingFeedbackId ===
-                                  (fb.id || fb.feedbackId) && (
+                                {editingFeedbackId === (fb.id || fb.feedbackId) && (
                                   <div className="mt-2">
                                     <textarea
                                       className="form-control"
                                       rows={3}
                                       value={replyDraft}
-                                      onChange={(e) =>
-                                        setReplyDraft(e.target.value)
-                                      }
+                                      onChange={(e) => setReplyDraft(e.target.value)}
                                       placeholder="Nhập phản hồi gửi đến hội viên..."
                                     />
                                     <div className="mt-2 d-flex justify-content-end">
@@ -588,16 +569,10 @@ export default function GymFeedbackSection() {
                                       <button
                                         type="button"
                                         className="btn btn-primary btn-sm"
-                                        disabled={
-                                          savingReplyId ===
-                                          (fb.id || fb.feedbackId)
-                                        }
+                                        disabled={savingReplyId === (fb.id || fb.feedbackId)}
                                         onClick={() => handleSaveReply(fb)}
                                       >
-                                        {savingReplyId ===
-                                        (fb.id || fb.feedbackId)
-                                          ? "Đang lưu..."
-                                          : "Gửi"}
+                                        {savingReplyId === (fb.id || fb.feedbackId) ? "Đang lưu..." : "Gửi"}
                                       </button>
                                     </div>
                                   </div>
@@ -628,146 +603,116 @@ export default function GymFeedbackSection() {
                     bằng tài khoản hội viên để gửi phản hồi.
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmit}>
-                    {/* Rating - chọn sao */}
-                    <div className="mb-3">
-                      <label className="form-label">Đánh giá</label>
-                      <div className="d-flex align-items-center">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span
-                            key={star}
-                            onClick={() =>
-                              handleChange("rating", star)
-                            }
-                            style={{
-                              cursor: "pointer",
-                              fontSize: "1.8rem",
-                              color:
-                                star <= form.rating
-                                  ? "#ffc107"
-                                  : "#e4e5e9",
-                              marginRight: 4,
-                            }}
-                          >
-                            ★
-                          </span>
-                        ))}
-                        <span className="ms-2 small text-muted">
-                          {ratingLabel[form.rating]}
-                        </span>
+                  <>
+                    {/* Thông tin availability (optional) */}
+                    {loadingAvailability && (
+                      <div className="alert alert-info py-2 small">
+                        Đang kiểm tra điều kiện gửi phản hồi...
                       </div>
-                    </div>
+                    )}
 
-                    {/* Loại phản hồi - custom dropdown + input "Khác" */}
-                    <div className="mb-3">
-                      <label className="form-label">
-                        Loại phản hồi
-                      </label>
+                    {/* Form gửi */}
+                    <form onSubmit={handleSubmit}>
+                      {/* Rating - chọn sao */}
+                      <div className="mb-3">
+                        <label className="form-label">Đánh giá</label>
+                        <div className="d-flex align-items-center">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span
+                              key={star}
+                              onClick={() => handleChange("rating", star)}
+                              style={{
+                                cursor: "pointer",
+                                fontSize: "1.8rem",
+                                color: star <= form.rating ? "#ffc107" : "#e4e5e9",
+                                marginRight: 4,
+                              }}
+                            >
+                              ★
+                            </span>
+                          ))}
+                          <span className="ms-2 small text-muted">{ratingLabel[form.rating]}</span>
+                        </div>
+                      </div>
 
-                      <div className="position-relative">
-                        <button
-                          type="button"
-                          className="form-select text-start"
-                          onClick={() =>
-                            setOpenTypeMenu((prev) => !prev)
-                          }
-                        >
-                          {getSelectedTypeText()}
-                        </button>
+                      {/* Loại phản hồi - custom dropdown + input "Khác" */}
+                      <div className="mb-3">
+                        <label className="form-label">Loại phản hồi</label>
 
-                        {openTypeMenu && (
-                          <div
-                            className="border rounded bg-white shadow position-absolute w-100 mt-1"
-                            style={{ zIndex: 999 }}
+                        <div className="position-relative">
+                          <button
+                            type="button"
+                            className="form-select text-start"
+                            onClick={() => setOpenTypeMenu((prev) => !prev)}
                           >
-                            {/* Các loại chuẩn */}
-                            {Object.entries(
-                              FEEDBACK_TYPE_LABELS
-                            ).map(
-                              ([key, label]) =>
-                                key !== "Other" && (
+                            {getSelectedTypeText()}
+                          </button>
+
+                          {openTypeMenu && (
+                            <div
+                              className="border rounded bg-white shadow position-absolute w-100 mt-1"
+                              style={{ zIndex: 999 }}
+                            >
+                              {/* Các loại chuẩn */}
+                              {Object.entries(FEEDBACK_TYPE_LABELS).map(([key, label]) =>
+                                key !== "Other" ? (
                                   <div
                                     key={key}
                                     className="dropdown-item py-2 px-3"
                                     style={{ cursor: "pointer" }}
                                     onClick={() => {
-                                      handleChange(
-                                        "feedbackType",
-                                        key
-                                      );
-                                      handleChange(
-                                        "customFeedbackType",
-                                        ""
-                                      );
+                                      handleChange("feedbackType", key);
+                                      handleChange("customFeedbackType", "");
                                       setOpenTypeMenu(false);
                                     }}
                                   >
                                     {label}
                                   </div>
-                                )
-                            )}
-
-                            {/* Khác */}
-                            <div className="dropdown-item py-2 px-3">
-                              <div
-                                style={{ cursor: "pointer" }}
-                                onClick={() =>
-                                  handleChange(
-                                    "feedbackType",
-                                    "Other"
-                                  )
-                                }
-                              >
-                                Khác
-                              </div>
-
-                              {form.feedbackType === "Other" && (
-                                <input
-                                  type="text"
-                                  className="form-control mt-2"
-                                  placeholder="Nhập loại phản hồi..."
-                                  value={
-                                    form.customFeedbackType || ""
-                                  }
-                                  onChange={(e) =>
-                                    handleChange(
-                                      "customFeedbackType",
-                                      e.target.value
-                                    )
-                                  }
-                                  autoFocus
-                                />
+                                ) : null
                               )}
+
+                              {/* Khác */}
+                              <div className="dropdown-item py-2 px-3">
+                                <div
+                                  style={{ cursor: "pointer" }}
+                                  onClick={() => handleChange("feedbackType", "Other")}
+                                >
+                                  Khác
+                                </div>
+
+                                {form.feedbackType === "Other" && (
+                                  <input
+                                    type="text"
+                                    className="form-control mt-2"
+                                    placeholder="Nhập loại phản hồi..."
+                                    value={form.customFeedbackType || ""}
+                                    onChange={(e) => handleChange("customFeedbackType", e.target.value)}
+                                    autoFocus
+                                  />
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Comments */}
-                    <div className="mb-3">
-                      <label className="form-label">
-                        Nội dung chi tiết
-                      </label>
-                      <textarea
-                        className="form-control"
-                        rows={4}
-                        value={form.comments}
-                        onChange={(e) =>
-                          handleChange("comments", e.target.value)
-                        }
-                        placeholder="Chia sẻ trải nghiệm của bạn tại phòng gym..."
-                      />
-                    </div>
+                      {/* Comments */}
+                      <div className="mb-3">
+                        <label className="form-label">Nội dung chi tiết</label>
+                        <textarea
+                          className="form-control"
+                          rows={4}
+                          value={form.comments}
+                          onChange={(e) => handleChange("comments", e.target.value)}
+                          placeholder="Chia sẻ trải nghiệm của bạn tại phòng gym..."
+                        />
+                      </div>
 
-                    <button
-                      type="submit"
-                      className="btn btn-primary w-100"
-                      disabled={submitLoading}
-                    >
-                      {submitLoading ? "Đang gửi..." : "Gửi phản hồi"}
-                    </button>
-                  </form>
+                      <button type="submit" className="btn btn-primary w-100" disabled={submitLoading}>
+                        {submitLoading ? "Đang gửi..." : "Gửi phản hồi"}
+                      </button>
+                    </form>
+                  </>
                 )}
               </div>
             </div>

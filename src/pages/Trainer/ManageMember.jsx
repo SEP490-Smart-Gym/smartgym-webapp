@@ -37,7 +37,7 @@ const formatDDMMYYYY = (iso) => {
 // ====== Helper format giới tính sang tiếng Việt ======
 const formatGender = (g) => {
   if (!g) return "—";
-  const v = g.toLowerCase();
+  const v = String(g).toLowerCase();
   if (v === "male") return "Nam";
   if (v === "female") return "Nữ";
   if (v === "other") return "Khác";
@@ -45,22 +45,20 @@ const formatGender = (g) => {
 };
 
 // ====== Helper xử lý TimeSpan cho mealTime ======
-// API trả kiểu TimeSpan, thường dạng "07:00:00" -> UI hiển thị "07:00"
 const normalizeMealTimeFromApi = (time) => {
   if (!time) return "";
-  const parts = time.split(":");
+  const parts = String(time).split(":");
   if (parts.length >= 2) {
     const hh = parts[0].padStart(2, "0");
     const mm = parts[1].padStart(2, "0");
     return `${hh}:${mm}`;
   }
-  return time;
+  return String(time);
 };
 
-// UI nhập "HH:mm" -> gửi lên API dạng "HH:mm:00"
 const toApiTimeSpan = (uiTime) => {
   if (!uiTime) return null;
-  const parts = uiTime.split(":");
+  const parts = String(uiTime).split(":");
   if (parts.length < 2) return null;
   const hh = parts[0].padStart(2, "0");
   const mm = parts[1].padStart(2, "0");
@@ -92,13 +90,13 @@ const createEmptyDay = (dayNumber = 1) => ({
 
 const defaultDays = () => [createEmptyDay(1)];
 
-// ====== Meal Plan helpers (theo DTO mới) ======
+// ====== Meal Plan helpers ======
 const createEmptyMeal = () => ({
   mealType: "Bữa chính",
   name: "",
   description: "",
   instructions: "",
-  mealTime: "07:00", // UI: HH:mm
+  mealTime: "07:00",
 });
 
 const createEmptyMealDay = (dayNumber = 1) => ({
@@ -148,7 +146,183 @@ const TrainerMemberList = () => {
   const [expandedMealDays, setExpandedMealDays] = useState([]);
   const [expandedMeals, setExpandedMeals] = useState([]);
 
-  // ====== Lấy danh sách member trainer đang training từ API ======
+  /** ================== VALIDATION (Workout) ================== */
+  const initDayError = () => ({
+    dayName: "",
+    focusArea: "",
+    difficulty: "",
+    durationMinutes: "",
+    exercises: [],
+  });
+
+  const initExerciseError = () => ({
+    name: "",
+    sets: "",
+    reps: "",
+    restSeconds: "",
+  });
+
+  const [workoutErrors, setWorkoutErrors] = useState({
+    description: "",
+    days: [],
+  });
+
+  const isBlank = (v) => String(v ?? "").trim() === "";
+  const toInt = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return NaN;
+    return Math.trunc(n);
+  };
+  const inRange = (n, min, max) => Number.isFinite(n) && n >= min && n <= max;
+
+  const inputStyleByError = (hasError) => ({
+    borderColor: hasError ? "#ef4444" : undefined,
+    boxShadow: hasError ? "0 0 0 0.15rem rgba(239,68,68,0.15)" : undefined,
+  });
+
+  const errorText = (msg) =>
+    msg ? (
+      <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{msg}</div>
+    ) : null;
+
+  const ensureWorkoutErrorsShape = (nextDays) => {
+    setWorkoutErrors((prev) => {
+      const daysErr = Array.isArray(prev.days) ? [...prev.days] : [];
+
+      while (daysErr.length < nextDays.length) daysErr.push(initDayError());
+      while (daysErr.length > nextDays.length) daysErr.pop();
+
+      nextDays.forEach((d, di) => {
+        const exLen = (d.exercises || []).length;
+        const exErr = Array.isArray(daysErr[di]?.exercises)
+          ? [...daysErr[di].exercises]
+          : [];
+        while (exErr.length < exLen) exErr.push(initExerciseError());
+        while (exErr.length > exLen) exErr.pop();
+
+        daysErr[di] = {
+          ...initDayError(),
+          ...(daysErr[di] || {}),
+          exercises: exErr,
+        };
+      });
+
+      return { ...prev, days: daysErr };
+    });
+  };
+
+  const setDayFieldError = (dayIndex, field, msg) => {
+    setWorkoutErrors((prev) => {
+      const daysErr = [...(prev.days || [])];
+      daysErr[dayIndex] = { ...(daysErr[dayIndex] || initDayError()), [field]: msg };
+      return { ...prev, days: daysErr };
+    });
+  };
+
+  const setExFieldError = (dayIndex, exIndex, field, msg) => {
+    setWorkoutErrors((prev) => {
+      const daysErr = [...(prev.days || [])];
+      const dayErr = { ...(daysErr[dayIndex] || initDayError()) };
+      const exErr = [...(dayErr.exercises || [])];
+      exErr[exIndex] = { ...(exErr[exIndex] || initExerciseError()), [field]: msg };
+      dayErr.exercises = exErr;
+      daysErr[dayIndex] = dayErr;
+      return { ...prev, days: daysErr };
+    });
+  };
+
+  const clearWorkoutAllErrors = () => {
+    setWorkoutErrors({ description: "", days: [] });
+  };
+
+  const validateWorkoutPlan = () => {
+    let ok = true;
+
+    ensureWorkoutErrorsShape(days);
+
+    // description required
+    const desc = String(workoutDescription || "").trim();
+    if (!desc) {
+      ok = false;
+      setWorkoutErrors((prev) => ({
+        ...prev,
+        description: "Vui lòng nhập mô tả tổng quan kế hoạch tập luyện.",
+      }));
+    } else {
+      setWorkoutErrors((prev) => ({ ...prev, description: "" }));
+    }
+
+    days.forEach((d, di) => {
+      const dayName = String(d.dayName || "").trim();
+      const focusArea = String(d.focusArea || "").trim();
+      const difficulty = String(d.difficulty || "").trim();
+      const duration = toInt(d.durationMinutes);
+
+      if (!dayName) {
+        ok = false;
+        setDayFieldError(di, "dayName", "Vui lòng nhập tên ngày tập.");
+      } else setDayFieldError(di, "dayName", "");
+
+      if (!focusArea) {
+        ok = false;
+        setDayFieldError(di, "focusArea", "Vui lòng nhập vùng tập trung / nhóm cơ chính.");
+      } else setDayFieldError(di, "focusArea", "");
+
+      if (!difficulty) {
+        ok = false;
+        setDayFieldError(di, "difficulty", "Vui lòng nhập độ khó buổi tập.");
+      } else setDayFieldError(di, "difficulty", "");
+
+      if (!Number.isFinite(duration)) {
+        ok = false;
+        setDayFieldError(di, "durationMinutes", "Thời lượng phải là số.");
+      } else if (!inRange(duration, 10, 300)) {
+        ok = false;
+        setDayFieldError(di, "durationMinutes", "Thời lượng nên trong khoảng 10–300 phút.");
+      } else setDayFieldError(di, "durationMinutes", "");
+
+      (d.exercises || []).forEach((ex, ei) => {
+        const name = String(ex.name || "").trim();
+        const sets = toInt(ex.sets);
+        const reps = toInt(ex.reps);
+        const rest = toInt(ex.restSeconds);
+
+        if (!name) {
+          ok = false;
+          setExFieldError(di, ei, "name", "Vui lòng nhập tên bài tập.");
+        } else setExFieldError(di, ei, "name", "");
+
+        if (!Number.isFinite(sets)) {
+          ok = false;
+          setExFieldError(di, ei, "sets", "Sets phải là số.");
+        } else if (!inRange(sets, 1, 20)) {
+          ok = false;
+          setExFieldError(di, ei, "sets", "Sets nên trong khoảng 1–20.");
+        } else setExFieldError(di, ei, "sets", "");
+
+        if (!Number.isFinite(reps)) {
+          ok = false;
+          setExFieldError(di, ei, "reps", "Reps phải là số.");
+        } else if (!inRange(reps, 1, 200)) {
+          ok = false;
+          setExFieldError(di, ei, "reps", "Reps nên trong khoảng 1–200.");
+        } else setExFieldError(di, ei, "reps", "");
+
+        if (!Number.isFinite(rest)) {
+          ok = false;
+          setExFieldError(di, ei, "restSeconds", "Nghỉ phải là số.");
+        } else if (!inRange(rest, 0, 600)) {
+          ok = false;
+          setExFieldError(di, ei, "restSeconds", "Nghỉ nên trong khoảng 0–600 giây.");
+        } else setExFieldError(di, ei, "restSeconds", "");
+      });
+    });
+
+    if (!ok) message.error("Vui lòng kiểm tra lại các trường bắt buộc trong Kế hoạch tập luyện.");
+    return ok;
+  };
+
+  /** ================== FETCH MEMBERS ================== */
   const fetchMembers = async () => {
     setLoading(true);
     setLoadError("");
@@ -189,7 +363,6 @@ const TrainerMemberList = () => {
     fetchMembers();
   }, []);
 
-  // Filter theo search (tên/email)
   const filteredMembers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return members;
@@ -200,15 +373,13 @@ const TrainerMemberList = () => {
     );
   }, [members, search]);
 
-  // ====== Reset Workout state ======
+  /** ================== RESET STATES ================== */
   const resetWorkoutState = () => {
     const baseDays = defaultDays();
     const allDayIdx = baseDays.map((_, idx) => idx);
     const allExKeys = [];
     baseDays.forEach((d, di) => {
-      (d.exercises || []).forEach((_, ei) => {
-        allExKeys.push(`${di}-${ei}`);
-      });
+      (d.exercises || []).forEach((_, ei) => allExKeys.push(`${di}-${ei}`));
     });
 
     setWorkoutPlanId(null);
@@ -218,17 +389,17 @@ const TrainerMemberList = () => {
     setExpandedExercises(allExKeys);
     setWorkoutLoading(false);
     setWorkoutSaving(false);
+
+    clearWorkoutAllErrors();
+    ensureWorkoutErrorsShape(baseDays);
   };
 
-  // ====== Reset Meal state ======
   const resetMealState = () => {
     const baseDays = defaultMealDays();
     const allDayIdx = baseDays.map((_, idx) => idx);
     const allMealKeys = [];
     baseDays.forEach((d, di) => {
-      (d.meals || []).forEach((_, mi) => {
-        allMealKeys.push(`${di}-${mi}`);
-      });
+      (d.meals || []).forEach((_, mi) => allMealKeys.push(`${di}-${mi}`));
     });
 
     setMealPlanId(null);
@@ -240,7 +411,7 @@ const TrainerMemberList = () => {
     setMealSaving(false);
   };
 
-  // ====== Load Workout Plan của 1 profileId ======
+  /** ================== LOAD PLANS ================== */
   const loadWorkoutPlan = async (profileId) => {
     if (!profileId) {
       resetWorkoutState();
@@ -285,9 +456,7 @@ const TrainerMemberList = () => {
       const allDayIdx = mappedDays.map((_, idx) => idx);
       const allExKeys = [];
       mappedDays.forEach((d, di) => {
-        (d.exercises || []).forEach((_, ei) => {
-          allExKeys.push(`${di}-${ei}`);
-        });
+        (d.exercises || []).forEach((_, ei) => allExKeys.push(`${di}-${ei}`));
       });
 
       setWorkoutPlanId(data.planId ?? data.id ?? null);
@@ -295,6 +464,9 @@ const TrainerMemberList = () => {
       setDays(mappedDays);
       setExpandedDays(allDayIdx);
       setExpandedExercises(allExKeys);
+
+      clearWorkoutAllErrors();
+      ensureWorkoutErrorsShape(mappedDays);
     } catch (err) {
       console.error("Error loading Kế hoạch tập luyện:", err);
       if (err?.response?.status === 404) {
@@ -308,7 +480,6 @@ const TrainerMemberList = () => {
     }
   };
 
-  // ====== Load Meal Plan của 1 profileId ======
   const loadMealPlan = async (profileId) => {
     if (!profileId) {
       resetMealState();
@@ -345,9 +516,7 @@ const TrainerMemberList = () => {
       const allDayIdx = mappedDays.map((_, idx) => idx);
       const allMealKeys = [];
       mappedDays.forEach((d, di) => {
-        (d.meals || []).forEach((_, mi) => {
-          allMealKeys.push(`${di}-${mi}`);
-        });
+        (d.meals || []).forEach((_, mi) => allMealKeys.push(`${di}-${mi}`));
       });
 
       setMealPlanId(data.planId ?? data.id ?? null);
@@ -368,7 +537,7 @@ const TrainerMemberList = () => {
     }
   };
 
-  // ====== Mở modal chi tiết ======
+  /** ================== OPEN/CLOSE MODAL ================== */
   const handleOpenDetail = async (member) => {
     setSelectedMember(member);
     setDetailOpen(true);
@@ -387,10 +556,7 @@ const TrainerMemberList = () => {
     resetMealState();
 
     if (member.profileId) {
-      await Promise.all([
-        loadWorkoutPlan(member.profileId),
-        loadMealPlan(member.profileId),
-      ]);
+      await Promise.all([loadWorkoutPlan(member.profileId), loadMealPlan(member.profileId)]);
     }
   };
 
@@ -403,7 +569,7 @@ const TrainerMemberList = () => {
     resetMealState();
   };
 
-  // ====== Workout: Update Day / Exercise ======
+  /** ================== WORKOUT: UPDATE DAY/EX ================== */
   const updateDay = (dayIndex, field, value) => {
     const clone = [...days];
     clone[dayIndex] = {
@@ -423,10 +589,7 @@ const TrainerMemberList = () => {
         ? Number(value) || 0
         : value,
     };
-    clone[dayIndex] = {
-      ...day,
-      exercises: exList,
-    };
+    clone[dayIndex] = { ...day, exercises: exList };
     setDays(clone);
   };
 
@@ -437,13 +600,13 @@ const TrainerMemberList = () => {
 
     const allDayIdx = newDays.map((_, idx) => idx);
     const newExKeys = [];
-    (newDay.exercises || []).forEach((_, ei) => {
-      newExKeys.push(`${newDays.length - 1}-${ei}`);
-    });
+    (newDay.exercises || []).forEach((_, ei) => newExKeys.push(`${newDays.length - 1}-${ei}`));
 
     setDays(newDays);
     setExpandedDays(allDayIdx);
     setExpandedExercises((prev) => [...prev, ...newExKeys]);
+
+    ensureWorkoutErrorsShape(newDays);
   };
 
   const removeDay = (dayIndex) => {
@@ -452,22 +615,19 @@ const TrainerMemberList = () => {
       return;
     }
     const clone = days.filter((_, idx) => idx !== dayIndex);
-    const reindexed = clone.map((d, idx) => ({
-      ...d,
-      dayNumber: idx + 1,
-    }));
+    const reindexed = clone.map((d, idx) => ({ ...d, dayNumber: idx + 1 }));
 
     const allDayIdx = reindexed.map((_, idx) => idx);
     const allExKeys = [];
     reindexed.forEach((d, di) => {
-      (d.exercises || []).forEach((_, ei) => {
-        allExKeys.push(`${di}-${ei}`);
-      });
+      (d.exercises || []).forEach((_, ei) => allExKeys.push(`${di}-${ei}`));
     });
 
     setDays(reindexed);
     setExpandedDays(allDayIdx);
     setExpandedExercises(allExKeys);
+
+    ensureWorkoutErrorsShape(reindexed);
   };
 
   const addExercise = (dayIndex) => {
@@ -475,13 +635,14 @@ const TrainerMemberList = () => {
     const exList = [...(clone[dayIndex].exercises || [])];
     exList.push(createEmptyExercise());
     clone[dayIndex].exercises = exList;
+
     setDays(clone);
 
     const newIndex = exList.length - 1;
     const key = `${dayIndex}-${newIndex}`;
-    setExpandedExercises((prev) =>
-      prev.includes(key) ? prev : [...prev, key]
-    );
+    setExpandedExercises((prev) => (prev.includes(key) ? prev : [...prev, key]));
+
+    ensureWorkoutErrorsShape(clone);
   };
 
   const removeExercise = (dayIndex, exIndex) => {
@@ -493,37 +654,28 @@ const TrainerMemberList = () => {
     }
     exList.splice(exIndex, 1);
     clone[dayIndex].exercises = exList;
-    setDays(clone);
 
-    setExpandedExercises((prev) =>
-      prev.filter((k) => !k.startsWith(`${dayIndex}-`))
-    );
+    setDays(clone);
+    setExpandedExercises((prev) => prev.filter((k) => !k.startsWith(`${dayIndex}-`)));
+
+    ensureWorkoutErrorsShape(clone);
   };
 
   const toggleDayCollapse = (dayIndex) => {
     setExpandedDays((prev) =>
-      prev.includes(dayIndex)
-        ? prev.filter((i) => i !== dayIndex)
-        : [...prev, dayIndex]
+      prev.includes(dayIndex) ? prev.filter((i) => i !== dayIndex) : [...prev, dayIndex]
     );
   };
 
   const toggleExerciseCollapse = (dayIndex, exIndex) => {
     const key = `${dayIndex}-${exIndex}`;
-    setExpandedExercises((prev) =>
-      prev.includes(key)
-        ? prev.filter((k) => k !== key)
-        : [...prev, key]
-    );
+    setExpandedExercises((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   };
 
-  // ====== Meal: Update Day / Meal ======
+  /** ================== MEAL: UPDATE DAY/MEAL ================== */
   const updateMealDay = (dayIndex, field, value) => {
     const clone = [...mealDays];
-    clone[dayIndex] = {
-      ...clone[dayIndex],
-      [field]: value,
-    };
+    clone[dayIndex] = { ...clone[dayIndex], [field]: value };
     setMealDays(clone);
   };
 
@@ -531,14 +683,8 @@ const TrainerMemberList = () => {
     const clone = [...mealDays];
     const day = clone[dayIndex];
     const mealList = [...(day.meals || [])];
-    mealList[mealIndex] = {
-      ...mealList[mealIndex],
-      [field]: value,
-    };
-    clone[dayIndex] = {
-      ...day,
-      meals: mealList,
-    };
+    mealList[mealIndex] = { ...mealList[mealIndex], [field]: value };
+    clone[dayIndex] = { ...day, meals: mealList };
     setMealDays(clone);
   };
 
@@ -549,9 +695,7 @@ const TrainerMemberList = () => {
 
     const allDayIdx = newDays.map((_, idx) => idx);
     const newMealKeys = [];
-    (newDay.meals || []).forEach((_, mi) => {
-      newMealKeys.push(`${newDays.length - 1}-${mi}`);
-    });
+    (newDay.meals || []).forEach((_, mi) => newMealKeys.push(`${newDays.length - 1}-${mi}`));
 
     setMealDays(newDays);
     setExpandedMealDays(allDayIdx);
@@ -573,9 +717,7 @@ const TrainerMemberList = () => {
     const allDayIdx = reindexed.map((_, idx) => idx);
     const allMealKeys = [];
     reindexed.forEach((d, di) => {
-      (d.meals || []).forEach((_, mi) => {
-        allMealKeys.push(`${di}-${mi}`);
-      });
+      (d.meals || []).forEach((_, mi) => allMealKeys.push(`${di}-${mi}`));
     });
 
     setMealDays(reindexed);
@@ -592,9 +734,7 @@ const TrainerMemberList = () => {
 
     const newIndex = mealList.length - 1;
     const key = `${dayIndex}-${newIndex}`;
-    setExpandedMeals((prev) =>
-      prev.includes(key) ? prev : [...prev, key]
-    );
+    setExpandedMeals((prev) => (prev.includes(key) ? prev : [...prev, key]));
   };
 
   const removeMeal = (dayIndex, mealIndex) => {
@@ -608,42 +748,35 @@ const TrainerMemberList = () => {
     clone[dayIndex].meals = mealList;
     setMealDays(clone);
 
-    setExpandedMeals((prev) =>
-      prev.filter((k) => !k.startsWith(`${dayIndex}-`))
-    );
+    setExpandedMeals((prev) => prev.filter((k) => !k.startsWith(`${dayIndex}-`)));
   };
 
   const toggleMealDayCollapse = (dayIndex) => {
     setExpandedMealDays((prev) =>
-      prev.includes(dayIndex)
-        ? prev.filter((i) => i !== dayIndex)
-        : [...prev, dayIndex]
+      prev.includes(dayIndex) ? prev.filter((i) => i !== dayIndex) : [...prev, dayIndex]
     );
   };
 
   const toggleMealCollapse = (dayIndex, mealIndex) => {
     const key = `${dayIndex}-${mealIndex}`;
-    setExpandedMeals((prev) =>
-      prev.includes(key)
-        ? prev.filter((k) => k !== key)
-        : [...prev, key]
-    );
+    setExpandedMeals((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   };
 
-  // ====== Lưu Workout Plan (POST hoặc PUT) ======
+  /** ================== SAVE WORKOUT ================== */
   const handleSaveWorkoutPlan = async () => {
     if (!selectedMember?.profileId) {
       message.error("Không tìm thấy profileId của hội viên.");
       return;
     }
 
+    if (!validateWorkoutPlan()) return;
+
     const profileId = selectedMember.profileId;
 
     const payload = {
       profileId,
       description:
-        workoutDescription ||
-        `Workout plan cho ${selectedMember.fullName || "member"}`,
+        workoutDescription || `Workout plan cho ${selectedMember.fullName || "member"}`,
       days: days.map((d, idx) => ({
         dayNumber: d.dayNumber || idx + 1,
         dayName: d.dayName || "",
@@ -693,7 +826,7 @@ const TrainerMemberList = () => {
     }
   };
 
-  // ====== Lưu Meal Plan (POST hoặc PUT) ======
+  /** ================== SAVE MEAL ================== */
   const handleSaveMealPlan = async () => {
     if (!selectedMember?.profileId || selectedMember.profileId <= 0) {
       message.error("Không tìm thấy profileId hợp lệ của hội viên.");
@@ -704,9 +837,7 @@ const TrainerMemberList = () => {
 
     const payload = {
       profileId,
-      description:
-        mealDescription ||
-        `Meal plan cho ${selectedMember.fullName || "member"}`,
+      description: mealDescription || `Meal plan cho ${selectedMember.fullName || "member"}`,
       days: mealDays.map((d, idx) => ({
         dayNumber: d.dayNumber || idx + 1,
         dayName: d.dayName || `Ngày ${idx + 1}`,
@@ -785,8 +916,7 @@ const TrainerMemberList = () => {
                     Hội viên đang được bạn huấn luyện
                   </h3>
                   <small style={{ opacity: 0.85 }}>
-                    Xem nhanh thông tin hội viên và cập nhật Meal / Workout
-                    plan.
+                    Xem nhanh thông tin hội viên và cập nhật Meal / Workout plan.
                   </small>
                 </div>
               </div>
@@ -842,9 +972,7 @@ const TrainerMemberList = () => {
                   >
                     <span className="sr-only">Loading...</span>
                   </div>
-                  <div className="mt-2 text-muted">
-                    Đang tải danh sách hội viên...
-                  </div>
+                  <div className="mt-2 text-muted">Đang tải danh sách hội viên...</div>
                 </div>
               )}
 
@@ -884,9 +1012,7 @@ const TrainerMemberList = () => {
                     <tbody>
                       {filteredMembers.map((m, idx) => (
                         <tr key={m.id || idx}>
-                          <td className="align-middle text-muted">
-                            {idx + 1}
-                          </td>
+                          <td className="align-middle text-muted">{idx + 1}</td>
                           <td className="align-middle">
                             <div className="d-flex align-items-center">
                               <img
@@ -906,18 +1032,10 @@ const TrainerMemberList = () => {
                                 }}
                               />
                               <div>
-                                <div
-                                  style={{
-                                    fontWeight: 600,
-                                    color: "#111827",
-                                  }}
-                                >
+                                <div style={{ fontWeight: 600, color: "#111827" }}>
                                   {m.fullName || "Không rõ tên"}
                                 </div>
-                                <div
-                                  className="text-muted"
-                                  style={{ fontSize: 12 }}
-                                >
+                                <div className="text-muted" style={{ fontSize: 12 }}>
                                   {m.email || "—"}
                                 </div>
                                 {m.phoneNumber && (
@@ -969,16 +1087,8 @@ const TrainerMemberList = () => {
       </Row>
 
       {/* ========= MODAL CHI TIẾT MEMBER ========= */}
-      <Modal
-        isOpen={detailOpen}
-        toggle={handleCloseDetail}
-        size="lg"
-        centered
-      >
-        <ModalHeader
-          toggle={handleCloseDetail}
-          style={{ borderBottom: "none", paddingBottom: 0 }}
-        ></ModalHeader>
+      <Modal isOpen={detailOpen} toggle={handleCloseDetail} size="lg" centered>
+        <ModalHeader toggle={handleCloseDetail} style={{ borderBottom: "none", paddingBottom: 0 }} />
         <ModalBody style={{ backgroundColor: "#f9fafb" }}>
           {selectedMember && (
             <>
@@ -1013,13 +1123,7 @@ const TrainerMemberList = () => {
                   }}
                 />
                 <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 700,
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>
                     {selectedMember.fullName}
                   </div>
                   <div style={{ fontSize: 13, opacity: 0.85 }}>
@@ -1077,10 +1181,7 @@ const TrainerMemberList = () => {
               </div>
 
               {/* Tabs */}
-              <div
-                className="d-flex justify-content-center mb-3"
-                style={{ gap: 8 }}
-              >
+              <div className="d-flex justify-content-center mb-3" style={{ gap: 8 }}>
                 <Button
                   size="sm"
                   type="button"
@@ -1088,12 +1189,9 @@ const TrainerMemberList = () => {
                     borderRadius: 999,
                     paddingInline: 16,
                     fontWeight: activeModalTab === "info" ? 700 : 500,
-                    backgroundColor:
-                      activeModalTab === "info" ? "#0c1844" : "transparent",
-                    color:
-                      activeModalTab === "info" ? "#fff" : "#4b5563",
-                    borderColor:
-                      activeModalTab === "info" ? "#0c1844" : "#e5e7eb",
+                    backgroundColor: activeModalTab === "info" ? "#0c1844" : "transparent",
+                    color: activeModalTab === "info" ? "#fff" : "#4b5563",
+                    borderColor: activeModalTab === "info" ? "#0c1844" : "#e5e7eb",
                   }}
                   onClick={() => setActiveModalTab("info")}
                 >
@@ -1106,12 +1204,9 @@ const TrainerMemberList = () => {
                     borderRadius: 999,
                     paddingInline: 16,
                     fontWeight: activeModalTab === "meal" ? 700 : 500,
-                    backgroundColor:
-                      activeModalTab === "meal" ? "#0c1844" : "transparent",
-                    color:
-                      activeModalTab === "meal" ? "#fff" : "#4b5563",
-                    borderColor:
-                      activeModalTab === "meal" ? "#0c1844" : "#e5e7eb",
+                    backgroundColor: activeModalTab === "meal" ? "#0c1844" : "transparent",
+                    color: activeModalTab === "meal" ? "#fff" : "#4b5563",
+                    borderColor: activeModalTab === "meal" ? "#0c1844" : "#e5e7eb",
                   }}
                   onClick={() => setActiveModalTab("meal")}
                 >
@@ -1124,12 +1219,9 @@ const TrainerMemberList = () => {
                     borderRadius: 999,
                     paddingInline: 16,
                     fontWeight: activeModalTab === "workout" ? 700 : 500,
-                    backgroundColor:
-                      activeModalTab === "workout" ? "#0c1844" : "transparent",
-                    color:
-                      activeModalTab === "workout" ? "#fff" : "#4b5563",
-                    borderColor:
-                      activeModalTab === "workout" ? "#0c1844" : "#e5e7eb",
+                    backgroundColor: activeModalTab === "workout" ? "#0c1844" : "transparent",
+                    color: activeModalTab === "workout" ? "#fff" : "#4b5563",
+                    borderColor: activeModalTab === "workout" ? "#0c1844" : "#e5e7eb",
                   }}
                   onClick={() => setActiveModalTab("workout")}
                 >
@@ -1173,9 +1265,7 @@ const TrainerMemberList = () => {
                         >
                           <div className="d-flex justify-content-between mb-1">
                             <span className="text-muted">Họ tên</span>
-                            <span style={{ fontWeight: 600 }}>
-                              {selectedMember.fullName}
-                            </span>
+                            <span style={{ fontWeight: 600 }}>{selectedMember.fullName}</span>
                           </div>
                           <div className="d-flex justify-content-between mb-1">
                             <span className="text-muted">Email</span>
@@ -1190,9 +1280,7 @@ const TrainerMemberList = () => {
                             <span>{memberProfile?.target || "—"}</span>
                           </div>
                           <div className="d-flex justify-content-between">
-                            <span className="text-muted">
-                              Tình trạng sức khỏe
-                            </span>
+                            <span className="text-muted">Tình trạng sức khỏe</span>
                             <span>{memberProfile?.healthStatus || "—"}</span>
                           </div>
                         </div>
@@ -1221,32 +1309,24 @@ const TrainerMemberList = () => {
                         >
                           <div className="d-flex justify-content-between mb-1">
                             <span className="text-muted">Giới tính</span>
-                            <span>
-                              {formatGender(memberProfile?.gender)}
-                            </span>
+                            <span>{formatGender(memberProfile?.gender)}</span>
                           </div>
                           <div className="d-flex justify-content-between mb-1">
                             <span className="text-muted">Tuổi</span>
                             <span>
-                              {memberProfile?.age != null
-                                ? `${memberProfile.age} tuổi`
-                                : "—"}
+                              {memberProfile?.age != null ? `${memberProfile.age} tuổi` : "—"}
                             </span>
                           </div>
                           <div className="d-flex justify-content-between mb-1">
                             <span className="text-muted">Cân nặng</span>
                             <span>
-                              {memberProfile?.weight != null
-                                ? `${memberProfile.weight} kg`
-                                : "—"}
+                              {memberProfile?.weight != null ? `${memberProfile.weight} kg` : "—"}
                             </span>
                           </div>
                           <div className="d-flex justify-content-between">
                             <span className="text-muted">Chiều cao</span>
                             <span>
-                              {memberProfile?.height != null
-                                ? `${memberProfile.height} cm`
-                                : "—"}
+                              {memberProfile?.height != null ? `${memberProfile.height} cm` : "—"}
                             </span>
                           </div>
                         </div>
@@ -1272,24 +1352,20 @@ const TrainerMemberList = () => {
                             type="textarea"
                             rows={3}
                             value={mealDescription}
-                            onChange={(e) =>
-                              setMealDescription(e.target.value)
-                            }
-                            placeholder="Ví dụ: Kế hoạch ăn uống 3 bữa chính + 1 bữa phụ mỗi ngày, tập trung giảm mỡ, tăng sức khỏe tổng quát..."
+                            onChange={(e) => setMealDescription(e.target.value)}
+                            placeholder="Ví dụ: Kế hoạch ăn uống 3 bữa chính + 1 bữa phụ..."
                             style={{ fontSize: 13 }}
                           />
                         </FormGroup>
 
                         {mealDays.map((day, dayIndex) => {
-                          const isOpenDay =
-                            expandedMealDays.includes(dayIndex);
+                          const isOpenDay = expandedMealDays.includes(dayIndex);
                           return (
                             <div
                               key={dayIndex}
                               className="mb-3 border rounded"
                               style={{ backgroundColor: "#f9fafb" }}
                             >
-                              {/* Header ngày ăn */}
                               <div
                                 className="d-flex justify-content-between align-items-center px-3 py-2"
                                 style={{
@@ -1297,23 +1373,14 @@ const TrainerMemberList = () => {
                                   backgroundColor: "#e5e7eb",
                                   borderRadius: "0.25rem 0.25rem 0 0",
                                 }}
-                                onClick={() =>
-                                  toggleMealDayCollapse(dayIndex)
-                                }
+                                onClick={() => toggleMealDayCollapse(dayIndex)}
                               >
                                 <div>
                                   <strong>Ngày ăn {day.dayNumber}</strong>{" "}
-                                  {day.dayName && (
-                                    <span className="text-muted">
-                                      - {day.dayName}
-                                    </span>
-                                  )}
+                                  {day.dayName && <span className="text-muted">- {day.dayName}</span>}
                                 </div>
                                 <div className="d-flex align-items-center">
-                                  <span
-                                    className="text-muted me-3"
-                                    style={{ fontSize: 12 }}
-                                  >
+                                  <span className="text-muted me-3" style={{ fontSize: 12 }}>
                                     {isOpenDay ? "Thu gọn" : "Xem chi tiết"}
                                   </span>
                                   <span
@@ -1335,21 +1402,9 @@ const TrainerMemberList = () => {
                               </div>
 
                               <Collapse isOpen={isOpenDay}>
-                                <div
-                                  className="p-3"
-                                  style={{
-                                    borderRadius:
-                                      "0 0 0.25rem 0.25rem",
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="p-3" onClick={(e) => e.stopPropagation()}>
                                   <div className="d-flex justify-content-between align-items-center mb-2">
-                                    <div
-                                      style={{
-                                        fontSize: 12,
-                                        color: "#6b7280",
-                                      }}
-                                    >
+                                    <div style={{ fontSize: 12, color: "#6b7280" }}>
                                       Cấu hình chi tiết cho ngày ăn này
                                     </div>
                                     <div>
@@ -1366,104 +1421,64 @@ const TrainerMemberList = () => {
                                         size="sm"
                                         color="danger"
                                         outline
-                                        onClick={() =>
-                                          removeMealDay(dayIndex)
-                                        }
+                                        onClick={() => removeMealDay(dayIndex)}
                                       >
                                         Xóa ngày ăn
                                       </Button>
                                     </div>
                                   </div>
 
-                                  {/* Thông tin chung ngày ăn */}
                                   <FormGroup className="mb-3">
                                     <Label style={{ fontSize: 12 }}>
                                       Tên ngày ăn{" "}
-                                      <span className="text-muted">
-                                        (ví dụ: Ngày 1 - Thứ 2)
-                                      </span>
+                                      <span className="text-muted">(ví dụ: Ngày 1 - Thứ 2)</span>
                                     </Label>
                                     <Input
                                       placeholder="Nhập tên ngày ăn"
                                       value={day.dayName}
-                                      onChange={(e) =>
-                                        updateMealDay(
-                                          dayIndex,
-                                          "dayName",
-                                          e.target.value
-                                        )
-                                      }
+                                      onChange={(e) => updateMealDay(dayIndex, "dayName", e.target.value)}
                                     />
                                   </FormGroup>
 
-                                  <h6 className="mb-2">
-                                    Danh sách bữa ăn trong ngày
-                                  </h6>
+                                  <h6 className="mb-2">Danh sách bữa ăn trong ngày</h6>
 
                                   {day.meals.map((m, mealIndex) => {
                                     const mealKey = `${dayIndex}-${mealIndex}`;
-                                    const isOpenMeal =
-                                      expandedMeals.includes(mealKey);
+                                    const isOpenMeal = expandedMeals.includes(mealKey);
 
                                     return (
                                       <div
                                         key={mealIndex}
                                         className="p-2 mb-2 rounded"
-                                        style={{
-                                          backgroundColor: "#ffffff",
-                                        }}
+                                        style={{ backgroundColor: "#ffffff" }}
                                       >
-                                        {/* Header bữa ăn */}
                                         <div className="d-flex justify-content-between align-items-center mb-1">
                                           <div
                                             className="d-flex align-items-center"
                                             style={{ cursor: "pointer" }}
-                                            onClick={() =>
-                                              toggleMealCollapse(
-                                                dayIndex,
-                                                mealIndex
-                                              )
-                                            }
+                                            onClick={() => toggleMealCollapse(dayIndex, mealIndex)}
                                           >
-                                            <strong className="me-2">
-                                              Bữa {mealIndex + 1}
-                                            </strong>
+                                            <strong className="me-2">Bữa {mealIndex + 1}</strong>
                                             {m.mealType && (
-                                              <span
-                                                className="text-muted me-1"
-                                                style={{ fontSize: 12 }}
-                                              >
+                                              <span className="text-muted me-1" style={{ fontSize: 12 }}>
                                                 ({m.mealType})
                                               </span>
                                             )}
                                             {m.name && (
-                                              <span
-                                                className="text-muted"
-                                                style={{ fontSize: 12 }}
-                                              >
+                                              <span className="text-muted" style={{ fontSize: 12 }}>
                                                 - {m.name}
                                               </span>
                                             )}
                                           </div>
                                           <div className="d-flex align-items-center">
-                                            <span
-                                              className="text-muted me-2"
-                                              style={{ fontSize: 11 }}
-                                            >
-                                              {isOpenMeal
-                                                ? "Thu gọn"
-                                                : "Xem chi tiết"}
+                                            <span className="text-muted me-2" style={{ fontSize: 11 }}>
+                                              {isOpenMeal ? "Thu gọn" : "Xem chi tiết"}
                                             </span>
                                             <Button
                                               size="sm"
                                               color="danger"
                                               outline
-                                              onClick={() =>
-                                                removeMeal(
-                                                  dayIndex,
-                                                  mealIndex
-                                                )
-                                              }
+                                              onClick={() => removeMeal(dayIndex, mealIndex)}
                                             >
                                               Xóa bữa ăn
                                             </Button>
@@ -1471,114 +1486,77 @@ const TrainerMemberList = () => {
                                         </div>
 
                                         <Collapse isOpen={isOpenMeal}>
-                                          {/* Hàng 1: Loại bữa + tên món + giờ ăn */}
                                           <Row className="mb-2">
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Loại bữa ăn{" "}
-                                                  <span className="text-muted">
-                                                    (Bữa sáng / Bữa trưa / Bữa
-                                                    tối / Bữa phụ)
-                                                  </span>
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Loại bữa ăn</Label>
+
                                                 <Input
-                                                  placeholder="Ví dụ: Bữa sáng"
-                                                  value={m.mealType}
+                                                  type="select"
+                                                  value={m.mealType || ""}
                                                   onChange={(e) =>
-                                                    updateMeal(
-                                                      dayIndex,
-                                                      mealIndex,
-                                                      "mealType",
-                                                      e.target.value
-                                                    )
+                                                    updateMeal(dayIndex, mealIndex, "mealType", e.target.value)
                                                   }
-                                                />
+                                                >
+                                                  <option value="" disabled>
+                                                    -- Chọn loại bữa ăn --
+                                                  </option>
+                                                  <option value="Bữa Sáng">Bữa Sáng</option>
+                                                  <option value="Bữa Trưa">Bữa Trưa</option>
+                                                  <option value="Bữa Tối">Bữa Tối</option>
+                                                  <option value="Bữa Phụ">Bữa Phụ</option>
+                                                </Input>
                                               </FormGroup>
                                             </Col>
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Tên món ăn
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Tên món ăn</Label>
                                                 <Input
-                                                  placeholder="Ví dụ: Ức gà áp chảo, salad rau xanh..."
+                                                  placeholder="Ví dụ: Ức gà áp chảo..."
                                                   value={m.name}
                                                   onChange={(e) =>
-                                                    updateMeal(
-                                                      dayIndex,
-                                                      mealIndex,
-                                                      "name",
-                                                      e.target.value
-                                                    )
+                                                    updateMeal(dayIndex, mealIndex, "name", e.target.value)
                                                   }
                                                 />
                                               </FormGroup>
                                             </Col>
+                                            
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Thời gian ăn (giờ:phút)
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Thời gian ăn (HH:mm)</Label>
                                                 <Input
                                                   placeholder="Ví dụ: 07:30"
                                                   value={m.mealTime}
                                                   onChange={(e) =>
-                                                    updateMeal(
-                                                      dayIndex,
-                                                      mealIndex,
-                                                      "mealTime",
-                                                      e.target.value
-                                                    )
+                                                    updateMeal(dayIndex, mealIndex, "mealTime", e.target.value)
                                                   }
                                                 />
                                               </FormGroup>
                                             </Col>
                                           </Row>
 
-                                          {/* Mô tả + hướng dẫn */}
                                           <FormGroup className="mb-2">
-                                            <Label style={{ fontSize: 12 }}>
-                                              Mô tả món ăn
-                                            </Label>
+                                            <Label style={{ fontSize: 12, color: "#6b7280" }}>Mô tả món ăn</Label>
                                             <Input
                                               type="textarea"
                                               rows={2}
-                                              placeholder="Mô tả cách chế biến, khẩu phần, lưu ý khẩu vị..."
+                                              placeholder="Mô tả khẩu phần, lưu ý..."
                                               value={m.description}
                                               onChange={(e) =>
-                                                updateMeal(
-                                                  dayIndex,
-                                                  mealIndex,
-                                                  "description",
-                                                  e.target.value
-                                                )
+                                                updateMeal(dayIndex, mealIndex, "description", e.target.value)
                                               }
                                             />
                                           </FormGroup>
 
                                           <FormGroup className="mb-0">
-                                            <Label style={{ fontSize: 12 }}>
-                                              Hướng dẫn chế biến / Lưu ý
-                                            </Label>
+                                            <Label style={{ fontSize: 12, color: "#6b7280" }}>Gợi ý chế biến</Label>
                                             <Input
                                               type="textarea"
                                               rows={2}
-                                              placeholder="Ví dụ: Hạn chế chiên rán, ưu tiên luộc/hấp, nêm nhạt..."
+                                              placeholder="Ví dụ: ưu tiên luộc/hấp..."
                                               value={m.instructions}
                                               onChange={(e) =>
-                                                updateMeal(
-                                                  dayIndex,
-                                                  mealIndex,
-                                                  "instructions",
-                                                  e.target.value
-                                                )
+                                                updateMeal(dayIndex, mealIndex, "instructions", e.target.value)
                                               }
                                             />
                                           </FormGroup>
@@ -1592,15 +1570,8 @@ const TrainerMemberList = () => {
                           );
                         })}
 
-                        <div
-                          className="d-flex justify-content-between align-items-center mt-1"
-                          style={{ fontSize: 12, color: "#6b7280" }}
-                        >
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            onClick={addMealDay}
-                          >
+                        <div className="d-flex justify-content-between align-items-center mt-1" style={{ fontSize: 12, color: "#6b7280" }}>
+                          <Button color="secondary" size="sm" onClick={addMealDay}>
                             + Thêm ngày ăn
                           </Button>
                           <Button
@@ -1610,9 +1581,7 @@ const TrainerMemberList = () => {
                             disabled={mealSaving}
                             style={{ borderRadius: 999, paddingInline: 16 }}
                           >
-                            {mealSaving
-                              ? "Đang lưu Kế hoạch dinh dưỡng..."
-                              : "Lưu Kế hoạch dinh dưỡng"}
+                            {mealSaving ? "Đang lưu Kế hoạch dinh dưỡng..." : "Lưu Kế hoạch dinh dưỡng"}
                           </Button>
                         </div>
                       </>
@@ -1620,7 +1589,7 @@ const TrainerMemberList = () => {
                   </>
                 )}
 
-                {/* Tab 3: Workout Plan */}
+                {/* Tab 3: Workout Plan (✅ required + validate + show label & error) */}
                 {activeModalTab === "workout" && (
                   <>
                     {workoutLoading ? (
@@ -1631,18 +1600,26 @@ const TrainerMemberList = () => {
                       <>
                         <FormGroup className="mb-3">
                           <Label style={{ fontWeight: 600, fontSize: 13 }}>
-                            📝 Mô tả tổng quan Kế hoạch tập luyện
+                            📝 Mô tả tổng quan Kế hoạch tập luyện{" "}
+                            <span style={{ color: "#ef4444" }}>*</span>
                           </Label>
                           <Input
                             type="textarea"
                             rows={3}
                             value={workoutDescription}
-                            onChange={(e) =>
-                              setWorkoutDescription(e.target.value)
-                            }
-                            placeholder="Ví dụ: Lịch tập 4 buổi/tuần, tập trung giảm mỡ, tăng sức bền, phù hợp cho người mới bắt đầu..."
-                            style={{ fontSize: 13 }}
+                            onChange={(e) => setWorkoutDescription(e.target.value)}
+                            onBlur={() => {
+                              setWorkoutErrors((prev) => ({
+                                ...prev,
+                                description: isBlank(workoutDescription)
+                                  ? "Vui lòng nhập mô tả tổng quan kế hoạch tập luyện."
+                                  : "",
+                              }));
+                            }}
+                            placeholder="Ví dụ: Lịch tập 4 buổi/tuần..."
+                            style={{ fontSize: 13, ...inputStyleByError(!!workoutErrors.description) }}
                           />
+                          {errorText(workoutErrors.description)}
                         </FormGroup>
 
                         {days.map((day, dayIndex) => {
@@ -1653,7 +1630,6 @@ const TrainerMemberList = () => {
                               className="mb-3 border rounded"
                               style={{ backgroundColor: "#f9fafb" }}
                             >
-                              {/* Header ngày tập */}
                               <div
                                 className="d-flex justify-content-between align-items-center px-3 py-2"
                                 style={{
@@ -1666,16 +1642,11 @@ const TrainerMemberList = () => {
                                 <div>
                                   <strong>Ngày tập {day.dayNumber}</strong>{" "}
                                   {day.dayName && (
-                                    <span className="text-muted">
-                                      - {day.dayName}
-                                    </span>
+                                    <span className="text-muted">- {day.dayName}</span>
                                   )}
                                 </div>
                                 <div className="d-flex align-items-center">
-                                  <span
-                                    className="text-muted me-3"
-                                    style={{ fontSize: 12 }}
-                                  >
+                                  <span className="text-muted me-3" style={{ fontSize: 12 }}>
                                     {isOpenDay ? "Thu gọn" : "Xem chi tiết"}
                                   </span>
                                   <span
@@ -1697,23 +1668,8 @@ const TrainerMemberList = () => {
                               </div>
 
                               <Collapse isOpen={isOpenDay}>
-                                <div
-                                  className="p-3"
-                                  style={{
-                                    borderRadius:
-                                      "0 0 0.25rem 0.25rem",
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="p-3" onClick={(e) => e.stopPropagation()}>
                                   <div className="d-flex justify-content-between align-items-center mb-2">
-                                    <div
-                                      style={{
-                                        fontSize: 12,
-                                        color: "#6b7280",
-                                      }}
-                                    >
-                                      Cấu hình chi tiết cho ngày tập này
-                                    </div>
                                     <div>
                                       <Button
                                         size="sm"
@@ -1735,118 +1691,129 @@ const TrainerMemberList = () => {
                                     </div>
                                   </div>
 
-                                  {/* Thông tin chung ngày tập */}
                                   <Row>
                                     <Col md="6" className="mb-2">
                                       <FormGroup className="mb-2">
-                                        <Label style={{ fontSize: 12 }}>
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>
                                           Tên ngày tập{" "}
-                                          <span className="text-muted">
-                                            (ví dụ: Day 1 - Ngực &amp; Tay sau)
-                                          </span>
+                                          <span style={{ color: "#ef4444" }}>*</span>{" "}
+                                          <span className="text-muted">(ví dụ: Day 1 - Ngực &amp; Tay sau)</span>
                                         </Label>
                                         <Input
                                           placeholder="Nhập tên ngày tập"
                                           value={day.dayName}
-                                          onChange={(e) =>
-                                            updateDay(
-                                              dayIndex,
-                                              "dayName",
-                                              e.target.value
-                                            )
-                                          }
+                                          onChange={(e) => updateDay(dayIndex, "dayName", e.target.value)}
+                                          onBlur={() => {
+                                            const v = String(days?.[dayIndex]?.dayName || "").trim();
+                                            setDayFieldError(dayIndex, "dayName", v ? "" : "Vui lòng nhập tên ngày tập.");
+                                          }}
+                                          style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.dayName)}
                                         />
+                                        {errorText(workoutErrors.days?.[dayIndex]?.dayName)}
                                       </FormGroup>
 
                                       <FormGroup className="mb-2">
-                                        <Label style={{ fontSize: 12 }}>
-                                          Vùng tập trung / Nhóm cơ chính
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                          Vùng tập trung / Nhóm cơ chính{" "}
+                                          <span style={{ color: "#ef4444" }}>*</span>
                                         </Label>
                                         <Input
-                                          placeholder="Ví dụ: Ngực, Lưng, Chân, Full body..."
+                                          placeholder="Ví dụ: Ngực, Lưng, Chân..."
                                           value={day.focusArea}
-                                          onChange={(e) =>
-                                            updateDay(
+                                          onChange={(e) => updateDay(dayIndex, "focusArea", e.target.value)}
+                                          onBlur={() => {
+                                            const v = String(days?.[dayIndex]?.focusArea || "").trim();
+                                            setDayFieldError(
                                               dayIndex,
                                               "focusArea",
-                                              e.target.value
-                                            )
-                                          }
+                                              v ? "" : "Vui lòng nhập vùng tập trung / nhóm cơ chính."
+                                            );
+                                          }}
+                                          style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.focusArea)}
                                         />
+                                        {errorText(workoutErrors.days?.[dayIndex]?.focusArea)}
                                       </FormGroup>
 
                                       <FormGroup className="mb-2">
-                                        <Label style={{ fontSize: 12 }}>
-                                          Độ khó buổi tập
-                                        </Label>
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>Mô tả buổi tập (tổng quan)</Label>
                                         <Input
-                                          placeholder="Ví dụ: Dễ, Trung bình, Khó hoặc RPE 6-7..."
-                                          value={day.difficulty}
-                                          onChange={(e) =>
-                                            updateDay(
-                                              dayIndex,
-                                              "difficulty",
-                                              e.target.value
-                                            )
-                                          }
+                                          type="textarea"
+                                          rows={2}
+                                          placeholder="Ví dụ: Khởi động, tập chính..."
+                                          value={day.description}
+                                          onChange={(e) => updateDay(dayIndex, "description", e.target.value)}
                                         />
                                       </FormGroup>
                                     </Col>
 
                                     <Col md="6" className="mb-2">
                                       <FormGroup className="mb-2">
-                                        <Label style={{ fontSize: 12 }}>
-                                          Thời lượng buổi tập (phút)
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                          Thời lượng buổi tập (phút){" "}
+                                          <span style={{ color: "#ef4444" }}>*</span>
                                         </Label>
                                         <Input
                                           type="number"
-                                          placeholder="Ví dụ: 60 (phút)"
+                                          placeholder="Ví dụ: 60"
                                           value={day.durationMinutes}
-                                          onChange={(e) =>
-                                            updateDay(
-                                              dayIndex,
-                                              "durationMinutes",
-                                              e.target.value
-                                            )
-                                          }
+                                          onChange={(e) => updateDay(dayIndex, "durationMinutes", e.target.value)}
+                                          onBlur={() => {
+                                            const n = toInt(days?.[dayIndex]?.durationMinutes);
+                                            let msg = "";
+                                            if (!Number.isFinite(n)) msg = "Thời lượng phải là số.";
+                                            else if (!inRange(n, 10, 300)) msg = "Thời lượng nên trong khoảng 10–300 phút.";
+                                            setDayFieldError(dayIndex, "durationMinutes", msg);
+                                          }}
+                                          style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.durationMinutes)}
                                         />
+                                        {errorText(workoutErrors.days?.[dayIndex]?.durationMinutes)}
                                       </FormGroup>
 
                                       <FormGroup className="mb-2">
-                                        <Label style={{ fontSize: 12 }}>
-                                          Mô tả buổi tập (tổng quan)
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                          Độ khó buổi tập <span style={{ color: "#ef4444" }}>*</span>
                                         </Label>
+
                                         <Input
-                                          type="textarea"
-                                          rows={2}
-                                          placeholder="Ví dụ: Khởi động, tập chính các nhóm cơ, giãn cơ cuối buổi..."
-                                          value={day.description}
-                                          onChange={(e) =>
-                                            updateDay(
+                                          type="select"
+                                          value={day.difficulty || ""}
+                                          onChange={(e) => {
+                                            const v = e.target.value;
+                                            updateDay(dayIndex, "difficulty", v);
+
+                                            // nếu chọn rồi thì clear lỗi ngay (optional nhưng mượt UX)
+                                            setDayFieldError(dayIndex, "difficulty", v ? "" : "Vui lòng chọn độ khó buổi tập.");
+                                          }}
+                                          onBlur={() => {
+                                            const v = String(days?.[dayIndex]?.difficulty || "").trim();
+                                            setDayFieldError(
                                               dayIndex,
-                                              "description",
-                                              e.target.value
-                                            )
-                                          }
-                                        />
+                                              "difficulty",
+                                              v ? "" : "Vui lòng chọn độ khó buổi tập."
+                                            );
+                                          }}
+                                          style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.difficulty)}
+                                        >
+                                          <option value="" disabled>
+                                            -- Chọn độ khó --
+                                          </option>
+                                          <option value="Dễ">Dễ</option>
+                                          <option value="Trung bình">Trung bình</option>
+                                          <option value="Khó">Khó</option>
+                                          <option value="Nâng cao">Nâng cao</option>
+                                        </Input>
+
+                                        {errorText(workoutErrors.days?.[dayIndex]?.difficulty)}
                                       </FormGroup>
 
                                       <FormGroup className="mb-0">
-                                        <Label style={{ fontSize: 12 }}>
-                                          Ghi chú thêm cho ngày tập
-                                        </Label>
+                                        <Label style={{ fontSize: 12, color: "#6b7280" }}>Ghi chú thêm cho ngày tập</Label>
                                         <Input
                                           type="textarea"
                                           rows={2}
-                                          placeholder="Ví dụ: Lưu ý tư thế, điều chỉnh mức tạ nếu thấy quá sức..."
+                                          placeholder="Ví dụ: Lưu ý tư thế..."
                                           value={day.notes}
-                                          onChange={(e) =>
-                                            updateDay(
-                                              dayIndex,
-                                              "notes",
-                                              e.target.value
-                                            )
-                                          }
+                                          onChange={(e) => updateDay(dayIndex, "notes", e.target.value)}
                                         />
                                       </FormGroup>
                                     </Col>
@@ -1854,14 +1821,11 @@ const TrainerMemberList = () => {
 
                                   <hr />
 
-                                  <h6 className="mb-2">
-                                    Danh sách bài tập trong ngày
-                                  </h6>
+                                  <h6 className="mb-2">Danh sách bài tập trong ngày</h6>
 
                                   {day.exercises.map((ex, exIndex) => {
                                     const exKey = `${dayIndex}-${exIndex}`;
-                                    const isOpenEx =
-                                      expandedExercises.includes(exKey);
+                                    const isOpenEx = expandedExercises.includes(exKey);
 
                                     return (
                                       <div
@@ -1869,49 +1833,28 @@ const TrainerMemberList = () => {
                                         className="p-2 mb-2 rounded"
                                         style={{ backgroundColor: "#ffffff" }}
                                       >
-                                        {/* Header bài tập */}
                                         <div className="d-flex justify-content-between align-items-center mb-1">
                                           <div
                                             className="d-flex align-items-center"
                                             style={{ cursor: "pointer" }}
-                                            onClick={() =>
-                                              toggleExerciseCollapse(
-                                                dayIndex,
-                                                exIndex
-                                              )
-                                            }
+                                            onClick={() => toggleExerciseCollapse(dayIndex, exIndex)}
                                           >
-                                            <strong className="me-2">
-                                              Bài tập {exIndex + 1}
-                                            </strong>
+                                            <strong className="me-2">Bài tập {exIndex + 1}</strong>
                                             {ex.name && (
-                                              <span
-                                                className="text-muted"
-                                                style={{ fontSize: 12 }}
-                                              >
+                                              <span className="text-muted" style={{ fontSize: 12 }}>
                                                 - {ex.name}
                                               </span>
                                             )}
                                           </div>
                                           <div className="d-flex align-items-center">
-                                            <span
-                                              className="text-muted me-2"
-                                              style={{ fontSize: 11 }}
-                                            >
-                                              {isOpenEx
-                                                ? "Thu gọn"
-                                                : "Xem chi tiết"}
+                                            <span className="text-muted me-2" style={{ fontSize: 11 }}>
+                                              {isOpenEx ? "Thu gọn" : "Xem chi tiết"}
                                             </span>
                                             <Button
                                               size="sm"
                                               color="danger"
                                               outline
-                                              onClick={() =>
-                                                removeExercise(
-                                                  dayIndex,
-                                                  exIndex
-                                                )
-                                              }
+                                              onClick={() => removeExercise(dayIndex, exIndex)}
                                             >
                                               Xóa bài tập
                                             </Button>
@@ -1919,47 +1862,37 @@ const TrainerMemberList = () => {
                                         </div>
 
                                         <Collapse isOpen={isOpenEx}>
-                                          {/* Hàng 1: Tên + mô tả, thiết bị + nhóm cơ */}
                                           <Row className="mb-2">
                                             <Col md="6" className="mb-2">
                                               <FormGroup className="mb-2">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Tên bài tập
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                                  Tên bài tập{" "}
+                                                  <span style={{ color: "#ef4444" }}>*</span>
                                                 </Label>
                                                 <Input
-                                                  placeholder="Ví dụ: Bench press, Squat, Deadlift..."
+                                                  placeholder="Ví dụ: Bench press, Squat..."
                                                   value={ex.name}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "name",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "name", e.target.value)
                                                   }
+                                                  onBlur={() => {
+                                                    const v = String(days?.[dayIndex]?.exercises?.[exIndex]?.name || "").trim();
+                                                    setExFieldError(dayIndex, exIndex, "name", v ? "" : "Vui lòng nhập tên bài tập.");
+                                                  }}
+                                                  style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.name)}
                                                 />
+                                                {errorText(workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.name)}
                                               </FormGroup>
 
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Mô tả bài tập
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Mô tả bài tập</Label>
                                                 <Input
                                                   type="textarea"
                                                   rows={2}
-                                                  placeholder="Mô tả ngắn cách thực hiện, nhịp độ, phạm vi chuyển động..."
+                                                  placeholder="Mô tả ngắn..."
                                                   value={ex.description}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "description",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "description", e.target.value)
                                                   }
                                                 />
                                               </FormGroup>
@@ -1967,133 +1900,117 @@ const TrainerMemberList = () => {
 
                                             <Col md="6" className="mb-2">
                                               <FormGroup className="mb-2">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Thiết bị sử dụng
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Thiết bị sử dụng</Label>
                                                 <Input
-                                                  placeholder="Ví dụ: Tạ đơn, tạ đòn, máy kéo cáp..."
+                                                  placeholder="Ví dụ: Tạ đơn..."
                                                   value={ex.equipment}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "equipment",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "equipment", e.target.value)
                                                   }
                                                 />
                                               </FormGroup>
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Nhóm cơ chính tham gia
-                                                </Label>
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>Nhóm cơ chính tham gia</Label>
                                                 <Input
-                                                  placeholder="Ví dụ: Ngực, Vai, Tay sau..."
+                                                  placeholder="Ví dụ: Ngực, Vai..."
                                                   value={ex.muscleGroups}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "muscleGroups",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "muscleGroups", e.target.value)
                                                   }
                                                 />
                                               </FormGroup>
                                             </Col>
                                           </Row>
 
-                                          {/* Hàng 2: Số hiệp / số lần / nghỉ giữa hiệp */}
                                           <Row className="mb-2">
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Số hiệp (sets)
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                                  Số hiệp (sets){" "}
+                                                  <span style={{ color: "#ef4444" }}>*</span>
                                                 </Label>
                                                 <Input
                                                   type="number"
                                                   placeholder="VD: 3"
                                                   value={ex.sets}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "sets",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "sets", e.target.value)
                                                   }
+                                                  onBlur={() => {
+                                                    const n = toInt(days?.[dayIndex]?.exercises?.[exIndex]?.sets);
+                                                    let msg = "";
+                                                    if (!Number.isFinite(n)) msg = "Sets phải là số.";
+                                                    else if (!inRange(n, 1, 20)) msg = "Sets nên trong khoảng 1–20.";
+                                                    setExFieldError(dayIndex, exIndex, "sets", msg);
+                                                  }}
+                                                  style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.sets)}
                                                 />
+                                                {errorText(workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.sets)}
                                               </FormGroup>
                                             </Col>
+
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Số lần (reps)
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                                  Số lần (reps){" "}
+                                                  <span style={{ color: "#ef4444" }}>*</span>
                                                 </Label>
                                                 <Input
                                                   type="number"
                                                   placeholder="VD: 10"
                                                   value={ex.reps}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "reps",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "reps", e.target.value)
                                                   }
+                                                  onBlur={() => {
+                                                    const n = toInt(days?.[dayIndex]?.exercises?.[exIndex]?.reps);
+                                                    let msg = "";
+                                                    if (!Number.isFinite(n)) msg = "Reps phải là số.";
+                                                    else if (!inRange(n, 1, 200)) msg = "Reps nên trong khoảng 1–200.";
+                                                    setExFieldError(dayIndex, exIndex, "reps", msg);
+                                                  }}
+                                                  style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.reps)}
                                                 />
+                                                {errorText(workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.reps)}
                                               </FormGroup>
                                             </Col>
+
                                             <Col md="4" className="mb-2">
                                               <FormGroup className="mb-0">
-                                                <Label
-                                                  style={{ fontSize: 12 }}
-                                                >
-                                                  Nghỉ giữa hiệp (giây)
+                                                <Label style={{ fontSize: 12, color: "#6b7280" }}>
+                                                  Nghỉ giữa hiệp (giây){" "}
+                                                  <span style={{ color: "#ef4444" }}>*</span>
                                                 </Label>
                                                 <Input
                                                   type="number"
                                                   placeholder="VD: 60"
                                                   value={ex.restSeconds}
                                                   onChange={(e) =>
-                                                    updateExercise(
-                                                      dayIndex,
-                                                      exIndex,
-                                                      "restSeconds",
-                                                      e.target.value
-                                                    )
+                                                    updateExercise(dayIndex, exIndex, "restSeconds", e.target.value)
                                                   }
+                                                  onBlur={() => {
+                                                    const n = toInt(days?.[dayIndex]?.exercises?.[exIndex]?.restSeconds);
+                                                    let msg = "";
+                                                    if (!Number.isFinite(n)) msg = "Nghỉ phải là số.";
+                                                    else if (!inRange(n, 0, 600)) msg = "Nghỉ nên trong khoảng 0–600 giây.";
+                                                    setExFieldError(dayIndex, exIndex, "restSeconds", msg);
+                                                  }}
+                                                  style={inputStyleByError(!!workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.restSeconds)}
                                                 />
+                                                {errorText(workoutErrors.days?.[dayIndex]?.exercises?.[exIndex]?.restSeconds)}
                                               </FormGroup>
                                             </Col>
                                           </Row>
 
-                                          {/* Hàng 3: Hướng dẫn kỹ thuật */}
                                           <FormGroup className="mb-0">
-                                            <Label style={{ fontSize: 12 }}>
-                                              Hướng dẫn / Lưu ý kỹ thuật
-                                            </Label>
+                                            <Label style={{ fontSize: 12, color: "#6b7280" }}>Hướng dẫn / Lưu ý kỹ thuật</Label>
                                             <Input
                                               type="textarea"
                                               rows={2}
-                                              placeholder="Ví dụ: Giữ lưng thẳng, không khóa khớp gối, thở đều..."
+                                              placeholder="Ví dụ: Giữ lưng thẳng..."
                                               value={ex.instructions}
                                               onChange={(e) =>
-                                                updateExercise(
-                                                  dayIndex,
-                                                  exIndex,
-                                                  "instructions",
-                                                  e.target.value
-                                                )
+                                                updateExercise(dayIndex, exIndex, "instructions", e.target.value)
                                               }
                                             />
                                           </FormGroup>
@@ -2107,15 +2024,8 @@ const TrainerMemberList = () => {
                           );
                         })}
 
-                        <div
-                          className="d-flex justify-content-between align-items-center mt-1"
-                          style={{ fontSize: 12, color: "#6b7280" }}
-                        >
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            onClick={addDay}
-                          >
+                        <div className="d-flex justify-content-between align-items-center mt-1" style={{ fontSize: 12, color: "#6b7280" }}>
+                          <Button color="secondary" size="sm" onClick={addDay}>
                             + Thêm ngày tập
                           </Button>
                           <Button
@@ -2125,9 +2035,7 @@ const TrainerMemberList = () => {
                             disabled={workoutSaving}
                             style={{ borderRadius: 999, paddingInline: 16 }}
                           >
-                            {workoutSaving
-                              ? "Đang lưu Kế hoạch tập luyện..."
-                              : "Lưu Kế hoạch tập luyện"}
+                            {workoutSaving ? "Đang lưu Kế hoạch tập luyện..." : "Lưu Kế hoạch tập luyện"}
                           </Button>
                         </div>
                       </>
@@ -2138,6 +2046,7 @@ const TrainerMemberList = () => {
             </>
           )}
         </ModalBody>
+
         <ModalFooter style={{ borderTop: "none" }}>
           <Button color="secondary" outline onClick={handleCloseDetail}>
             Đóng

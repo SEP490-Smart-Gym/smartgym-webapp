@@ -134,7 +134,7 @@ const TrainerDetail = () => {
         const data = res.data;
 
         const fullName =
-          `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
+          `${data.lastName || ""} ${data.firstName || ""} `.trim() ||
           "Huấn luyện viên";
 
         let genderText = "";
@@ -169,7 +169,7 @@ const TrainerDetail = () => {
 
         const mappedTrainer = {
           id: data.trainerId,
-          avatar: "/img/team-1.jpg", // TODO: backend trả avatar thì map lại
+          avatar: data.imageUrl ?? "/img/team-1.jpg", // TODO: backend trả avatar thì map lại
           name: fullName,
           age: age,
           gender: genderText || "Đang cập nhật",

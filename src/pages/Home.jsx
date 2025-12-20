@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
@@ -35,11 +35,8 @@ export default function Home() {
         setLoading(true);
         const res = await api.get("/Package/active");
         const apiPackages = res.data || [];
-        if (Array.isArray(apiPackages)) {
-          setPackages(apiPackages);
-        } else {
-          setPackages([]);
-        }
+        if (Array.isArray(apiPackages)) setPackages(apiPackages);
+        else setPackages([]);
       } catch (err) {
         console.error("Fetch packages error:", err);
         setPackages([]);
@@ -56,7 +53,7 @@ export default function Home() {
     fetchPackages();
   }, []);
 
-  // ✅ Lấy trainers từ API: /guest/trainers?onlyAvailable=true
+  // ✅ Lấy trainers từ API
   useEffect(() => {
     const fetchTrainers = async () => {
       try {
@@ -66,15 +63,28 @@ export default function Home() {
 
         const list = res.data || [];
 
-        const normalized = list.map((t) => ({
-          id: t.trainerId,
-          name: `${t.firstName ?? ""} ${t.lastName ?? ""}`.trim(),
-          profession: t.specialization || "Huấn luyện viên cá nhân 1:1",
-          rating: t.trainerRating ?? 0,
-          reviews: t.totalReviews ?? 0,
-          isAvailable: t.isAvailableForNewClients ?? true,
-          img: "/img/team-1.jpg",
-        }));
+        const normalized = list.map((t) => {
+          const gender = (t.gender || "").toLowerCase();
+
+          const defaultAvatar =
+            gender === "female"
+              ? "/img/work-1.jpg"
+              : "/img/Trainer_Nam.jpg"; // male + fallback
+
+          return {
+            id: t.trainerId,
+            name: `${t.lastName ?? ""} ${t.firstName ?? ""}`.trim(),
+            profession: t.specialization || "Huấn luyện viên cá nhân 1:1",
+            rating: t.trainerRating ?? 0,
+            reviews: t.totalReviews ?? 0,
+            isAvailable: t.isAvailableForNewClients ?? true,
+
+            // ✅ ưu tiên avatar từ API, nếu không có thì theo gender
+            img: t.imageUrl && t.imageUrl.trim() !== ""
+              ? t.imageUrl
+              : defaultAvatar,
+          };
+        });
 
         setTrainers(normalized);
       } catch (err) {
@@ -141,6 +151,45 @@ export default function Home() {
   const formatPrice = (n) =>
     Number(n || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 });
 
+  /** ================== UI CONSTANTS (INLINE ONLY) ================== */
+  const UI = useMemo(
+    () => ({
+      // chiều cao ảnh đồng nhất
+      featureImgH: 220,
+      blogImgH: 210,
+      trainerImgH: 280,
+      packageTitleMinH: 76,
+      blogTitleMinH: 64,
+
+      // style wrapper ảnh: nếu ảnh ngắn -> căn giữa + để dư khoảng trống
+      imgWrap: (h) => ({
+        height: h,
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(255,255,255,0.25)", // nền nhẹ (tùy bạn)
+        borderRadius: 10,
+      }),
+
+      imgContain: {
+        width: "100%",
+        height: "100%",
+        objectFit: "contain", // ✅ ảnh ngắn: giữ nguyên, không cắt, căn giữa
+        objectPosition: "center",
+      },
+
+      // title đồng nhất
+      fixedTitle: (minH, color = "inherit") => ({
+        minHeight: minH,
+        display: "flex",
+        alignItems: "center",
+        color,
+      }),
+    }),
+    []
+  );
+
   return (
     <>
       <div className="container-fluid px-0">
@@ -173,7 +222,7 @@ export default function Home() {
                   <h1 className="display-4 text-white mb-4">
                     Gym chuyên PT 1:1 & tự tập – tập trung vào kết quả của bạn.
                   </h1>
-                  <p className="mb-4" style={{ color: "#9d9c9cff"}}>
+                  <p className="mb-4" style={{ color: "#9d9c9cff" }}>
                     SmartGym được thiết kế dành cho những người muốn tập luyện
                     một cách nghiêm túc, khoa học và có định hướng rõ ràng:
                     <br />
@@ -227,7 +276,7 @@ export default function Home() {
                       >
                         <div className="d-flex align-items-center border-top border-bottom py-4">
                           <span className="fas fa-rocket text-white fa-4x me-4"></span>
-                          <p className="mb-0" style={{ color: "#9d9c9cff"}}>
+                          <p className="mb-0" style={{ color: "#9d9c9cff" }}>
                             Mang đến môi trường tập luyện chuyên nghiệp, nơi mỗi
                             buổi tập đều có mục tiêu rõ ràng, phù hợp thể trạng
                             và lịch sinh hoạt của từng hội viên – dù là tự tập
@@ -262,7 +311,10 @@ export default function Home() {
 
                   <div className="row g-4 align-items-center">
                     <div className="col-sm-6">
-                      <a href="#package-section" className="btn btn-primary py-3 px-5">
+                      <a
+                        href="#package-section"
+                        className="btn btn-primary py-3 px-5"
+                      >
                         <span>Đăng ký gói tập</span>
                       </a>
                     </div>
@@ -332,16 +384,20 @@ export default function Home() {
                         className="bg-primary d-inline p-3"
                         style={{ width: 80, height: 80 }}
                       >
-                        <img src="/img/icon-1.png" className="img-fluid" alt="" />
+                        <img
+                          src="/img/icon-1.png"
+                          className="img-fluid"
+                          alt=""
+                        />
                       </div>
                     </div>
                     <div>
                       <h4>Huấn luyện viên kèm 1:1</h4>
                       <p className="text-white mb-0">
-                        Dành cho những ai muốn thay đổi hình thể rõ ràng:
-                        giảm mỡ, tăng cơ, siết dáng hoặc phục hồi sau thời gian
-                        dài ít vận động. PT theo sát từng buổi, chỉnh form,
-                        nhịp thở và mức tạ phù hợp.
+                        Dành cho những ai muốn thay đổi hình thể rõ ràng: giảm
+                        mỡ, tăng cơ, siết dáng hoặc phục hồi sau thời gian dài ít
+                        vận động. PT theo sát từng buổi, chỉnh form, nhịp thở và
+                        mức tạ phù hợp.
                       </p>
                     </div>
                   </div>
@@ -352,7 +408,11 @@ export default function Home() {
                         className="bg-primary d-inline p-3"
                         style={{ width: 80, height: 80 }}
                       >
-                        <img src="/img/icon-6.png" className="img-fluid" alt="" />
+                        <img
+                          src="/img/icon-6.png"
+                          className="img-fluid"
+                          alt=""
+                        />
                       </div>
                     </div>
                     <div>
@@ -367,7 +427,10 @@ export default function Home() {
                   </div>
 
                   <div className="ms-1">
-                    <a href="#package-section" className="btn btn-primary py-3 px-5 ms-2">
+                    <a
+                      href="#package-section"
+                      className="btn btn-primary py-3 px-5 ms-2"
+                    >
                       <span>Xem gói tập phù hợp</span>
                     </a>
                   </div>
@@ -404,9 +467,9 @@ export default function Home() {
                 Không gian tập luyện nghiêm túc – dịch vụ chuyên nghiệp.
               </h1>
               <p className="mb-0">
-                SmartGym được xây dựng dành cho những người bận rộn, muốn tối
-                ưu thời gian tập luyện và tập trung vào kết quả thật – không
-                phô trương, không phong trào.
+                SmartGym được xây dựng dành cho những người bận rộn, muốn tối ưu
+                thời gian tập luyện và tập trung vào kết quả thật – không phô
+                trương, không phong trào.
               </p>
             </div>
 
@@ -418,7 +481,10 @@ export default function Home() {
               pagination={{ clickable: true }}
               spaceBetween={16}
               slidesPerView={1}
-              breakpoints={{ 768: { slidesPerView: 2 }, 1200: { slidesPerView: 3 } }}
+              breakpoints={{
+                768: { slidesPerView: 2 },
+                1200: { slidesPerView: 3 },
+              }}
             >
               {featureSlides.map((f, i) => (
                 <SwiperSlide key={i}>
@@ -429,16 +495,28 @@ export default function Home() {
                       color: "#000",
                       transition: "color 0.3s ease",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#000")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "#fff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "#000")
+                    }
                   >
-                    <div className="feature-img">
-                      <img src={f.img} className="img-fluid w-100" alt="" />
+                    {/* ✅ FIX: Ảnh cùng chiều cao + ảnh ngắn căn giữa */}
+                    <div className="feature-img" style={UI.imgWrap(UI.featureImgH)}>
+                      <img src={f.img} alt="" style={UI.imgContain} />
                     </div>
+
                     <div className="feature-content p-4">
-                      <h4 className="mb-3">{f.title}</h4>
+                      {/* ✅ FIX: Title cao đều */}
+                      <h4 className="mb-3" style={UI.fixedTitle(60)}>
+                        {f.title}
+                      </h4>
                       <p className="mb-4">{f.desc}</p>
-                      <a href="#package-section" className="btn btn-primary py-2 px-4">
+                      <a
+                        href="#package-section"
+                        className="btn btn-primary py-2 px-4"
+                      >
                         <span>Tìm hiểu thêm</span>
                       </a>
                     </div>
@@ -466,8 +544,8 @@ export default function Home() {
               </h1>
               <p className="text-white mb-0">
                 Chúng tôi không áp đặt một kiểu luyện tập cho tất cả mọi người.
-                Bạn có thể bắt đầu từ gói tự tập cơ bản, sau đó nâng cấp lên
-                gói PT 1:1 khi cần tối ưu kết quả trong thời gian ngắn hơn.
+                Bạn có thể bắt đầu từ gói tự tập cơ bản, sau đó nâng cấp lên gói
+                PT 1:1 khi cần tối ưu kết quả trong thời gian ngắn hơn.
               </p>
             </div>
 
@@ -476,8 +554,7 @@ export default function Home() {
               {packages.slice(0, 6).map((item, idx) => {
                 const duration = item.durationInDays ?? item.duration ?? 0;
                 const sessions = item.sessionCount ?? item.sessions ?? 0;
-                const hasPT =
-                  item.includesPersonalTrainer ?? item.hasPT ?? false;
+                const hasPT = item.includesPersonalTrainer ?? item.hasPT ?? false;
                 const title = item.packageName ?? item.title ?? "Gói tập";
 
                 return (
@@ -493,8 +570,12 @@ export default function Home() {
                         color: "#000",
                         transition: "color 0.3s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "#000")}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.color = "#fff")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.color = "#000")
+                      }
                     >
                       <div className="courses-item-inner p-4">
                         <div className="d-flex justify-content-between mb-4">
@@ -503,16 +584,21 @@ export default function Home() {
                               src={`/img/icon-${item.iconIndex || 1}.png`}
                               className="img-fluid"
                               alt=""
+                              style={{
+                                width: 64,
+                                height: 64,
+                                objectFit: "contain",
+                                objectPosition: "center",
+                              }}
                             />
                           </div>
                           <div className="data-info d-flex flex-column">
-                            <div className="courses-date" style={{ fontSize: "1rem" }}>
-                              <p className="mb-1">
-                                Thời hạn: {duration} ngày
-                              </p>
-                              <p className="mb-0">
-                                Số buổi: {sessions} buổi
-                              </p>
+                            <div
+                              className="courses-date"
+                              style={{ fontSize: "1rem" }}
+                            >
+                              <p className="mb-1">Thời hạn: {duration} ngày</p>
+                              <p className="mb-0">Số buổi: {sessions} buổi</p>
                               <p className="mb-0 d-flex align-items-center">
                                 PT:&nbsp;
                                 {hasPT ? (
@@ -537,6 +623,7 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* ✅ FIX: Title package cao đều */}
                         <a
                           href="#"
                           className="d-inline-block h4 mb-3"
@@ -544,16 +631,22 @@ export default function Home() {
                             letterSpacing: "0.2px",
                             fontSize: "2rem",
                             fontWeight: "bold",
+                            ...UI.fixedTitle(UI.packageTitleMinH),
                           }}
                         >
                           {title}
                         </a>
+
                         <p
                           className="mb-4"
-                          style={{ letterSpacing: "0.2px", fontSize: "1.3rem" }}
+                          style={{
+                            letterSpacing: "0.2px",
+                            fontSize: "1.3rem",
+                          }}
                         >
                           {formatPrice(item.price)} ₫
                         </p>
+
                         <Link
                           to={`/packages/${item.id}`}
                           className="btn btn-primary py-2 px-4"
@@ -612,9 +705,13 @@ export default function Home() {
                   <div className="blog-item" data-aos="fade-up">
                     <div className="blog-img p-4 pb-0">
                       <a href="#">
-                        <img src={b.img} className="img-fluid w-100" alt="" />
+                        {/* ✅ FIX: Ảnh blog cùng chiều cao + ảnh ngắn căn giữa */}
+                        <div style={UI.imgWrap(UI.blogImgH)}>
+                          <img src={b.img} alt="" style={UI.imgContain} />
+                        </div>
                       </a>
                     </div>
+
                     <div className="blog-content p-4">
                       <div className="blog-comment d-flex justify-content-between py-2 px-3 mb-4">
                         <div className="small">
@@ -626,9 +723,16 @@ export default function Home() {
                           30 Dec 2025
                         </div>
                       </div>
-                      <a href="#" className="h4 d-inline-block mb-3">
+
+                      {/* ✅ FIX: Blog title cao đều */}
+                      <a
+                        href="#"
+                        className="h4 d-inline-block mb-3"
+                        style={UI.fixedTitle(UI.blogTitleMinH)}
+                      >
                         {b.title}
                       </a>
+
                       <p className="mb-3">{b.desc}</p>
                       <a href="#" className="btn btn-dark py-2 px-4 ms-2">
                         <span className="me-2">Xem chi tiết</span>{" "}
@@ -656,10 +760,7 @@ export default function Home() {
             zIndex: 1,
           }}
         >
-          <div
-            className="container py-5 position-relative"
-            style={{ zIndex: 2 }}
-          >
+          <div className="container py-5 position-relative" style={{ zIndex: 2 }}>
             <div
               className="text-center mx-auto pb-5"
               data-aos="fade-up"
@@ -681,18 +782,24 @@ export default function Home() {
                 <div className="col-md-6 col-lg-3" key={t.id}>
                   <div className="team-item">
                     <Link to={`/trainer/${t.id}`}>
-                      <div className="team-img">
-                        <img
-                          src={t.img}
-                          className="img-fluid w-100"
-                          alt={t.name}
-                        />
+                      {/* ✅ FIX: ảnh trainer cao đều + ảnh ngắn căn giữa */}
+                      <div className="team-img" style={UI.imgWrap(UI.trainerImgH)}>
+                        <img src={t.img} alt={t.name} style={UI.imgContain} />
                       </div>
                     </Link>
-                    <div className="team-content">
-                      <h4
-                        style={{ color: "#ffffff", textAlign: "center" }}
-                      >
+
+                    {/* ✅ FIX: phần tên/desc đều nhau */}
+                    <div
+                      className="team-content"
+                      style={{
+                        minHeight: 92,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        paddingInline: 10,
+                      }}
+                    >
+                      <h4 style={{ color: "#ffffff", textAlign: "center", marginBottom: 6 }}>
                         {t.name}
                       </h4>
                       <p
@@ -707,11 +814,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div
-              className="col-12 text-center"
-              data-aos="fade-up"
-              style={{ marginTop: 40 }}
-            >
+            <div className="col-12 text-center" data-aos="fade-up" style={{ marginTop: 40 }}>
               <Link to="/trainers" className="btn btn-primary py-3 px-5">
                 <span>Xem thêm huấn luyện viên</span>
               </Link>

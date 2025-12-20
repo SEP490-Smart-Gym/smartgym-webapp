@@ -98,7 +98,7 @@ const handleSubmit = async (ev) => {
     window.dispatchEvent(new Event("app-auth-changed"));
 
     // 6️⃣ Điều hướng theo role
-    if (data.roleName === "Admin") navigate("/admin/packages");
+    if (data.roleName === "Admin") navigate("/admin/dashboard");
     else if (data.roleName === "Staff") navigate("/staff/equipmentlist");
     else if (data.roleName === "Manager") navigate("/manager/equipment-report-all");
     else navigate("/");
