@@ -523,7 +523,7 @@ export default function Navbar() {
                   </HashLink>
 
                   {user?.roleName === "Trainer" && (
-                    <NavLink to="/trainer/chatlist" className="nav-item nav-link" onClick={closeMobileMenu}>
+                    <NavLink to="/trainer/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
                       Chat
                     </NavLink>
                   )}
