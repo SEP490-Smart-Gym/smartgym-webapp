@@ -1057,7 +1057,7 @@ export default function MyPackage() {
                   <div className="col-12 col-md-6">
                     <div className="text-muted small">Huấn luyện viên</div>
                     <div className="fw-semibold">
-                      {selected.history.trainerName || <span className="text-muted">Không rõ</span>}
+                      {selected.history.trainerName || <span className="text-muted">Không có</span>}
                     </div>
                   </div>
 
