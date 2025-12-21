@@ -209,6 +209,16 @@ export default function Calendar() {
     []
   );
 
+  const recurringInvalidReason = useMemo(() => {
+    if (!memberPackageId) return "Bạn chưa có gói tập đang hoạt động.";
+    if (!trainerId) return "Không tìm thấy trainerId trong gói tập.";
+    if (!selectedSlotId) return "Vui lòng chọn khung giờ.";
+    if (!recurringDays.length) return "Vui lòng chọn ít nhất 1 ngày trong tuần.";
+    if (!recurringStartDate) return "Vui lòng chọn ngày bắt đầu.";
+    if (remainingSessions == null) return "Không xác định được số buổi còn lại trong gói.";
+    if (Number(remainingSessions) <= 0) return "Gói đã hết buổi.";
+    return "";
+  }, [memberPackageId, trainerId, selectedSlotId, recurringDays, recurringStartDate, remainingSessions]);
   // ===== fetch trainer busy sessions =====
   async function fetchTrainerBusySlots(trId) {
     if (!trId) {
@@ -302,7 +312,7 @@ export default function Calendar() {
               pkg.sessionsRemaining ??
               pkg.remaining ??
               pkg.numberOfSessionsLeft ??
-              pkg.remainingSessionsLeft ??   // thêm dự phòng
+              pkg.remainingSessionsLeft ??
               null;
             setRemainingSessions(rem != null ? Number(rem) : null);
           } else {
@@ -1406,22 +1416,19 @@ export default function Calendar() {
               <button type="button" className="btn btn-light" data-bs-dismiss="modal">
                 Hủy
               </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={
-                  bookingLoading ||
-                  !selectedSlotId ||
-                  !allSlots.length ||
-                  !memberPackageId ||
-                  !trainerId ||
-                  (bookingMode === "single" && (disabledSlots.has(String(selectedSlotId)) || dayAlreadyBooked(selectedDate))) ||
-                  (bookingMode === "recurring" &&
-                    (!recurringDays.length || !recurringStartDate || remainingSessions == null || Number(remainingSessions) <= 0))
-                }
-              >
-                {bookingLoading ? "Đang lưu..." : bookingMode === "single" ? "Lưu" : "Đặt theo tuần"}
-              </button>
+              {bookingMode === "recurring" && recurringInvalidReason && (
+  <div className="alert alert-warning py-2">
+    {recurringInvalidReason}
+  </div>
+)}
+
+<button
+  type="submit"
+  className="btn btn-primary"
+  disabled={bookingLoading || (bookingMode === "recurring" ? !!recurringInvalidReason : /* giữ logic single */ false)}
+>
+  {bookingLoading ? "Đang lưu..." : bookingMode === "single" ? "Lưu" : "Đặt theo tuần"}
+</button>
             </div>
           </form>
         </div>
