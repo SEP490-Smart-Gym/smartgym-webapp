@@ -211,14 +211,14 @@ export default function Calendar() {
 
   const recurringInvalidReason = useMemo(() => {
     if (!memberPackageId) return "Bạn chưa có gói tập đang hoạt động.";
-    if (!trainerId) return "Không tìm thấy trainerId trong gói tập.";
     if (!selectedSlotId) return "Vui lòng chọn khung giờ.";
     if (!recurringDays.length) return "Vui lòng chọn ít nhất 1 ngày trong tuần.";
     if (!recurringStartDate) return "Vui lòng chọn ngày bắt đầu.";
     if (remainingSessions == null) return "Không xác định được số buổi còn lại trong gói.";
     if (Number(remainingSessions) <= 0) return "Gói đã hết buổi.";
     return "";
-  }, [memberPackageId, trainerId, selectedSlotId, recurringDays, recurringStartDate, remainingSessions]);
+  }, [memberPackageId, selectedSlotId, recurringDays, recurringStartDate, remainingSessions]);
+
   // ===== fetch trainer busy sessions =====
   async function fetchTrainerBusySlots(trId) {
     if (!trId) {
@@ -358,7 +358,7 @@ export default function Calendar() {
     if (!dateObj) return disabled;
 
     const iso = dateObjToISO(dateObj);
-    const busySet = busySlotIdsByDate?.[iso] || new Set();
+    const busySet = trainerId ? (busySlotIdsByDate?.[iso] || new Set()) : new Set();
 
     for (const s of allSlots) {
       const [h, m] = s.start.split(":").map(Number);
@@ -367,7 +367,7 @@ export default function Calendar() {
       const diffHours = (slotDateTime - now) / (1000 * 60 * 60);
 
       if (diffHours < 24) disabled.add(String(s.id));
-      if (busySet.has(String(s.id))) disabled.add(String(s.id));
+      if (trainerId && busySet.has(String(s.id))) disabled.add(String(s.id));
     }
     return disabled;
   }
@@ -975,10 +975,12 @@ export default function Calendar() {
     }
 
     // double-check trainer busy
-    const busySet = busySlotIdsByDate?.[isoDate] || new Set();
-    if (busySet.has(String(slotObj.id))) {
-      message.warning("Trainer đang bận khung giờ này. Vui lòng chọn khung giờ khác.");
-      return;
+    if (trainerId) {
+      const busySet = busySlotIdsByDate?.[isoDate] || new Set();
+      if (busySet.has(String(slotObj.id))) {
+        message.warning("Trainer đang bận khung giờ này. Vui lòng chọn khung giờ khác.");
+        return;
+      }
     }
 
     // must be >= 24h
@@ -1002,10 +1004,6 @@ export default function Calendar() {
   }
 
   async function submitRecurringBooking() {
-    if (!trainerId) {
-      message.error("Không tìm thấy trainerId trong gói tập. Vui lòng kiểm tra lại.");
-      return;
-    }
     if (!memberPackageId) {
       message.error("Bạn chưa có gói tập đang hoạt động.");
       return;
@@ -1074,8 +1072,7 @@ export default function Calendar() {
       daysOfWeek: recurringDays.slice().sort((a, b) => a - b),
       timeSlotId: slotObj.id,
       memberPackageId,
-      trainerId,
-      // notes: bỏ
+       ...(trainerId != null ? { trainerId } : {}),
     };
 
     await api.post("/TrainingSession/recurring", payload);
@@ -1176,7 +1173,7 @@ export default function Calendar() {
         </div>
 
         <div className="d-flex align-items-center gap-2">
-          {trainerBusyLoading && <span className="small text-muted">Đang tải lịch bận trainer...</span>}
+          {trainerId && trainerBusyLoading && <span className="small text-muted">Đang tải lịch bận trainer...</span>}
           <button
             className="btn btn-booking"
             data-bs-toggle="modal"
@@ -1396,7 +1393,7 @@ export default function Calendar() {
                   {allSlots.map((s) => {
                     const iso = dateObjToISO(selectedDate);
                     const busySet = busySlotIdsByDate?.[iso] || new Set();
-                    const isBusy = busySet.has(String(s.id));
+                    const isBusy = trainerId ? busySet.has(String(s.id)) : false;
                     const isDisabled = bookingMode === "single" ? disabledSlots.has(String(s.id)) : false;
 
                     return (
@@ -1417,18 +1414,18 @@ export default function Calendar() {
                 Hủy
               </button>
               {bookingMode === "recurring" && recurringInvalidReason && (
-  <div className="alert alert-warning py-2">
-    {recurringInvalidReason}
-  </div>
-)}
+                <div className="alert alert-warning py-2">
+                  {recurringInvalidReason}
+                </div>
+              )}
 
-<button
-  type="submit"
-  className="btn btn-primary"
-  disabled={bookingLoading || (bookingMode === "recurring" ? !!recurringInvalidReason : /* giữ logic single */ false)}
->
-  {bookingLoading ? "Đang lưu..." : bookingMode === "single" ? "Lưu" : "Đặt theo tuần"}
-</button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={bookingLoading || (bookingMode === "recurring" ? !!recurringInvalidReason : /* giữ logic single */ false)}
+              >
+                {bookingLoading ? "Đang lưu..." : bookingMode === "single" ? "Lưu" : "Đặt theo tuần"}
+              </button>
             </div>
           </form>
         </div>
