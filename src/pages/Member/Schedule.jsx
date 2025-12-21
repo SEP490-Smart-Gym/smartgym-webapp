@@ -1208,11 +1208,6 @@ export default function Calendar() {
                   return;
                 }
 
-                if (!trainerId) {
-                  message.error("Không tìm thấy trainerId trong gói tập. Vui lòng kiểm tra lại.");
-                  return;
-                }
-
                 if (bookingMode === "single") {
                   const fd = new FormData(e.currentTarget);
                   const vnDateFromForm = (fd.get("date_vn") || "").toString().trim();
