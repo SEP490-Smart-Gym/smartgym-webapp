@@ -823,7 +823,7 @@ export default function Home() {
         </div>
 
         {/* Feedback */}
-        <div id="#feedback-section">
+        <div id="feedback-section">
           <GymFeedbackSection />
         </div>
       </div>
