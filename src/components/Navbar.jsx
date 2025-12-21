@@ -500,9 +500,8 @@ export default function Navbar() {
 
               {/* ✅ collapse controlled */}
               <div
-                className={`collapse navbar-collapse ${
-                  isNavCollapsed ? "" : "show"
-                }`}
+                className={`collapse navbar-collapse ${isNavCollapsed ? "" : "show"
+                  }`}
                 id="navbarCollapse"
               >
                 <div className="navbar-nav mx-0 mx-lg-auto nav-chip w-100">
@@ -590,8 +589,13 @@ export default function Navbar() {
                       data-bs-toggle="modal"
                       data-bs-target="#searchModal"
                       onClick={closeMobileMenu}
+                      style={{
+                        backgroundColor: "#0c1844",
+                        borderColor: "#0c1844",
+                        color: "#fff",
+                      }}
                     >
-                      <FaSearch />
+                      {/* <FaSearch /> */}
                     </button>
                   </div>
 
