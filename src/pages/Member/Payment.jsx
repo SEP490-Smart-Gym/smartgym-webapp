@@ -404,6 +404,8 @@ const CartComponent = () => {
 
       if (confirmRes.status === 200) {
         setPaymentStatus("success");
+        // ✅ silent update điểm trên navbar
+        window.dispatchEvent(new Event("points:updated"));
         message.success("Thanh toán thành công! Gói tập đã được kích hoạt.");
       } else {
         setPaymentStatus("failed");

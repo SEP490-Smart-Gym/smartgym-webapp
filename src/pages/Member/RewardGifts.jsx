@@ -245,6 +245,8 @@ const RewardGifts = () => {
       message.success("Đổi quà thành công! Vui lòng liên hệ lễ tân để nhận quà.");
 
       await Promise.all([fetchBalance(), fetchRewards(), fetchMyRedemptions()]);
+      // ✅ bắn event update điểm (silent)
+      window.dispatchEvent(new Event("points:updated"));
       handleCloseDetail();
     } catch (err) {
       console.error("POST /RewardRedemption error:", err?.response?.data || err);
