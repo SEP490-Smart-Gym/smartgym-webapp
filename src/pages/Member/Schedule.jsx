@@ -851,7 +851,16 @@ export default function Calendar() {
         const res = await api.get("/TrainingSession");
         const rawSessions = Array.isArray(res.data) ? res.data : [];
 
-        const sessions = rawSessions.filter((s) => (s.status || "").toLowerCase().trim() === "scheduled");
+        const sessions = rawSessions.filter((s) => {
+          const st = String(s.status || "").toLowerCase().trim();
+          if (!st) return false;
+
+          // ❌ loại trừ cancelled
+          if (st === "cancelled" || st === "canceled") return false;
+
+          // ✅ chỉ lấy scheduled/completed/absent
+          return st === "scheduled" || st === "completed" || st === "absent";
+        });
 
         const mappedEvents = sessions.map((s) => {
           const isoDate = (s.sessionDate || "").slice(0, 10);
@@ -891,7 +900,19 @@ export default function Calendar() {
 
   const canRescheduleSelectedEvent = (() => {
     if (!selectedEvent) return false;
-    return (selectedEvent.status || "").toLowerCase() === "not yet";
+
+    // chỉ đổi lịch khi buổi chưa diễn ra
+    if ((selectedEvent.status || "").toLowerCase() !== "not yet") return false;
+
+    // phải còn >= 24h trước giờ tập
+    const startRaw = selectedEvent.start || selectedEvent.date;
+    const startTime = startRaw instanceof Date ? startRaw : new Date(startRaw);
+    if (isNaN(startTime.getTime())) return false;
+
+    const now = new Date();
+    const diffHours = (startTime - now) / (1000 * 60 * 60);
+
+    return diffHours >= 24;
   })();
 
   const startReschedule = () => {
@@ -1463,7 +1484,7 @@ export default function Calendar() {
                   </div>
 
                   {!canCancelSelectedEvent && (
-                    <div className="text-muted small mb-3">Lưu ý: Chỉ có thể hủy lịch trước giờ tập ít nhất 24 giờ.</div>
+                    <div className="text-muted small mb-3">Lưu ý: Chỉ có thể đổi/hủy lịch trước giờ tập ít nhất 24 giờ.</div>
                   )}
 
                   {showRescheduleForm && (
