@@ -151,7 +151,7 @@ const ExtraPoint = () => {
           zIndex: 1,
         }}
       >
-        <div className="relative z-10">
+        <div className="relative z-10" style={{ paddingTop: "40px", paddingBottom: "40px" }}>
           {/* Header + tổng điểm */}
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-white mb-2">
