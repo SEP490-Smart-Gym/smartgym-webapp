@@ -566,7 +566,7 @@ export default function Navbar() {
 
                   {user?.roleName === "Trainer" && (
                     <NavLink
-                      to="/trainer/chatlist"
+                      to="/trainer/chat"
                       className="nav-item nav-link"
                       onClick={closeMobileMenu}
                     >
@@ -584,7 +584,7 @@ export default function Navbar() {
                   )}
                   {user?.roleName === "Staff" && (
                     <NavLink
-                      to="/staff/chatlist"
+                      to="/staff/chat"
                       className="nav-item nav-link"
                       onClick={closeMobileMenu}
                     >
