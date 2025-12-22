@@ -11,8 +11,37 @@ import {
   Spin,
 } from "antd";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import api from "../../config/axios";
 import Sidebar from "../../components/Sidebar";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// ✅ backend trả datetime không có Z/offset => ép coi là UTC để hiển thị đúng giờ VN
+function toISODateSafe(s) {
+  if (!s) return null;
+  let str = String(s).trim();
+
+  // cắt nano -> milli (dayjs parse ổn nhất với <= 3 chữ số ms)
+  str = str.replace(/(\.\d{3})\d+/, "$1");
+
+  // nếu không có timezone (Z hoặc ±HH:MM) => thêm 'Z' để coi là UTC
+  const hasTZ = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(str);
+  if (!hasTZ) str += "Z";
+
+  return str;
+}
+
+// ✅ format giờ VN ổn định
+function formatVNDateTime(isoLike) {
+  const safe = toISODateSafe(isoLike);
+  if (!safe) return "—";
+  const d = dayjs(safe);
+  if (!d.isValid()) return "—";
+  return d.utc().tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY HH:mm");
+}
 
 export default function StaffMyRepairReports() {
   const [loading, setLoading] = useState(false);
@@ -109,10 +138,13 @@ export default function StaffMyRepairReports() {
     }
 
     try {
-      await api.post(`/EquipmentRepairReport/${completeReport.id}/complete-repair`, {
-        repairCost: Number(repairCost),
-        repairDetails: repairDetails.trim(),
-      });
+      await api.post(
+        `/EquipmentRepairReport/${completeReport.id}/complete-repair`,
+        {
+          repairCost: Number(repairCost),
+          repairDetails: repairDetails.trim(),
+        }
+      );
 
       message.success("Hoàn tất sửa chữa thành công");
 
@@ -147,25 +179,13 @@ export default function StaffMyRepairReports() {
         return "default";
     }
   };
-  const SEVERITY_MAP = {
-    Low: {
-      label: "Thấp",
-      color: "green",
-    },
-    Medium: {
-      label: "Trung bình",
-      color: "gold",
-    },
-    High: {
-      label: "Cao",
-      color: "red",
-    },
-    Critical: {
-      label: "Nghiêm trọng",
-      color: "volcano",
-    },
-  };
 
+  const SEVERITY_MAP = {
+    Low: { label: "Thấp", color: "green" },
+    Medium: { label: "Trung bình", color: "gold" },
+    High: { label: "Cao", color: "red" },
+    Critical: { label: "Nghiêm trọng", color: "volcano" },
+  };
 
   /* =======================================================
         TABLE COLUMNS
@@ -181,20 +201,15 @@ export default function StaffMyRepairReports() {
       dataIndex: "severity",
       width: 120,
       render: (v) => {
-        const s = SEVERITY_MAP[v] || {
-          label: v,
-          color: "default",
-        };
-
+        const s = SEVERITY_MAP[v] || { label: v, color: "default" };
         return <Tag color={s.color}>{s.label}</Tag>;
       },
     },
-
     {
       title: "Ngày báo cáo",
       dataIndex: "reportDate",
       width: 180,
-      render: (v) => dayjs(v).format("DD/MM/YYYY HH:mm"),
+      render: (v) => formatVNDateTime(v),
     },
     {
       title: "Trạng thái",
@@ -208,7 +223,6 @@ export default function StaffMyRepairReports() {
       render: (_, r) => {
         return (
           <Space>
-
             {/* === BẮT ĐẦU SỬA === */}
             {(r.status === "Đang Chờ Xử Lý" || r.status === "Đã Phê Duyệt") && (
               <Button
@@ -223,19 +237,13 @@ export default function StaffMyRepairReports() {
 
             {/* === HOÀN TẤT SỬA === */}
             {r.status === "Đang Sửa Chữa" && (
-              <Button
-                size="small"
-                danger
-                onClick={() => openCompleteModal(r)}
-              >
+              <Button size="small" danger onClick={() => openCompleteModal(r)}>
                 Hoàn tất sửa
               </Button>
             )}
-
           </Space>
         );
       },
-
     },
   ];
 
@@ -245,7 +253,6 @@ export default function StaffMyRepairReports() {
   return (
     <div className="container-fluid py-5">
       <div className="row g-4">
-
         {/* SIDEBAR */}
         <div className="col-lg-3">
           <Sidebar role="Staff" />
@@ -285,9 +292,18 @@ export default function StaffMyRepairReports() {
         {startReport && (
           <>
             <p>
-              Bắt đầu sửa chữa thiết bị: <strong>{startReport.equipmentName}</strong>
+              Bắt đầu sửa chữa thiết bị:{" "}
+              <strong>{startReport.equipmentName}</strong>
             </p>
             <p>Mức độ: {startReport.severity}</p>
+            <p>
+              Ngày báo cáo: <strong>{formatVNDateTime(startReport.reportDate)}</strong>
+            </p>
+            {startReport.approvalDate && (
+              <p>
+                Ngày duyệt: <strong>{formatVNDateTime(startReport.approvalDate)}</strong>
+              </p>
+            )}
           </>
         )}
       </Modal>
@@ -302,7 +318,29 @@ export default function StaffMyRepairReports() {
         width={500}
       >
         <h5>Hoàn tất sửa chữa</h5>
-        <p><strong>Thiết bị:</strong> {completeReport?.equipmentName}</p>
+        <p>
+          <strong>Thiết bị:</strong> {completeReport?.equipmentName}
+        </p>
+
+        {/* ✅ hiển thị đúng giờ VN cho các mốc thời gian nếu có */}
+        <div className="mb-2 text-muted">
+          <div>
+            <strong>Ngày báo cáo:</strong>{" "}
+            {formatVNDateTime(completeReport?.reportDate)}
+          </div>
+          <div>
+            <strong>Ngày duyệt:</strong>{" "}
+            {formatVNDateTime(completeReport?.approvalDate)}
+          </div>
+          <div>
+            <strong>Bắt đầu:</strong>{" "}
+            {formatVNDateTime(completeReport?.repairStartDate)}
+          </div>
+          <div>
+            <strong>Hoàn thành:</strong>{" "}
+            {formatVNDateTime(completeReport?.repairCompletedDate)}
+          </div>
+        </div>
 
         <div className="mb-3">
           <label>Chi phí sửa chữa</label>

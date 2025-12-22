@@ -33,11 +33,21 @@ const formatVNDC = (amount) => {
   });
 };
 
-const formatVNDateTime = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
+const formatVNDateTime = (isoLike) => {
+  if (!isoLike) return "—";
+  let s = String(isoLike).trim();
+
+  // cắt nano -> milli (Date parse ổn nhất với <= 3 chữ số ms)
+  s = s.replace(/(\.\d{3})\d+/, "$1");
+
+  // nếu không có timezone (Z hoặc ±HH:MM) => thêm 'Z' để coi là UTC
+  const hasTZ = /([zZ]|[+\-]\d{2}:?\d{2})$/.test(s);
+  if (!hasTZ) s += "Z";
+
+  const d = new Date(s);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("vi-VN");
+
+  return d.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 };
 
 const formatVNDate = (iso) => {
@@ -348,7 +358,7 @@ const RefundManagement = () => {
         <Col xl="12">
           <Card className="shadow">
             <CardHeader className="border-0 d-flex justify-content-between align-items-center">
-              <h3 className="mb-0" style={{ fontWeight: "bold" }}>
+              <h3 className="mb-0" style={{ fontWeight: "bold", color: "#7a0000ff" }}>
                 Quản lý yêu cầu hoàn tiền
               </h3>
             </CardHeader>
