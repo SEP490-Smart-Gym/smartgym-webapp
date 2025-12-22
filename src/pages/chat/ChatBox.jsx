@@ -55,7 +55,7 @@ export default function ChatBox() {
       setPartner({
         userId: p.userId,
         name: `${p.lastName} ${p.firstName}`,
-        avatar: p.profileImageUrl || "/img/noimg.jpg",
+        avatar: p.profileImageUrl || "/img/useravt.jpg",
         role: p.roleName,
       });
     } catch (err) {
@@ -162,7 +162,7 @@ export default function ChatBox() {
           style={{ background: "#0c1844", color: "white" }}
         >
           <img
-            src={partner?.avatar || "/img/noimg.jpg"}
+            src={partner?.avatar || "/img/useravt.jpg"}
             alt="avatar"
             style={{
               width: 40,
@@ -203,7 +203,7 @@ export default function ChatBox() {
                 {/* AVATAR - chỉ hiện với người khác */}
                 {!m.isMine && (
                   <img
-                    src={partner?.avatar || "/img/noimg.jpg"}
+                    src={partner?.avatar || "/img/useravt.jpg"}
                     alt="avatar"
                     style={{
                       width: 32,
