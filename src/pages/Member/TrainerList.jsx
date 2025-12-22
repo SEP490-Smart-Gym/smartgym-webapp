@@ -22,7 +22,7 @@ export default function TrainerList() {
 
           const gender = (t.gender || "").toLowerCase();
           const defaultAvatar =
-            gender === "female" ? "hinh-anh-avatar-trang-co-gai-30-10-48-10.jpg" : "/img/anh-dai-dien-an-danh_085759839.jpg";
+            gender === "female" ? "/img/hinh-anh-avatar-trang-co-gai-30-10-48-10.jpg" : "/img/anh-dai-dien-an-danh_085759839.jpg";
 
           const apiAvatar =
             (t.avatar && t.avatar.trim() !== "" && t.avatar) ||
