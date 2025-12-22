@@ -68,8 +68,8 @@ export default function Home() {
 
           const defaultAvatar =
             gender === "female"
-              ? "/img/work-1.jpg"
-              : "/img/Trainer_Nam.jpg"; // male + fallback
+              ? "/img/hinh-anh-avatar-trang-co-gai-30-10-48-10.jpg"
+              : "/img/anh-dai-dien-an-danh_085759839.jpg";
 
           return {
             id: t.trainerId,
@@ -748,7 +748,6 @@ export default function Home() {
 
         {/* TRAINER – PT 1:1 */}
         <div
-          id="trainers-section"
           className="container-fluid courses overflow-hidden py-5 trainer-bg"
           style={{
             backgroundImage: "url('/img/image.png')",
@@ -777,7 +776,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="row gy-5 gy-lg-4 gx-4">
+            <div className="row gy-5 gy-lg-4 gx-4" id="trainers-section">
               {trainers.slice(0, 4).map((t) => (
                 <div className="col-md-6 col-lg-3" key={t.id}>
                   <div className="team-item">

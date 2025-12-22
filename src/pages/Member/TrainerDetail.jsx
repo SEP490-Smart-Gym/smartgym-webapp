@@ -171,9 +171,20 @@ const TrainerDetail = () => {
           experienceYears = calculateYearsFrom(data.profile.startWorkingDate);
         }
 
+        // avatar mặc định theo giới tính
+        const DEFAULT_AVATAR_BY_GENDER = {
+          Female: "/img/hinh-anh-avatar-trang-co-gai-30-10-48-10.jpg",
+          Male: "/img/anh-dai-dien-an-danh_085759839.jpg",
+        };
+
+        // xác định avatar
+        const avatar =
+          data.imageUrl ||
+          DEFAULT_AVATAR_BY_GENDER[data.gender]
+
         const mappedTrainer = {
           id: data.trainerId,
-          avatar: data.imageUrl ?? "/img/team-1.jpg",
+          avatar,
           name: fullName,
           age,
           gender: genderText || "Đang cập nhật",
