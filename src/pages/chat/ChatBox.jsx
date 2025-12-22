@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../../config/axios";
 import { Spin } from "antd";
 import { IoSend } from "react-icons/io5";
+import { color } from "framer-motion";
 
 export default function ChatBox() {
   const { conversationId } = useParams();
@@ -125,23 +126,26 @@ export default function ChatBox() {
 
   /* ===== SEND MESSAGE ===== */
   const sendMessage = async () => {
-    if (!text.trim() || sending) return;
+  if (!text.trim() || sending) return;
 
-    setSending(true);
-    try {
-      await api.post("/chat/messages", {
-        conversationId: Number(conversationId),
-        messageText: text.trim(),
-      });
+  setSending(true);
+  try {
+    await api.post("/chat/messages", {
+      conversationId: Number(conversationId),
+      messageText: text.trim(),
+    });
 
-      setText("");
-      fetchMessages();
-    } catch (err) {
-      console.error("Send message error", err);
-    } finally {
-      setSending(false);
-    }
-  };
+    setText("");
+    fetchMessages();
+
+    window.dispatchEvent(new Event("chat-updated"));
+  } catch (err) {
+    console.error("Send message error", err);
+  } finally {
+    setSending(false);
+  }
+};
+
 
   /* ===== RENDER ===== */
   return (
@@ -219,12 +223,22 @@ export default function ChatBox() {
 
                   {m.text}
 
-                  <div className="small text-muted text-end mt-1">
-                    {new Date(m.sentAt).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                    }
+                  <div
+                    className="small text-end mt-1"
+                    style={{
+                      color: m.isMine ? "rgba(255,255,255,0.65)" : "#6c757d",
+                      fontSize: 11,
+                    }}
+                  >
+                    {(() => {
+                      const d = new Date(m.sentAt);
+                      d.setHours(d.getHours() + 7);
+                      return d.toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                    })()}
+
                   </div>
                 </div>
               </div>

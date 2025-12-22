@@ -65,13 +65,20 @@ export default function StaffChatList() {
     c.otherUserName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const formatTime = (t) =>
-    t
-      ? new Date(t).toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-      : "";
+  const formatTime = (t) => {
+    if (!t) return "";
+
+    const d = new Date(t);
+    d.setHours(d.getHours() + 7);
+
+    return d.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
 
   /* ===================== RENDER ===================== */
   return (

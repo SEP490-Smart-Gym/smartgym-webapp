@@ -576,7 +576,7 @@ export default function Navbar() {
                   )}
                   {user?.roleName === "Member" && (
                     <NavLink
-                      to="/chat"
+                      to="/member/chat"
                       className="nav-item nav-link"
                       onClick={closeMobileMenu}
                     >
