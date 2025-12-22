@@ -177,7 +177,8 @@ export default function Navbar() {
                       </NavLink>
                     </>
                   ) : (
-                    <div className="dropdown">
+                    <div className="dropdown d-flex align-items-center">
+                      {/* Nút mở dropdown: chỉ avatar + tên */}
                       <button
                         className="d-flex align-items-center dropdown-toggle text-body btn btn-link p-0 text-decoration-none"
                         id="userMenu"
@@ -205,241 +206,167 @@ export default function Navbar() {
                           }}
                         />
 
-                        {/* username + điểm thưởng */}
-                        <div
-                          className="d-flex align-items-center"
-                          style={{ minWidth: 0 }}
+                        <span
+                          className="user-name-text"
+                          style={{
+                            color: "white",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: 180,
+                            display: "inline-block",
+                          }}
                         >
-                          <span
-                            className="user-name-text"
-                            style={{
-                              color: "white",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: 180,
-                            }}
-                          >
-                            {user.lastName && user.firstName
-                              ? `${user.lastName} ${user.firstName}`
-                              : "User"}
-                          </span>
-
-                          {user.roleName === "Member" && (
-                            <span
-                              className="d-inline-flex align-items-center reward-points-badge"
-                              style={{
-                                color: "#ffd966",
-                                fontWeight: 600,
-                                fontSize: "0.9rem",
-                                cursor: "pointer",
-                                marginLeft: 12,
-                                whiteSpace: "nowrap",
-                                flexShrink: 0,
-                              }}
-                              onClick={goToPointsHistory}
-                              title="Xem lịch sử điểm thưởng"
-                            >
-                              {(Number(availablePoints) || 0).toLocaleString(
-                                "vi-VN"
-                              )}{" "}
-                              điểm
-                            </span>
-                          )}
-                        </div>
+                          {user?.lastName && user?.firstName
+                            ? `${user.lastName} ${user.firstName}`
+                            : "User"}
+                        </span>
                       </button>
 
-                      <ul
-                        className="dropdown-menu dropdown-menu-end"
-                        aria-labelledby="userMenu"
-                      >
-                        {user.email && (
+                      {/* Badge điểm: nằm ngoài dropdown, click không mở dropdown */}
+                      {user?.roleName === "Member" && (
+                        <span
+                          className="d-inline-flex align-items-center reward-points-badge"
+                          style={{
+                            color: "#ffd966",
+                            fontWeight: 600,
+                            fontSize: "0.9rem",
+                            cursor: "pointer",
+                            marginLeft: 12,
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                          onClick={goToPointsHistory}
+                          onMouseDown={(e) => {
+                            // chặn một số trường hợp bootstrap bắt event sớm
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          title="Xem lịch sử điểm thưởng"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              goToPointsHistory();
+                            }
+                          }}
+                        >
+                          {(Number(availablePoints) || 0).toLocaleString("vi-VN")} điểm
+                        </span>
+                      )}
+
+                      {/* Menu dropdown giữ nguyên */}
+                      <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        {user?.email && (
                           <li>
-                            <span className="dropdown-item-text">
-                              {user.email}
-                            </span>
+                            <span className="dropdown-item-text">{user.email}</span>
                           </li>
                         )}
                         <li>
                           <hr className="dropdown-divider" />
                         </li>
 
-                        {user.roleName === "Admin" && (
+                        {user?.roleName === "Admin" && (
                           <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/admin/packages")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/admin/packages")}>
                               Quản lý
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/admin/profile")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/admin/profile")}>
                               Hồ sơ cá nhân
                             </button>
                           </li>
                         )}
 
-                        {user.roleName === "Member" && (
+                        {user?.roleName === "Member" && (
                           <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/member/profile")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/profile")}>
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate(`/member/${safeId}/schedule`)
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate(`/member/${safeId}/schedule`)}>
                               Lịch tập
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/member/workout-meal-plan")
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/workout-meal-plan")}>
                               Kế hoạch tập luyện &amp; dinh dưỡng
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/member/mypackages")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/mypackages")}>
                               Gói tập của tôi
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/member/my-payments")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/my-payments")}>
                               Lịch sử thanh toán
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/member/reward-gifts")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/reward-gifts")}>
                               Đổi quà
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/member/voucher")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/member/voucher")}>
                               Mã giảm giá
                             </button>
                           </li>
                         )}
 
-                        {user.roleName === "Staff" && (
+                        {user?.roleName === "Staff" && (
                           <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/profile/staff")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/profile/staff")}>
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate(`/staff/chat-list`)}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate(`/staff/chat-list`)}>
                               Chat với Học viên
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/staff/reward-redemption")
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/staff/reward-redemption")}>
                               Quản lý đổi quà
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/staff/equipmentlist")
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/staff/equipmentlist")}>
                               Quản lý thiết bị
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/staff/schedule")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/staff/schedule")}>
                               Lịch làm việc
                             </button>
                           </li>
                         )}
 
-                        {user.roleName === "Manager" && (
+                        {user?.roleName === "Manager" && (
                           <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/profile/manager")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/profile/manager")}>
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/manager/manager-refund")
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/manager/manager-refund")}>
                               Quản lý Hoàn tiền
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/manager/schedule")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/manager/schedule")}>
                               Quản lý lịch làm việc
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate("/manager/equipment-report-all")
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/manager/equipment-report-all")}>
                               Quản lý thiết bị
                             </button>
                           </li>
                         )}
 
-                        {user.roleName === "Trainer" && (
+                        {user?.roleName === "Trainer" && (
                           <li>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate("/trainer/profile")}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate("/trainer/profile")}>
                               Hồ sơ cá nhân
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() =>
-                                navigate(`/trainer/${safeId}/schedule`)
-                              }
-                            >
+                            <button className="dropdown-item" onClick={() => navigate(`/trainer/${safeId}/schedule`)}>
                               Lịch làm việc
                             </button>
                             <hr className="dropdown-divider" />
-                            <button
-                              className="dropdown-item"
-                              onClick={() => navigate(`/trainer/member-list`)}
-                            >
+                            <button className="dropdown-item" onClick={() => navigate(`/trainer/member-list`)}>
                               Quản lý học viên
                             </button>
                           </li>
@@ -447,15 +374,13 @@ export default function Navbar() {
 
                         <hr className="dropdown-divider" />
                         <li>
-                          <button
-                            className="dropdown-item"
-                            onClick={handleLogout}
-                          >
+                          <button className="dropdown-item" onClick={handleLogout}>
                             Đăng xuất
                           </button>
                         </li>
                       </ul>
                     </div>
+
                   )}
 
                   <div className="d-flex ps-3">
