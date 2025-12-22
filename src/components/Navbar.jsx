@@ -566,17 +566,29 @@ export default function Navbar() {
                   </HashLink>
 
                   {user?.roleName === "Trainer" && (
-                    <NavLink to="/trainer/chat" className="nav-item nav-link" onClick={closeMobileMenu}>=
+                    <NavLink
+                      to="/trainer/chatlist"
+                      className="nav-item nav-link"
+                      onClick={closeMobileMenu}
+                    >
                       Chat
                     </NavLink>
                   )}
                   {user?.roleName === "Member" && (
-                    <NavLink to="/member/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
+                    <NavLink
+                      to="/member/chat"
+                      className="nav-item nav-link"
+                      onClick={closeMobileMenu}
+                    >
                       Chat
                     </NavLink>
                   )}
                   {user?.roleName === "Staff" && (
-                    <NavLink to="/staff/chat" className="nav-item nav-link" onClick={closeMobileMenu}>
+                    <NavLink
+                      to="/staff/chatlist"
+                      className="nav-item nav-link"
+                      onClick={closeMobileMenu}
+                    >
                       Chat
                     </NavLink>
                   )}
