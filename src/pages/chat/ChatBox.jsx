@@ -109,42 +109,46 @@ export default function ChatBox() {
   useEffect(() => {
     if (messages.length === 0) return;
 
-    // ❌ lần đầu mở chat: không scroll
     if (isFirstLoadRef.current) {
       isFirstLoadRef.current = false;
       prevLengthRef.current = messages.length;
       return;
     }
 
-    // ✅ chỉ scroll khi có tin mới
-    if (messages.length > prevLengthRef.current) {
+    const lastMessage = messages[messages.length - 1];
+
+    if (
+      messages.length > prevLengthRef.current &&
+      !lastMessage.isMine
+    ) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
 
     prevLengthRef.current = messages.length;
   }, [messages]);
 
+
   /* ===== SEND MESSAGE ===== */
   const sendMessage = async () => {
-  if (!text.trim() || sending) return;
+    if (!text.trim() || sending) return;
 
-  setSending(true);
-  try {
-    await api.post("/chat/messages", {
-      conversationId: Number(conversationId),
-      messageText: text.trim(),
-    });
+    setSending(true);
+    try {
+      await api.post("/chat/messages", {
+        conversationId: Number(conversationId),
+        messageText: text.trim(),
+      });
 
-    setText("");
-    fetchMessages();
+      setText("");
+      fetchMessages();
 
-    window.dispatchEvent(new Event("chat-updated"));
-  } catch (err) {
-    console.error("Send message error", err);
-  } finally {
-    setSending(false);
-  }
-};
+      window.dispatchEvent(new Event("chat-updated"));
+    } catch (err) {
+      console.error("Send message error", err);
+    } finally {
+      setSending(false);
+    }
+  };
 
 
   /* ===== RENDER ===== */

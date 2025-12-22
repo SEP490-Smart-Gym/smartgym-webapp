@@ -4,7 +4,7 @@ import { Spin, Avatar } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 
-export default function StaffChatList() {
+export default function ChatList() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -33,19 +33,28 @@ export default function StaffChatList() {
         ? res.data
         : res.data?.data || [];
 
-      const mapped = raw.map((cv) => ({
-        conversationId: cv.conversationId,
+      const mapped = raw.map((cv) => {
+        const lastMsg = cv.lastMessage;
 
-        otherUserId: cv.partner?.userId,
-        otherUserName: ` ${cv.partner?.lastName || ""} ${cv.partner?.firstName || ""}`.trim(),
-        otherUserAvatar: cv.partner?.profileImageUrl || null,
+        const isMine = lastMsg?.senderUserId === staffUserId;
 
-        lastMessage: cv.lastMessage?.messageText || "",
-        lastMessageTime:
-          cv.lastMessage?.sentAt || cv.updatedAt || null,
+        return {
+          conversationId: cv.conversationId,
 
-        unreadCount: 0, // backend chưa trả
-      }));
+          otherUserId: cv.partner?.userId,
+          otherUserName: `${cv.partner?.lastName || ""} ${cv.partner?.firstName || ""}`.trim(),
+          otherUserAvatar: cv.partner?.profileImageUrl || null,
+
+          lastMessage: lastMsg
+            ? `${isMine ? "Tôi: " : ""}${lastMsg.messageText}`
+            : "Chưa có tin nhắn",
+
+          lastMessageTime: lastMsg?.sentAt || cv.updatedAt || null,
+
+          unreadCount: 0,
+        };
+      });
+
 
       setConversations(mapped);
     } catch (err) {
@@ -58,7 +67,13 @@ export default function StaffChatList() {
 
   useEffect(() => {
     fetchConversations();
+
+    const handler = () => fetchConversations();
+    window.addEventListener("chat-updated", handler);
+
+    return () => window.removeEventListener("chat-updated", handler);
   }, [staffUserId]);
+
 
   /* ===================== SEARCH ===================== */
   const filtered = conversations.filter((c) =>
