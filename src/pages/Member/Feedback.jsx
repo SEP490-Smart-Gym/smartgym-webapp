@@ -843,10 +843,6 @@ export default function GymFeedbackSection() {
                 )}
               </div>
             </div>
-
-            <div className="text-center gfs-muted mt-3" style={{ fontSize: ".9rem" }}>
-              * Màn này chỉ hiển thị danh sách phản hồi. Không có form viết đánh giá.
-            </div>
           </div>
         </div>
       </div>
