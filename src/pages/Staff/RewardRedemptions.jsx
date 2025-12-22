@@ -34,6 +34,7 @@ function formatDateTimeVN(dateStr) {
   const iso = toISODateSafe(dateStr);
   if (!iso) return "—";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yyyy = d.getFullYear();
@@ -65,15 +66,21 @@ function normalizeRedemption(raw) {
     redemptionId: raw?.redemptionId,
     memberName: raw?.memberName || "—",
     memberEmail: raw?.memberEmail || "—",
+    rewardId: raw?.rewardId,
     rewardName: raw?.rewardName || "—",
+    imageUrl: raw?.imageUrl || "", // ✅ NEW
     pointsRedeemed: Number(raw?.pointsRedeemed ?? 0),
     redemptionDate: raw?.redemptionDate,
     status: raw?.status, // Pending | Approved | Cancelled
     deliveryDate: raw?.deliveryDate,
     notes: raw?.notes,
+    processedBy: raw?.processedBy,
     processorName: raw?.processorName,
   };
 }
+
+const PLACEHOLDER_IMG_SMALL = "https://via.placeholder.com/240x240?text=Gift";
+const PLACEHOLDER_IMG_LARGE = "https://via.placeholder.com/600x340?text=Gift";
 
 const StaffRewardRedemptions = () => {
   const [redemptions, setRedemptions] = useState([]);
@@ -102,7 +109,9 @@ const StaffRewardRedemptions = () => {
         ? res.data.items
         : [];
 
-      const mapped = arr.map(normalizeRedemption).filter((x) => x.redemptionId != null);
+      const mapped = arr
+        .map(normalizeRedemption)
+        .filter((x) => x.redemptionId != null);
 
       // sort mới -> cũ theo redemptionDate
       mapped.sort((a, b) => {
@@ -140,7 +149,6 @@ const StaffRewardRedemptions = () => {
     if (!item?.redemptionId) return;
 
     const isApprove = nextStatus === "Approved";
-    const isCancel = nextStatus === "Cancelled";
 
     const ok = window.confirm(
       isApprove
@@ -155,7 +163,7 @@ const StaffRewardRedemptions = () => {
       const body = {
         status: nextStatus,
         deliveryDate: isApprove ? new Date().toISOString() : null,
-        notes: item?.notes || null, // bạn có thể mở input notes sau
+        notes: item?.notes || null,
       };
 
       await api.put(`/RewardRedemption/${item.redemptionId}/status`, body);
@@ -174,7 +182,10 @@ const StaffRewardRedemptions = () => {
           : prev
       );
     } catch (err) {
-      console.error("PUT /RewardRedemption/{id}/status error:", err?.response?.data || err);
+      console.error(
+        "PUT /RewardRedemption/{id}/status error:",
+        err?.response?.data || err
+      );
       const apiMsg =
         err?.response?.data?.message ||
         err?.response?.data?.title ||
@@ -237,7 +248,10 @@ const StaffRewardRedemptions = () => {
                     <HiGift size={24} />
                   </div>
                   <div>
-                    <h3 className="mb-0" style={{ fontWeight: 700, letterSpacing: 0.3 }}>
+                    <h3
+                      className="mb-0"
+                      style={{ fontWeight: 700, letterSpacing: 0.3 }}
+                    >
                       Quản lý đổi quà bằng điểm
                     </h3>
                     <small style={{ opacity: 0.9 }}>
@@ -353,6 +367,8 @@ const StaffRewardRedemptions = () => {
                       .map((w) => w[0]?.toUpperCase())
                       .join("");
 
+                    const imgSmall = item.imageUrl || PLACEHOLDER_IMG_SMALL;
+
                     return (
                       <Col
                         key={item.redemptionId}
@@ -369,11 +385,20 @@ const StaffRewardRedemptions = () => {
                             flexDirection: "row",
                           }}
                         >
-                          {/* Không có image từ API => dùng placeholder */}
-                          <div style={{ width: 130, flexShrink: 0, background: "#e5e7eb" }}>
+                          {/* ✅ imageUrl từ API */}
+                          <div
+                            style={{
+                              width: 130,
+                              flexShrink: 0,
+                              background: "#e5e7eb",
+                            }}
+                          >
                             <img
-                              src={"https://via.placeholder.com/240x240?text=Gift"}
+                              src={imgSmall}
                               alt={item.rewardName}
+                              onError={(e) => {
+                                e.currentTarget.src = PLACEHOLDER_IMG_SMALL;
+                              }}
                               style={{
                                 width: "100%",
                                 height: "100%",
@@ -415,7 +440,13 @@ const StaffRewardRedemptions = () => {
                                   {initials || "M"}
                                 </div>
                                 <div>
-                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+                                  <div
+                                    style={{
+                                      fontSize: 14,
+                                      fontWeight: 700,
+                                      color: "#111827",
+                                    }}
+                                  >
                                     {item.memberName}
                                   </div>
                                   <div style={{ fontSize: 12, color: "#6b7280" }}>
@@ -444,9 +475,17 @@ const StaffRewardRedemptions = () => {
                             >
                               🎁 {item.rewardName}
                             </div>
-                            <div style={{ fontSize: 12, color: "#4b5563", marginBottom: 2 }}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "#4b5563",
+                                marginBottom: 2,
+                              }}
+                            >
                               Đã trừ{" "}
-                              <strong>{formatDateTimeVN ? item.pointsRedeemed.toLocaleString("vi-VN") : item.pointsRedeemed} điểm</strong>
+                              <strong>
+                                {item.pointsRedeemed.toLocaleString("vi-VN")} điểm
+                              </strong>
                             </div>
                             <div
                               style={{
@@ -460,7 +499,8 @@ const StaffRewardRedemptions = () => {
                             >
                               <FiClock size={13} />
                               <span>
-                                Thời gian đổi: <strong>{formatDateTimeVN(item.redemptionDate)}</strong>
+                                Thời gian đổi:{" "}
+                                <strong>{formatDateTimeVN(item.redemptionDate)}</strong>
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>
@@ -558,12 +598,20 @@ const StaffRewardRedemptions = () => {
         <ModalBody style={{ paddingTop: 0 }}>
           {selectedRedemption && (
             <>
-              {/* Không có image từ API => placeholder */}
+              {/* ✅ imageUrl từ API */}
               <div style={{ borderRadius: "0.75rem", overflow: "hidden", marginBottom: 12 }}>
                 <img
-                  src={"https://via.placeholder.com/600x340?text=Gift"}
+                  src={selectedRedemption.imageUrl || PLACEHOLDER_IMG_LARGE}
                   alt={selectedRedemption.rewardName}
-                  style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }}
+                  onError={(e) => {
+                    e.currentTarget.src = PLACEHOLDER_IMG_LARGE;
+                  }}
+                  style={{
+                    width: "100%",
+                    height: 220,
+                    objectFit: "cover",
+                    display: "block",
+                  }}
                 />
               </div>
 
@@ -593,7 +641,8 @@ const StaffRewardRedemptions = () => {
               {/* Redemption info */}
               <div style={{ fontSize: 13, color: "#4b5563" }} className="mb-3">
                 <div>
-                  Đã trừ <strong>{selectedRedemption.pointsRedeemed.toLocaleString("vi-VN")} điểm</strong>
+                  Đã trừ{" "}
+                  <strong>{selectedRedemption.pointsRedeemed.toLocaleString("vi-VN")} điểm</strong>
                 </div>
                 <div>
                   Thời gian đổi: <strong>{formatDateTimeVN(selectedRedemption.redemptionDate)}</strong>
