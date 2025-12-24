@@ -340,20 +340,20 @@ export default function AdminPromotionGifts() {
       align: "right",
       render: (q) => <Text>{q.toLocaleString("vi-VN")}</Text>,
     },
-    {
-      title: "Trạng thái",
-      dataIndex: "isActive",
-      key: "isActive",
-      width: 120,
-      align: "center",
-      render: (status) => {
-        let color = "default";
-        if (status === "Active") color = "green";
-        if (status === "Inactive") color = "red";
-        if (status === "Expired") color = "orange";
-        return <Tag color={color}>{status}</Tag>;
-      },
-    },
+    // {
+    //   title: "Trạng thái",
+    //   dataIndex: "isActive",
+    //   key: "isActive",
+    //   width: 120,
+    //   align: "center",
+    //   render: (status) => {
+    //     let color = "default";
+    //     if (status === "Active") color = "green";
+    //     if (status === "Inactive") color = "red";
+    //     if (status === "Expired") color = "orange";
+    //     return <Tag color={color}>{status}</Tag>;
+    //   },
+    // },
     {
       title: "Thao tác",
       key: "actions",
