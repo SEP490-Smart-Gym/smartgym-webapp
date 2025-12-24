@@ -1192,7 +1192,7 @@ export default function ManageSchedule() {
         return;
       }
 
-      message.success({ content: "Không có lịch trùng. Có thể xếp lịch.", key: checkKey, duration: 1.0 });
+      // message.success({ content: "Không có lịch trùng. Có thể xếp lịch.", key: checkKey, duration: 1.0 });
     } catch (e) {
       console.error("Conflict check failed:", e);
       message.error({ content: "Không thể kiểm tra lịch trùng. Vui lòng thử lại.", key: checkKey, duration: 2 });
@@ -1200,7 +1200,7 @@ export default function ManageSchedule() {
     }
 
     const key = "recurring-staff";
-    message.loading({ content: "Đang xếp lịch theo chu kỳ...", key, duration: 0 });
+    // message.loading({ content: "Đang xếp lịch theo chu kỳ...", key, duration: 0 });
 
     try {
       await apiRecurringStaffSchedule({
