@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const baseURL =
-  "https://smart-gym-api-d7dtddfab8f6eyb2.malaysiawest-01.azurewebsites.net/api";
+  "https://smart-gym-api-gzbaefdadydng3fp.eastasia-01.azurewebsites.net/api";
 
 const api = axios.create({
   baseURL,
