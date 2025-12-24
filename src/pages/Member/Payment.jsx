@@ -210,7 +210,35 @@ const CartComponent = () => {
     fetchPackage();
   }, [packageId]);
 
-  // Fetch discount codes
+  // ✅ Tính tạm tính (để lọc mã theo minimumPurchaseAmount)
+  const calculateSubtotal = useMemo(
+    () => cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0),
+    [cartItems]
+  );
+
+  // ✅ Helper: code hợp lệ theo đơn hiện tại (minimumPurchaseAmount)
+  const isCodeApplicableForSubtotal = useCallback((code, subtotal) => {
+    if (!code) return false;
+
+    const min = Number(code.minimumPurchaseAmount ?? 0) || 0;
+
+    // Nếu có quy định min và subtotal < min => không hợp lệ để hiện trong list
+    if (min > 0 && Number(subtotal || 0) < min) return false;
+
+    // (tuỳ backend) nếu có trạng thái/active thì lọc luôn
+    const isActive = code.isActive ?? code.active ?? true;
+    if (isActive === false) return false;
+
+    const status = String(code.status ?? "").toLowerCase().trim();
+    if (status && !["active", "available", "valid", "enabled"].includes(status)) return false;
+
+    // nếu thiếu code thì bỏ
+    if (!String(code.code || "").trim()) return false;
+
+    return true;
+  }, []);
+
+  // Fetch discount codes (raw)
   useEffect(() => {
     const fetchDiscountCodes = async () => {
       try {
@@ -228,6 +256,18 @@ const CartComponent = () => {
 
     fetchDiscountCodes();
   }, []);
+
+  // ✅ LIST mã giảm giá hiển thị: chỉ lấy mã áp dụng được với subtotal hiện tại
+  const applicableDiscountCodes = useMemo(() => {
+    return (discountCodes || []).filter((c) => isCodeApplicableForSubtotal(c, calculateSubtotal));
+  }, [discountCodes, calculateSubtotal, isCodeApplicableForSubtotal]);
+
+  // ✅ Nếu user đang chọn promoCode nhưng subtotal đổi làm code không còn hợp lệ => reset
+  useEffect(() => {
+    if (!promoCode) return;
+    const stillOk = applicableDiscountCodes.some((c) => c.code === promoCode);
+    if (!stillOk) setPromoCode("");
+  }, [promoCode, applicableDiscountCodes]);
 
   // Fetch trainers (nếu có PT)
   useEffect(() => {
@@ -286,16 +326,10 @@ const CartComponent = () => {
 
   const canProceedFromTrainer = !!selectedTrainer;
 
-  // Tính tạm tính
-  const calculateSubtotal = useMemo(
-    () => cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0),
-    [cartItems]
-  );
-
-  // Lấy object của mã giảm giá đang chọn
+  // Lấy object của mã giảm giá đang chọn (đổi sang list applicable để tránh chọn mã không hợp lệ)
   const selectedDiscount = useMemo(
-    () => discountCodes.find((d) => d.code === promoCode) || null,
-    [promoCode, discountCodes]
+    () => applicableDiscountCodes.find((d) => d.code === promoCode) || null,
+    [promoCode, applicableDiscountCodes]
   );
 
   // Tính số tiền giảm & tổng sau giảm
@@ -328,7 +362,6 @@ const CartComponent = () => {
   // ========== PAYMENT HANDLER ==========
   const handlePaymentSubmit = async () => {
     if (!stripeState.stripe || !stripeCard) {
-      message.warning("Đang khởi tạo biểu mẫu thanh toán Stripe, vui lòng thử lại sau vài giây.");
       return;
     }
 
@@ -344,7 +377,6 @@ const CartComponent = () => {
 
     try {
       setLoading(true);
-      message.info("Đang khởi tạo giao dịch thanh toán...");
 
       const pkg = cartItems[0];
       const startDateISO = new Date().toISOString();
@@ -370,8 +402,6 @@ const CartComponent = () => {
 
       setPaymentIntent({ id: paymentIntentId, clientSecret });
 
-      message.info("Đang xác nhận thanh toán với Stripe...");
-
       const result = await stripeState.stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: stripeCard,
@@ -395,8 +425,6 @@ const CartComponent = () => {
         message.error(`Thanh toán chưa thành công (trạng thái: ${stripePI.status}).`);
         return;
       }
-
-      message.info("Đang xác nhận thanh toán với hệ thống...");
 
       const confirmRes = await api.post("/Payment/confirm-payment", {
         paymentIntentId: paymentIntentId || stripePI.id
@@ -565,7 +593,7 @@ const CartComponent = () => {
                     }
                   >
                     <MenuItem value="">Không sử dụng mã</MenuItem>
-                    {discountCodes.map((code) => (
+                    {applicableDiscountCodes.map((code) => (
                       <MenuItem key={code.id} value={code.code}>
                         {code.code}{" "}
                         {code.discountType === "Percentage"
@@ -768,7 +796,10 @@ const CartComponent = () => {
             variant="contained"
             endIcon={currentStepKey === "payment" ? <FiLock /> : <FiArrowRight />}
             onClick={guardedNext}
-            disabled={nextDisabled}
+            disabled={
+              loading ||
+              (currentStepKey === "cart" && (cartItems.length === 0 || packageLoading))
+            }
           >
             {loading ? <CircularProgress size={24} /> : currentStepKey === "payment" ? "Thanh toán" : "Tiếp tục"}
           </Button>
