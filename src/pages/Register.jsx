@@ -1,7 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../config/axios";
 import { Modal } from "antd";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function addYears(d, years) {
+  const x = new Date(d);
+  x.setFullYear(x.getFullYear() + years);
+  return x;
+}
+function toISODateOnly(d) {
+  if (!d) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,21 +33,39 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     phoneNumber: "",
-    gender: "male",       // API sample: "male"
+    gender: "male", // API sample: "male"
     address: "",
-    dateOfBirth: "",      // yyyy-mm-dd (input type="date")
+    dateOfBirth: "", // yyyy-mm-dd (DatePicker sẽ set)
   });
+
+  // ✅ Date object cho DatePicker
+  const [dobDate, setDobDate] = useState(null);
 
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ tuổi tối thiểu 13: ngày sinh phải <= hôm nay - 13 năm
+  const MIN_AGE = 13;
+  const maxDobDate = useState(() => startOfDay(addYears(new Date(), -MIN_AGE)))[0];
+
+  // sync nếu có sẵn dateOfBirth (trường hợp back/restore form)
+  useEffect(() => {
+    if (form.dateOfBirth) {
+      const d = new Date(form.dateOfBirth);
+      if (!isNaN(d.getTime())) setDobDate(d);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     // chỉ nhận số cho phone
     if (name === "phoneNumber") {
       const onlyDigits = value.replace(/\D/g, "");
       return setForm((p) => ({ ...p, phoneNumber: onlyDigits }));
     }
+
     setForm((p) => ({ ...p, [name]: value }));
   };
 
@@ -51,6 +89,13 @@ export default function Register() {
     if (!form.address.trim()) e.address = "Vui lòng nhập địa chỉ.";
 
     if (!form.dateOfBirth) e.dateOfBirth = "Vui lòng chọn ngày sinh.";
+    else {
+      const dob = new Date(form.dateOfBirth);
+      if (isNaN(dob.getTime())) e.dateOfBirth = "Ngày sinh không hợp lệ.";
+      else if (startOfDay(dob).getTime() > maxDobDate.getTime()) {
+        e.dateOfBirth = `Bạn phải đủ ${MIN_AGE} tuổi.`;
+      }
+    }
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -71,7 +116,10 @@ export default function Register() {
         phoneNumber: form.phoneNumber,
         gender: form.gender, // "male" | "female" | "other" nếu backend cho phép
         address: form.address.trim(),
-        dateOfBirth: new Date(form.dateOfBirth).toISOString(),
+        // ✅ ưu tiên dobDate (DatePicker), fallback date string
+        dateOfBirth: dobDate
+          ? dobDate.toISOString()
+          : new Date(form.dateOfBirth).toISOString(),
       };
 
       // Ví dụ endpoint theo swagger: /api/Auth/register
@@ -134,9 +182,11 @@ export default function Register() {
                 ← Trang chủ
               </button>
             </div>
+
             <div className="card shadow-sm">
               <div className="card-body p-4">
                 <h3 className="card-title mb-3 text-center">Đăng ký</h3>
+
                 {errors.server && (
                   <div className="alert alert-danger py-2">{errors.server}</div>
                 )}
@@ -156,6 +206,7 @@ export default function Register() {
                         <div className="invalid-feedback">{errors.lastName}</div>
                       )}
                     </div>
+
                     <div className="col-md-6">
                       <label className="form-label">Tên</label>
                       <input
@@ -169,6 +220,7 @@ export default function Register() {
                         <div className="invalid-feedback">{errors.firstName}</div>
                       )}
                     </div>
+
                     <div className="col-md-6">
                       <label className="form-label">Email</label>
                       <input
@@ -201,6 +253,65 @@ export default function Register() {
                     </div>
 
                     <div className="col-md-6">
+                      <label className="form-label">Giới tính</label>
+                      <select
+                        name="gender"
+                        className={`form-select ${errors.gender ? "is-invalid" : ""}`}
+                        value={form.gender}
+                        onChange={handleChange}
+                      >
+                        <option value="male">Nam</option>
+                        <option value="female">Nữ</option>
+                        <option value="other">Khác</option>
+                      </select>
+                      {errors.gender && (
+                        <div className="invalid-feedback">{errors.gender}</div>
+                      )}
+                    </div>
+
+                    {/* ✅ DatePicker chọn ngày sinh từ lịch + min age 13 */}
+                    <div className="col-md-6">
+                      <label className="form-label">Ngày sinh</label>
+
+                      <DatePicker
+                        selected={dobDate}
+                        onChange={(d) => {
+                          setDobDate(d);
+                          setForm((p) => ({ ...p, dateOfBirth: d ? toISODateOnly(d) : "" }));
+                        }}
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="dd/mm/yyyy"
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                        maxDate={maxDobDate} // ✅ phải <= hôm nay - 13 năm
+                        className={`form-control ${errors.dateOfBirth ? "is-invalid" : ""}`}
+                        wrapperClassName="w-100"
+                      />
+
+                      {/* DatePicker không tự show invalid-feedback đúng layout bootstrap */}
+                      {errors.dateOfBirth && (
+                        <div className="invalid-feedback d-block">
+                          {errors.dateOfBirth}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="col-12">
+                      <label className="form-label">Địa chỉ</label>
+                      <input
+                        name="address"
+                        className={`form-control ${errors.address ? "is-invalid" : ""}`}
+                        placeholder="VD: 123 Lý Thường Kiệt, Q.10, TP.HCM"
+                        value={form.address}
+                        onChange={handleChange}
+                      />
+                      {errors.address && (
+                        <div className="invalid-feedback">{errors.address}</div>
+                      )}
+                    </div>
+
+                    <div className="col-md-6">
                       <label className="form-label">Mật khẩu</label>
                       <input
                         name="password"
@@ -229,51 +340,6 @@ export default function Register() {
                         <div className="invalid-feedback">{errors.confirmPassword}</div>
                       )}
                     </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">Giới tính</label>
-                      <select
-                        name="gender"
-                        className={`form-select ${errors.gender ? "is-invalid" : ""}`}
-                        value={form.gender}
-                        onChange={handleChange}
-                      >
-                        <option value="male">Nam</option>
-                        <option value="female">Nữ</option>
-                        <option value="other">Khác</option>
-                      </select>
-                      {errors.gender && (
-                        <div className="invalid-feedback">{errors.gender}</div>
-                      )}
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">Ngày sinh</label>
-                      <input
-                        name="dateOfBirth"
-                        type="date"
-                        className={`form-control ${errors.dateOfBirth ? "is-invalid" : ""}`}
-                        value={form.dateOfBirth}
-                        onChange={handleChange}
-                      />
-                      {errors.dateOfBirth && (
-                        <div className="invalid-feedback">{errors.dateOfBirth}</div>
-                      )}
-                    </div>
-
-                    <div className="col-12">
-                      <label className="form-label">Địa chỉ</label>
-                      <input
-                        name="address"
-                        className={`form-control ${errors.address ? "is-invalid" : ""}`}
-                        placeholder="VD: 123 Lý Thường Kiệt, Q.10, TP.HCM"
-                        value={form.address}
-                        onChange={handleChange}
-                      />
-                      {errors.address && (
-                        <div className="invalid-feedback">{errors.address}</div>
-                      )}
-                    </div>
                   </div>
 
                   <button
@@ -295,6 +361,5 @@ export default function Register() {
         </div>
       </div>
     </div>
-
   );
 }

@@ -559,18 +559,6 @@ export default function WorkoutMealPlan() {
       {/* ================== TAB: WORKOUT PLAN ================== */}
       {activeTab === "workout" && (
         <>
-          <div
-            className="mb-3 p-3 rounded shadow-sm text-center"
-            style={{
-              background:
-                "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 40%, #ffe8d6 100%)",
-              border: "1px solid #ffd28c",
-              fontSize: "0.95rem",
-            }}
-          >
-            <strong>🎯 Mục tiêu chung:</strong> Tăng cơ, giảm mỡ, cải thiện sức
-            bền, kiểm soát mỡ và hỗ trợ sức khỏe lâu dài.
-          </div>
 
           {loadingPlans ? (
             <div className="text-center my-5">
