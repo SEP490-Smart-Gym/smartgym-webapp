@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../config/axios";
 import dayjs from "dayjs";
-import { Form, DatePicker, Select, Input, InputNumber, Button, Spin } from "antd";
+import { Form, DatePicker, Select, Input, InputNumber, Button, Spin, message } from "antd";
 import Sidebar from "../../components/Sidebar";
 
 export default function ManagerCreateMaintenanceSchedule() {
@@ -9,11 +9,8 @@ export default function ManagerCreateMaintenanceSchedule() {
   const [loading, setLoading] = useState(false);
 
   // Form fields
-  const [equipmentId, setEquipmentId] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [description, setDescription] = useState("");
-  const [estimatedDuration, setEstimatedDuration] = useState("");
-  const [notes, setNotes] = useState("");
+  const [form] = Form.useForm();
+
 
   // Fetch list of equipment
   const fetchEquipments = async () => {
@@ -37,32 +34,23 @@ export default function ManagerCreateMaintenanceSchedule() {
   }, []);
 
   // Submit API
-  const handleSubmit = async () => {
-    if (!equipmentId) return message.warning("Vui lòng chọn thiết bị");
-    if (!scheduledDate) return message.warning("Vui lòng chọn thời gian bảo trì");
-    if (!description.trim()) return message.warning("Vui lòng nhập mô tả");
-
+  const handleSubmit = async (values) => {
     try {
       await api.post("/MaintenanceSchedule", {
-        equipmentId: Number(equipmentId),
-        scheduledDate: new Date(scheduledDate).toISOString(),
-        description,
-        estimatedDuration: Number(estimatedDuration) || 0,
-        notes
+        equipmentId: values.equipmentId,
+        scheduledDate: values.scheduledDate.toISOString(),
+        description: values.description,
+        estimatedDuration: values.estimatedDuration,
+        notes: values.notes,
       });
 
       message.success("Tạo lịch bảo trì thành công!");
-
-      // Reset form
-      setEquipmentId("");
-      setScheduledDate("");
-      setDescription("");
-      setEstimatedDuration("");
-      setNotes("");
+      form.resetFields();
     } catch (err) {
       message.error("Không thể tạo lịch bảo trì");
     }
   };
+
 
   return (
     <div className="container-fluid py-5">
@@ -79,6 +67,7 @@ export default function ManagerCreateMaintenanceSchedule() {
             <div className="text-center py-5"><Spin /></div>
           ) : (
             <Form
+              form={form}
               layout="vertical"
               onFinish={handleSubmit}
             >
@@ -99,18 +88,16 @@ export default function ManagerCreateMaintenanceSchedule() {
                   </Select>
                 </Form.Item>
 
+
                 {/* === Thời gian bảo trì === */}
                 <Form.Item
                   label={<span className="fw-bold">Thời gian bảo trì</span>}
                   name="scheduledDate"
-                  rules={[
-                    { required: true, message: "Vui lòng chọn thời gian bảo trì" },
-                  ]}
+                  rules={[{ required: true, message: "Vui lòng chọn thời gian bảo trì" }]}
                 >
                   <DatePicker
                     showTime={{ format: "HH:mm" }}
                     style={{ width: "100%" }}
-                    placeholder="Chọn thời gian bảo trì"
                     format="DD/MM/YYYY HH:mm"
                     disabledDate={(current) =>
                       current && current < dayjs().startOf("day")
