@@ -158,7 +158,7 @@ export default function StaffMaintenance() {
 
         <p>
           <b>Ngày:</b>{" "}
-          {dayjs(item.scheduledDate).format("DD/MM/YYYY HH:mm")}
+          {dayjs(item.scheduledDate).add(7, "hour").format("DD/MM/YYYY HH:mm")}
         </p>
 
         <p>
