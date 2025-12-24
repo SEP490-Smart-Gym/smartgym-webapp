@@ -101,13 +101,19 @@ export default function ChatBot({ isPopup = false, onClose }) {
         params: { conversationId: cid },
       });
 
-      const mapped = res.data.map((m) => ({
-        id: m.messageId,
-        text: m.messageText,
-        isUser: m.senderType === "Human",
-        senderName: m.senderName,
-        timestamp: new Date(m.sentAt),
-      }));
+      const mapped = res.data.map((m) => {
+        const d = new Date(m.sentAt);
+        d.setHours(d.getHours() + 7); 
+
+        return {
+          id: m.messageId,
+          text: m.messageText,
+          isUser: m.senderType === "Human",
+          senderName: m.senderName,
+          timestamp: d,
+        };
+      });
+
 
       setMessages(mapped);
     } catch (err) {
