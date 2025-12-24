@@ -477,14 +477,6 @@ export default function AdminPromotionGifts() {
             </Form.Item>
 
             <Form.Item
-              name="Category"
-              label="Danh mục"
-              rules={[{ required: true, message: "Vui lòng nhập danh mục" }]}
-            >
-              <Input placeholder="VD: Voucher / Sản phẩm / Dịch vụ..." />
-            </Form.Item>
-
-            <Form.Item
               name="Description"
               label="Mô tả"
               rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}
