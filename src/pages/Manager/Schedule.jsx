@@ -845,12 +845,12 @@ export default function ManageSchedule() {
 
   const refreshAllStaffSchedule = async () => {
     const key = "load-staff-all";
-    message.loading({ content: "Đang tải lịch staff (all)...", key, duration: 0 });
+    // message.loading({ content: "Đang tải lịch staff (all)...", key, duration: 0 });
     try {
       const rows = await apiGetAllStaffSchedule();
       const dayEvents = allStaffRowsToDayEvents(rows);
       replaceStaffCache(dayEvents);
-      message.success({ content: "Đã tải lịch staff.", key, duration: 1.2 });
+      // message.success({ content: "Đã tải lịch staff.", key, duration: 1.2 });
       return dayEvents;
     } catch (e) {
       console.error("GET /staff-schedule/all failed:", e);
@@ -862,12 +862,12 @@ export default function ManageSchedule() {
 
   const fetchStaffDayAndCache = async (isoDate) => {
     const key = `fetch-day-${isoDate}`;
-    message.loading({ content: "Đang tải lịch trong ngày...", key, duration: 0 });
+    // message.loading({ content: "Đang tải lịch trong ngày...", key, duration: 0 });
     try {
       const dayDto = await apiGetScheduleDay(isoDate);
       const ev = dayDtoToEvent(dayDto);
       setSelectedEvent(ev);
-      message.success({ content: "Đã tải lịch.", key, duration: 1.2 });
+      // message.success({ content: "Đã tải lịch.", key, duration: 1.2 });
       return ev;
     } catch (e) {
       console.error("GET /staff-schedule/day failed:", e);
@@ -981,7 +981,7 @@ export default function ManageSchedule() {
     }
 
     const loadingKey = "assign-staff-schedule";
-    message.loading({ content: "Đang xếp lịch...", key: loadingKey, duration: 0 });
+    // message.loading({ content: "Đang xếp lịch...", key: loadingKey, duration: 0 });
 
     try {
       // current staff in shift (may have scheduleId if /day returns)
@@ -1085,7 +1085,7 @@ export default function ManageSchedule() {
   /** ================= Trainer actions (read-only) ================= */
   const loadTrainerSchedule = async () => {
     const key = "load-trainer-schedule";
-    message.loading({ content: "Đang tải lịch PT...", key, duration: 0 });
+    // message.loading({ content: "Đang tải lịch PT...", key, duration: 0 });
     try {
       const list = await apiGetAllBookedTrainingSessions();
       const dayEvents = trainingSessionsToDayEvents(list);
@@ -1094,7 +1094,7 @@ export default function ManageSchedule() {
       setAllTrainerSchedule(dayEvents);
       rerenderTrainerCalendar(dayEvents);
 
-      message.success({ content: "Đã tải lịch PT.", key, duration: 1.2 });
+      // message.success({ content: "Đã tải lịch PT.", key, duration: 1.2 });
     } catch (e) {
       console.error("GET /TrainingSession/all-booked failed:", e);
       trainerDataRef.current = [];
@@ -1117,7 +1117,7 @@ export default function ManageSchedule() {
   const loadStaffTimeSlots = async () => {
     const key = "load-staff-timeslots";
     setLoadingSlots(true);
-    message.loading({ content: "Đang tải ca làm (TimeSlot)...", key, duration: 0 });
+    // message.loading({ content: "Đang tải ca làm (TimeSlot)...", key, duration: 0 });
     try {
       const data = await apiGetStaffTimeSlots();
       const onlyActive = (data || []).filter((x) => x?.isActive !== false);
@@ -1125,7 +1125,7 @@ export default function ManageSchedule() {
 
       if (recTimeSlotId == null && onlyActive.length) setRecTimeSlotId(onlyActive[0].id);
 
-      message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
+      // message.success({ content: "Đã tải TimeSlot.", key, duration: 1.0 });
     } catch (e) {
       console.error("GET /TimeSlot/staff failed:", e);
       setTimeSlots([]);
@@ -1228,11 +1228,11 @@ export default function ManageSchedule() {
       await ensureCalendarPlugin();
 
       const staffKey = "load-staff-list";
-      message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
+      // message.loading({ content: "Đang tải danh sách staff...", key: staffKey, duration: 0 });
       try {
         const res = await api.get("/staff-schedule/staffs");
         setStaffList(res.data || []);
-        message.success({ content: "Đã tải danh sách staff.", key: staffKey, duration: 1.2 });
+        // message.success({ content: "Đã tải danh sách staff.", key: staffKey, duration: 1.2 });
       } catch (e) {
         console.error("Failed to load staff list:", e);
         message.error({ content: "Không thể tải danh sách staff.", key: staffKey, duration: 2 });
