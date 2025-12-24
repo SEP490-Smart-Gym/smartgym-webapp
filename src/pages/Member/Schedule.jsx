@@ -1280,7 +1280,7 @@ export default function Calendar() {
             <span>Đặt lịch tập</span>
           </button>
 
-          {/* ✅ Đổi lịch hàng loạt */}
+          {/* ✅ Đổi lịch hàng loạt
           <button
             className="btn btn-outline-secondary"
             data-bs-toggle="modal"
@@ -1300,7 +1300,7 @@ export default function Calendar() {
             title={!memberPackageId ? "Bạn chưa có gói tập đang hoạt động" : ""}
           >
             Đổi lịch hàng loạt
-          </button>
+          </button> */}
         </div>
       </div>
 
