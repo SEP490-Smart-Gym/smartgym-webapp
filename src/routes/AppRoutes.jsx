@@ -182,10 +182,6 @@ export default function AppRoutes() {
           <Route path="/member/points-history" element={<ExtraPoint />} />
           <Route path="/member/workout-meal-plan" element={<WorkoutMealPlan />} />
           <Route path="/member/reward-gifts" element={<RewardGifts />} />
-          <Route path="/member/chat" element={<ChatLayout />}>
-            <Route index element={<EmptyChat />} />
-            <Route path=":conversationId" element={<ChatBox />} />
-          </Route>
         </Route>
 
 
@@ -242,6 +238,13 @@ export default function AppRoutes() {
           <Route path="/manager/schedule" element={<ManageSchedule />} />
           <Route path="/manager/manager-refund" element={<RefundManagement />} />
           <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={["Member"]} />}>
+          <Route path="/member/chat" element={<ChatLayout />}>
+            <Route index element={<EmptyChat />} />
+            <Route path=":conversationId" element={<ChatBox />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

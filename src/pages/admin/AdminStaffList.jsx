@@ -464,7 +464,6 @@ export default function AdminStaffList() {
                         style={{ width: "100%" }}
                         placeholder="Ngày sinh"
                         disabledDate={disabledBirthDate}
-                        // 👇 Khi mở lịch, nhảy sẵn về năm (hôm nay - 18)
                         defaultPickerValue={dayjs().subtract(MIN_AGE, "year")}
                       />
                     </Form.Item>

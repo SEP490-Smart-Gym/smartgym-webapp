@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../config/axios";
 import dayjs from "dayjs";
-import { message, Spin } from "antd";
+import { Form, DatePicker, Select, Input, InputNumber, Button, Spin } from "antd";
 import Sidebar from "../../components/Sidebar";
 
 export default function ManagerCreateMaintenanceSchedule() {
@@ -78,78 +78,87 @@ export default function ManagerCreateMaintenanceSchedule() {
           {loading ? (
             <div className="text-center py-5"><Spin /></div>
           ) : (
-            <div className="card shadow-sm p-4">
+            <Form
+              layout="vertical"
+              onFinish={handleSubmit}
+            >
+              <div className="card shadow-sm p-4">
 
-              {/* === Chọn thiết bị === */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Thiết bị</label>
-                <select
-                  className="form-select"
-                  value={equipmentId}
-                  onChange={(e) => setEquipmentId(e.target.value)}
+                {/* === Chọn thiết bị === */}
+                <Form.Item
+                  label={<span className="fw-bold">Thiết bị</span>}
+                  name="equipmentId"
+                  rules={[{ required: true, message: "Vui lòng chọn thiết bị" }]}
                 >
-                  <option value="">-- Chọn thiết bị --</option>
-                  {equipments.map((eq) => (
-                    <option key={eq.id} value={eq.id}>
-                      {eq.equipmentName} – {eq.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <Select placeholder="-- Chọn thiết bị --">
+                    {equipments.map((eq) => (
+                      <Select.Option key={eq.id} value={eq.id}>
+                        {eq.equipmentName} – {eq.model}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
 
-              {/* === Thời gian bảo trì === */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Thời gian bảo trì</label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                />
-              </div>
+                {/* === Thời gian bảo trì === */}
+                <Form.Item
+                  label={<span className="fw-bold">Thời gian bảo trì</span>}
+                  name="scheduledDate"
+                  rules={[
+                    { required: true, message: "Vui lòng chọn thời gian bảo trì" },
+                  ]}
+                >
+                  <DatePicker
+                    showTime={{ format: "HH:mm" }}
+                    style={{ width: "100%" }}
+                    placeholder="Chọn thời gian bảo trì"
+                    format="DD/MM/YYYY HH:mm"
+                    disabledDate={(current) =>
+                      current && current < dayjs().startOf("day")
+                    }
+                  />
+                </Form.Item>
 
-              {/* === Mô tả === */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Mô tả</label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
+                {/* === Mô tả === */}
+                <Form.Item
+                  label={<span className="fw-bold">Mô tả</span>}
+                  name="description"
+                >
+                  <Input.TextArea rows={3} />
+                </Form.Item>
 
-              {/* === Thời gian dự kiến === */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Thời lượng dự kiến (phút)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  placeholder="Ví dụ: 60"
-                  value={estimatedDuration}
-                  onChange={(e) => setEstimatedDuration(e.target.value)}
-                />
-              </div>
+                {/* === Thời lượng dự kiến === */}
+                <Form.Item
+                  label={<span className="fw-bold">Thời lượng dự kiến (phút)</span>}
+                  name="estimatedDuration"
+                  rules={[
+                    { required: true, message: "Vui lòng nhập thời lượng" },
+                  ]}
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={1}
+                    placeholder="Ví dụ: 60"
+                  />
+                </Form.Item>
 
-              {/* === Notes === */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Ghi chú</label>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
+                {/* === Ghi chú === */}
+                <Form.Item
+                  label={<span className="fw-bold">Ghi chú</span>}
+                  name="notes"
+                >
+                  <Input.TextArea rows={2} />
+                </Form.Item>
 
-              {/* === Submit === */}
-              <div className="text-end">
-                <button className="btn btn-primary" onClick={handleSubmit}>
-                  Tạo lịch bảo trì
-                </button>
-              </div>
+                {/* === Submit === */}
+                <div className="text-end">
+                  <Button type="primary" htmlType="submit">
+                    Tạo lịch bảo trì
+                  </Button>
+                </div>
 
-            </div>
+              </div>
+            </Form>
+
           )}
         </div>
       </div>
