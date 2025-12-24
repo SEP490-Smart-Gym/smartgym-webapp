@@ -513,12 +513,12 @@ export default function Home() {
                         {f.title}
                       </h4>
                       <p className="mb-4">{f.desc}</p>
-                      <a
+                      {/* <a
                         href="#package-section"
                         className="btn btn-primary py-2 px-4"
                       >
                         <span>Tìm hiểu thêm</span>
-                      </a>
+                      </a> */}
                     </div>
                   </div>
                 </SwiperSlide>
@@ -734,10 +734,10 @@ export default function Home() {
                       </a>
 
                       <p className="mb-3">{b.desc}</p>
-                      <a href="#" className="btn btn-dark py-2 px-4 ms-2">
+                      {/* <a href="#" className="btn btn-dark py-2 px-4 ms-2">
                         <span className="me-2">Xem chi tiết</span>{" "}
                         <i className="fa fa-arrow-right"></i>
-                      </a>
+                      </a> */}
                     </div>
                   </div>
                 </SwiperSlide>

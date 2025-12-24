@@ -100,6 +100,16 @@ function AuthLayout() {
     </main>
   );
 }
+function AdminLayout() {
+  return (
+    <>
+      <Navbar />
+      <main className="min-vh-100">
+        <Outlet />
+      </main>
+    </>
+  );
+}
 
 
 export default function AppRoutes() {
@@ -178,6 +188,25 @@ export default function AppRoutes() {
           </Route>
         </Route>
 
+
+        {/* 404 cuối cùng trong layout */}
+        <Route path="*" element={<NotFound />} />
+      </Route>
+      <Route element={<AdminLayout />}>
+        {/* ===== Admin protected ===== */}
+        <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
+          <Route path="/admin/profile" element={<ProfileAdmin />} />
+          <Route path="/admin/packages" element={<AdminPackages />} />
+          <Route path="/admin/trainers" element={<AdminTrainerList />} />
+          <Route path="/admin/equipments" element={<EquipmentList />} />
+          <Route path="/admin/members" element={<AdminMemberList />} />
+          <Route path="/admin/staffs" element={<AdminStaffList />} />
+          <Route path="/admin/managers" element={<AdminManagerList />} />
+          <Route path="/admin/vouchers" element={<AdminVoucher />} />
+          <Route path="/admin/timeslot" element={<TimeSlot />} />
+          <Route path="/admin/promotion-gifts" element={<AdminPromotionGifts />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        </Route>
         {/* ===== Trainer protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Trainer"]} />}>
           <Route path="/trainer/profile" element={<ProfileTrainer />} />
@@ -203,23 +232,6 @@ export default function AppRoutes() {
             <Route path=":conversationId" element={<ChatBox />} />
           </Route>
         </Route>
-
-
-        {/* ===== Admin protected ===== */}
-        <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
-          <Route path="/admin/profile" element={<ProfileAdmin />} />
-          <Route path="/admin/packages" element={<AdminPackages />} />
-          <Route path="/admin/trainers" element={<AdminTrainerList />} />
-          <Route path="/admin/equipments" element={<EquipmentList />} />
-          <Route path="/admin/members" element={<AdminMemberList />} />
-          <Route path="/admin/staffs" element={<AdminStaffList />} />
-          <Route path="/admin/managers" element={<AdminManagerList />} />
-          <Route path="/admin/vouchers" element={<AdminVoucher />} />
-          <Route path="/admin/timeslot" element={<TimeSlot />} />
-          <Route path="/admin/promotion-gifts" element={<AdminPromotionGifts />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Route>
-
         {/* ===== Manager protected ===== */}
         <Route element={<ProtectedRoute allowedRoles={["Manager"]} />}>
           <Route path="/manager/overview" element={<Home />} />
@@ -231,9 +243,6 @@ export default function AppRoutes() {
           <Route path="/manager/manager-refund" element={<RefundManagement />} />
           <Route path="/manager/dashboard" element={<ManagerDashboard />} />
         </Route>
-
-        {/* 404 cuối cùng trong layout */}
-        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );
