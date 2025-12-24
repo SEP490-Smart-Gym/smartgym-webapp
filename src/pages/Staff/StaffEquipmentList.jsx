@@ -143,7 +143,7 @@ export default function StaffEquipmentList() {
 
           {/* FILTER */}
           <div className="row g-3 align-items-end mb-4">
-            <div className="col-md-6">
+            <div className="col-md-9">
               <label className="form-label">Tìm kiếm</label>
               <input
                 className="form-control"
@@ -153,7 +153,7 @@ export default function StaffEquipmentList() {
               />
             </div>
 
-            <div className="col-md-3">
+            {/* <div className="col-md-3">
               <label className="form-label">Trạng thái</label>
               <select
                 className="form-select"
@@ -164,7 +164,7 @@ export default function StaffEquipmentList() {
                   <option key={s}>{s}</option>
                 ))}
               </select>
-            </div>
+            </div> */}
 
             <div className="col-md-3 text-md-end">
               <span className="text-muted small">

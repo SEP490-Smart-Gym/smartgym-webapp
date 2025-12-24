@@ -79,7 +79,7 @@ export default function Register() {
 
       Modal.success({
         title: "Đăng ký thành công!",
-        content: "Vui lòng kiem tra email để xác nhận tài khoản.",
+        content: "Vui lòng kiểm tra email để xác nhận tài khoản.",
       });
       navigate("/login");
     } catch (err) {

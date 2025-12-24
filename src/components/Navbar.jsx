@@ -370,13 +370,13 @@ export default function Navbar() {
                             >
                               Hồ sơ cá nhân
                             </button>
-                            <hr className="dropdown-divider" />
+                            {/* <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate(`/staff/chat`)}
                             >
                               Chat với Học viên
-                            </button>
+                            </button> */}
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
@@ -592,8 +592,9 @@ export default function Navbar() {
                     </NavLink>
                   )}
 
+
                   {/* ✅ dropdown responsive */}
-                  <div
+                  {/* <div
                     className={`nav-item dropdown ${isOpen ? "show" : ""}`}
                     onMouseEnter={() => isDesktop && setIsOpen(true)}
                     onMouseLeave={() => isDesktop && setIsOpen(false)}
@@ -627,7 +628,7 @@ export default function Navbar() {
                         Huấn luyện viên
                       </HashLink>
                     </div>
-                  </div>
+                  </div> */}
 
                   <HashLink
                     smooth
@@ -636,6 +637,15 @@ export default function Navbar() {
                     onClick={closeMobileMenu}
                   >
                     Đánh giá
+                  </HashLink>
+
+                  <HashLink
+                    smooth
+                    to="/#trainers-section"
+                    className="nav-item nav-link"
+                    onClick={closeMobileMenu}
+                  >
+                    Huấn luyện viên
                   </HashLink>
 
                   <NavLink

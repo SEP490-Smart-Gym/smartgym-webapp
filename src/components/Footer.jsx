@@ -20,21 +20,21 @@ export default function Footer() {
         <div className="container py-5">
           <div className="row g-5 mb-5 align-items-center">
             <div className="col-lg-7">
-              <div className="position-relative d-flex" style={{ transform: "skew(18deg)" }}>
+              {/* <div className="position-relative d-flex" style={{ transform: "skew(18deg)" }}>
                 <input className="form-control border-0 w-100 py-3 pe-5" type="text" placeholder="Email address to Subscribe" />
                 <button type="button" className="btn-primary py-2 px-4 ms-3">
                   <span>Subscribe</span>
                 </button>
-              </div>
+              </div> */}
             </div>
-            <div className="col-lg-5">
+            {/* <div className="col-lg-5">
               <div className="d-flex align-items-center justify-content-center justify-content-lg-end">
                 <a className="btn btn-primary btn-md-square me-3" href=""><i className="fab fa-facebook-f"></i></a>
                 <a className="btn btn-primary btn-md-square me-3" href=""><i className="fab fa-twitter"></i></a>
                 <a className="btn btn-primary btn-md-square me-3" href=""><i className="fab fa-instagram"></i></a>
                 <a className="btn btn-primary btn-md-square me-0" href=""><i className="fab fa-linkedin-in"></i></a>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="row g-5">
