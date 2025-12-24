@@ -280,7 +280,7 @@ export default function StaffEquipmentList() {
 
             <div className="mt-3">
               <Button danger onClick={handleReportDamage}>
-                ⚠ Báo cáo hỏng
+                Báo cáo hỏng
               </Button>
             </div>
           </div>
