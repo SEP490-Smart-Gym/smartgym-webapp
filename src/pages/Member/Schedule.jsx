@@ -209,6 +209,24 @@ export default function Calendar() {
     []
   );
 
+  // ==== state cho ĐỔI LỊCH HÀNG LOẠT ====
+  const [showBulkRescheduleForm, setShowBulkRescheduleForm] = useState(false);
+  const [bulkFromDate, setBulkFromDate] = useState(null);
+  const [bulkToDate, setBulkToDate] = useState(null);
+  const [bulkDays, setBulkDays] = useState([]); // JS day 0..6
+  const [bulkSlotId, setBulkSlotId] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const bulkInvalidReason = useMemo(() => {
+    if (!memberPackageId) return "Bạn chưa có gói tập đang hoạt động.";
+    if (!bulkFromDate) return "Vui lòng chọn ngày bắt đầu.";
+    if (!bulkToDate) return "Vui lòng chọn ngày kết thúc.";
+    if (startOfDay(bulkFromDate) > startOfDay(bulkToDate)) return "Từ ngày phải <= đến ngày.";
+    if (!bulkDays.length) return "Vui lòng chọn ít nhất 1 ngày trong tuần.";
+    if (!bulkSlotId) return "Vui lòng chọn timeslot mới.";
+    return "";
+  }, [memberPackageId, bulkFromDate, bulkToDate, bulkDays, bulkSlotId]);
+
   const recurringInvalidReason = useMemo(() => {
     if (!memberPackageId) return "Bạn chưa có gói tập đang hoạt động.";
     if (!selectedSlotId) return "Vui lòng chọn khung giờ.";
@@ -883,7 +901,7 @@ export default function Calendar() {
     })();
   }, []);
 
-  // ✅ TÍNH CÓ ĐƯỢC HỦY HAY KHÔNG (DÙNG CHO GIAO DIỆN)
+  // ✅ TÍNH CÓ ĐƯỢC HỦY HAY KHÔNG
   const canCancelSelectedEvent = (() => {
     if (!selectedEvent) return false;
     if ((selectedEvent.status || "").toLowerCase() !== "not yet") return false;
@@ -914,6 +932,58 @@ export default function Calendar() {
 
     return diffHours >= 24;
   })();
+
+  const startBulkReschedule = () => {
+    // default: từ hôm nay -> +30 ngày (bạn đổi tùy)
+    const from = startOfDay(new Date());
+    const to = addDays(from, 30);
+
+    setShowBulkRescheduleForm(true);
+
+    // reset input
+    setBulkFromDate(from);
+    setBulkToDate(to);
+    setBulkDays([]);      // user tự chọn
+    setBulkSlotId("");    // user tự chọn
+
+    // đóng form đổi lịch đơn nếu đang mở
+    setShowRescheduleForm(false);
+    setRescheduleDate(null);
+    setRescheduleVnDate("");
+    setRescheduleSlotId("");
+    setRescheduleDisabledSlots(new Set());
+  };
+
+  const handleBulkRescheduleSubmit = async () => {
+    if (bulkInvalidReason) {
+      message.warning(bulkInvalidReason);
+      return;
+    }
+
+    const fromISO = dateObjToISO(startOfDay(bulkFromDate));
+    const toISO = dateObjToISO(startOfDay(bulkToDate));
+
+    try {
+      setBulkLoading(true);
+
+      await api.put("/TrainingSession/bulk-reschedule", {
+        memberPackageId,
+        newTimeSlotId: Number(bulkSlotId),
+        fromDate: fromISO,
+        toDate: toISO,
+        daysOfWeek: bulkDays.slice().sort((a, b) => a - b),
+      });
+
+      message.success("Đổi lịch hàng loạt thành công.");
+      setTimeout(() => window.location.reload(), 300);
+    } catch (err) {
+      console.error("Bulk reschedule error:", err);
+      const apiMsg = err?.response?.data?.message || err?.response?.data?.title;
+      message.error(apiMsg || "Có lỗi khi đổi lịch hàng loạt. Vui lòng thử lại sau.");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   const startReschedule = () => {
     if (!selectedEvent) return;
@@ -1193,6 +1263,7 @@ export default function Calendar() {
           )}
         </div>
 
+        {/* ✅ Đặt lịch tập */}
         <div className="d-flex align-items-center gap-2">
           {trainerId && trainerBusyLoading && <span className="small text-muted">Đang tải lịch bận trainer...</span>}
           <button
@@ -1207,6 +1278,28 @@ export default function Calendar() {
             }}
           >
             <span>Đặt lịch tập</span>
+          </button>
+
+          {/* ✅ Đổi lịch hàng loạt */}
+          <button
+            className="btn btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#bulkRescheduleModal"
+            onClick={() => {
+              // reset form mỗi lần mở
+              const from = startOfDay(new Date());
+              const to = addDays(from, 30);
+
+              setShowBulkRescheduleForm(true);
+              setBulkFromDate(from);
+              setBulkToDate(to);
+              setBulkDays([]);
+              setBulkSlotId("");
+            }}
+            disabled={!memberPackageId}
+            title={!memberPackageId ? "Bạn chưa có gói tập đang hoạt động" : ""}
+          >
+            Đổi lịch hàng loạt
           </button>
         </div>
       </div>
@@ -1422,7 +1515,7 @@ export default function Calendar() {
                 </select>
               </div>
 
-              {packageError && <div className="alert alert-warning py-2 mb-0">{packageError}</div>}
+              {packageError && <div className="alert alert-warning py-2 mb-0" style={{ color: "#060505ff"}}>{packageError}</div>}
             </div>
 
             <div className="modal-footer">
@@ -1446,6 +1539,121 @@ export default function Calendar() {
           </form>
         </div>
       </div>
+
+{/* MODAL: Đổi lịch hàng loạt */}
+<div className="modal fade" id="bulkRescheduleModal" tabIndex="-1" aria-hidden="true">
+  <div className="modal-dialog">
+    <form
+      className="modal-content"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await handleBulkRescheduleSubmit();
+      }}
+    >
+      <div className="modal-header">
+        <h5 className="modal-title">Đổi lịch hàng loạt</h5>
+        <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
+      </div>
+
+      <div className="modal-body">
+        {!memberPackageId && (
+          <div className="alert alert-warning py-2">
+            Bạn chưa có gói tập đang hoạt động.
+          </div>
+        )}
+
+        <div className="mb-3">
+          <label className="form-label d-block">Từ ngày</label>
+          <DatePicker
+            selected={bulkFromDate}
+            onChange={(d) => setBulkFromDate(d ? startOfDay(d) : null)}
+            dateFormat="dd/MM/yyyy"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            minDate={new Date()}
+            className="form-control"
+            wrapperClassName="w-100"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label d-block">Đến ngày</label>
+          <DatePicker
+            selected={bulkToDate}
+            onChange={(d) => setBulkToDate(d ? startOfDay(d) : null)}
+            dateFormat="dd/MM/yyyy"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            minDate={bulkFromDate || new Date()}
+            className="form-control"
+            wrapperClassName="w-100"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label d-block">Áp dụng cho ngày trong tuần</label>
+          <div className="d-flex gap-2 flex-wrap">
+            {WEEKDAYS.map((w) => {
+              const checked = bulkDays.includes(w.id);
+              return (
+                <label key={w.id} className="weekday-chip">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const next = new Set(bulkDays);
+                      if (e.target.checked) next.add(w.id);
+                      else next.delete(w.id);
+                      setBulkDays(Array.from(next));
+                    }}
+                  />
+                  {w.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-2">
+          <label className="form-label">Timeslot mới</label>
+          <select
+            className="form-select"
+            value={bulkSlotId}
+            onChange={(e) => setBulkSlotId(e.target.value)}
+            disabled={!allSlots.length}
+          >
+            <option value="">-- Chọn khung giờ --</option>
+            {allSlots.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {bulkInvalidReason && (
+          <div className="alert alert-warning py-2 mt-2 mb-0">{bulkInvalidReason}</div>
+        )}
+      </div>
+
+      <div className="modal-footer">
+        <button type="button" className="btn btn-light" data-bs-dismiss="modal">
+          Hủy
+        </button>
+
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={!memberPackageId || bulkLoading || !!bulkInvalidReason}
+        >
+          {bulkLoading ? "Đang đổi..." : "Lưu đổi hàng loạt"}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 
       {/* MODAL CHI TIẾT EVENT */}
       <div className="modal fade" id="eventDetailModal" tabIndex="-1" aria-hidden="true" ref={eventModalRef}>

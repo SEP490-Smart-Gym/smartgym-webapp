@@ -67,9 +67,9 @@ const ageValidatorRule = {
 };
 
 const firstNameRules = [
-  { required: true, message: "Nhập tên" },
-  { transform: trimValue, message: "Tên không hợp lệ" },
-  { min: 1, message: "Tên không được để trống" },
+  { required: true },
+  { transform: trimValue },
+  { min: 1 },
   { max: 30, message: "Tên tối đa 30 ký tự" },
   {
     validator: (_, v) => {
