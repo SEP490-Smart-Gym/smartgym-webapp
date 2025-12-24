@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../../config/axios";
 import { Spin } from "antd";
 import { IoSend } from "react-icons/io5";
+import { color } from "framer-motion";
 
 export default function ChatBox() {
   const { conversationId } = useParams();
@@ -54,7 +55,7 @@ export default function ChatBox() {
       setPartner({
         userId: p.userId,
         name: `${p.lastName} ${p.firstName}`,
-        avatar: p.profileImageUrl || "/img/noimg.jpg",
+        avatar: p.profileImageUrl || "/img/useravt.jpg",
         role: p.roleName,
       });
     } catch (err) {
@@ -108,20 +109,24 @@ export default function ChatBox() {
   useEffect(() => {
     if (messages.length === 0) return;
 
-    // ❌ lần đầu mở chat: không scroll
     if (isFirstLoadRef.current) {
       isFirstLoadRef.current = false;
       prevLengthRef.current = messages.length;
       return;
     }
 
-    // ✅ chỉ scroll khi có tin mới
-    if (messages.length > prevLengthRef.current) {
+    const lastMessage = messages[messages.length - 1];
+
+    if (
+      messages.length > prevLengthRef.current &&
+      !lastMessage.isMine
+    ) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
 
     prevLengthRef.current = messages.length;
   }, [messages]);
+
 
   /* ===== SEND MESSAGE ===== */
   const sendMessage = async () => {
@@ -136,12 +141,15 @@ export default function ChatBox() {
 
       setText("");
       fetchMessages();
+
+      window.dispatchEvent(new Event("chat-updated"));
     } catch (err) {
       console.error("Send message error", err);
     } finally {
       setSending(false);
     }
   };
+
 
   /* ===== RENDER ===== */
   return (
@@ -154,7 +162,7 @@ export default function ChatBox() {
           style={{ background: "#0c1844", color: "white" }}
         >
           <img
-            src={partner?.avatar || "/img/noimg.jpg"}
+            src={partner?.avatar || "/img/useravt.jpg"}
             alt="avatar"
             style={{
               width: 40,
@@ -195,7 +203,7 @@ export default function ChatBox() {
                 {/* AVATAR - chỉ hiện với người khác */}
                 {!m.isMine && (
                   <img
-                    src={partner?.avatar || "/img/noimg.jpg"}
+                    src={partner?.avatar || "/img/useravt.jpg"}
                     alt="avatar"
                     style={{
                       width: 32,
@@ -219,12 +227,22 @@ export default function ChatBox() {
 
                   {m.text}
 
-                  <div className="small text-muted text-end mt-1">
-                    {new Date(m.sentAt).toLocaleTimeString("vi-VN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                    }
+                  <div
+                    className="small text-end mt-1"
+                    style={{
+                      color: m.isMine ? "rgba(255,255,255,0.65)" : "#6c757d",
+                      fontSize: 11,
+                    }}
+                  >
+                    {(() => {
+                      const d = new Date(m.sentAt);
+                      d.setHours(d.getHours() + 7);
+                      return d.toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                    })()}
+
                   </div>
                 </div>
               </div>
