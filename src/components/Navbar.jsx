@@ -370,13 +370,13 @@ export default function Navbar() {
                             >
                               Hồ sơ cá nhân
                             </button>
-                            <hr className="dropdown-divider" />
+                            {/* <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
                               onClick={() => navigate(`/staff/chat`)}
                             >
                               Chat với Học viên
-                            </button>
+                            </button> */}
                             <hr className="dropdown-divider" />
                             <button
                               className="dropdown-item"
