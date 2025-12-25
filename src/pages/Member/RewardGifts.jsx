@@ -456,7 +456,7 @@ const RewardGifts = () => {
                               <div style={{ position: "relative" }}>
                                 <CardImg
                                   alt={gift.name}
-                                  src={gift.imageUrl || "https://via.placeholder.com/400x240?text=Gift"}
+                                  src={gift.imageUrl || "/img/noimg.jpg"}
                                   top
                                   style={{
                                     height: 180,
