@@ -43,6 +43,12 @@ const StyledCard = styled(Card)(({ theme }) => ({
   marginBottom: theme.spacing(2),
   transition: "all 0.3s ease",
   borderRadius: theme.spacing(2),
+
+  // ✅ thêm để card bằng nhau
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+
   "&:hover": {
     transform: "translateY(-4px)",
     boxShadow: "0 8px 24px rgba(0,0,0,0.12)"
@@ -280,17 +286,18 @@ const CartComponent = () => {
         const res = await api.get("/guest/trainers");
         const data = Array.isArray(res.data) ? res.data : [];
 
+        const FALLBACK_AVATAR = "/img/work-6.jpg";
+
         const mapped = data
           .filter((t) => t.isAvailableForNewClients !== false)
           .map((t) => ({
             id: t.trainerId,
-            name:
-              `${t.lastName || ""} ${t.firstName || ""}`.trim() || "Huấn luyện viên",
-            avatar:
-              "https://images.unsplash.com/photo-1517832207067-4db24a2ae47c?auto=format&fit=crop&w=800&q=80",
-            specialties: t.specialization
-              ? t.specialization.split(",").map((s) => s.trim())
-              : []
+            name: `${t.lastName || ""} ${t.firstName || ""}`.trim() || "Huấn luyện viên",
+            avatar: t.imageUrl || FALLBACK_AVATAR,
+            specialties: (t.specialization || "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
           }));
 
         setTrainers(mapped);
@@ -608,77 +615,139 @@ const CartComponent = () => {
           </Grid>
         );
 
-      case "trainer": {
-        const sortedTrainers = [...trainers];
+case "trainer": {
+  const sortedTrainers = [...trainers];
 
-        return (
-          <Stack spacing={2}>
-            <Typography variant="h6">Chọn huấn luyện viên</Typography>
+  return (
+    <Stack spacing={2}>
+      <Typography variant="h6">Chọn huấn luyện viên</Typography>
 
-            {trainerLoading && <Alert severity="info">Đang tải danh sách huấn luyện viên...</Alert>}
-            {trainerError && <Alert severity="warning">{trainerError}</Alert>}
+      {trainerLoading && (
+        <Alert severity="info">Đang tải danh sách huấn luyện viên...</Alert>
+      )}
+      {trainerError && <Alert severity="warning">{trainerError}</Alert>}
 
-            <Grid container spacing={2}>
-              {sortedTrainers.map((t) => {
-                const selected = selectedTrainer?.id === t.id;
-                const isSuggestedCard = suggestedTrainer?.id === t.id;
+      <Grid container spacing={2} alignItems="stretch">
+  {sortedTrainers.map((t) => {
+    const selected = selectedTrainer?.id === t.id;
+    const isSuggestedCard = suggestedTrainer?.id === t.id;
 
-                return (
-                  <Grid item xs={12} md={4} key={t.id}>
-                    <StyledCard
-                      onClick={() => {
-                        setSelectedTrainer(t);
-                        setUserTouchedTrainer(true);
-                      }}
-                      sx={{
-                        cursor: "pointer",
-                        outline: selected ? `2px solid ${theme.palette.primary.main}` : "none"
-                      }}
-                    >
-                      <CardMedia component="img" height="160" image={t.avatar} alt={t.name} />
-                      <CardContent>
-                        <Stack spacing={1}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="h6" sx={{ flex: 1 }}>
-                              {t.name}
-                            </Typography>
-                            <Chip size="small" label="Rảnh" color="success" />
-                          </Stack>
+    return (
+      <Grid item xs={12} md={4} key={t.id} sx={{ display: "flex", minWidth: 0 }}>
+        <StyledCard
+          onClick={() => {
+            setSelectedTrainer(t);
+            setUserTouchedTrainer(true);
+          }}
+          sx={{
+            width: "100%",
+            flex: 1,
+            minWidth: 0,
+            cursor: "pointer",
+            outline: selected ? `2px solid ${theme.palette.primary.main}` : "none",
+          }}
+        >
+          <CardMedia
+            component="img"
+            height="160"
+            image={t.avatar}
+            alt={t.name}
+            sx={{ width: "100%", objectFit: "cover" }}
+            onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+          />
 
-                          <Stack direction="row" spacing={1} flexWrap="wrap">
-                            {t.specialties.map((s) => (
-                              <Chip key={s} size="small" variant="outlined" label={s} />
-                            ))}
-                          </Stack>
+          <CardContent   sx={{
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,        // ⭐ BẮT BUỘC
+    overflow: "hidden" // giữ layout gọn
+  }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+              <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }}>
+                {t.name}
+              </Typography>
+              <Chip size="small" label="Rảnh" color="success" />
+            </Stack>
 
-                          <Stack direction="row" spacing={1} sx={{ mt: 1 }} alignItems="center">
-                            {selected && <Chip size="small" color="primary" label="Đã chọn" />}
-                            {isSuggestedCard && (
-                              <Chip size="small" color="secondary" variant="outlined" label="Gợi ý hệ thống" />
-                            )}
-                          </Stack>
-                        </Stack>
-                      </CardContent>
-                    </StyledCard>
-                  </Grid>
-                );
-              })}
-            </Grid>
+            <Box
+  tabIndex={0}
+  onWheel={(e) => {
+    // ✅ chuyển wheel dọc thành scroll ngang
+    if (e.deltaY !== 0) {
+      e.currentTarget.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }}
+  sx={{
+    display: "flex",
+    gap: 1,
+    flexWrap: "nowrap",          // ✅ KHÔNG cho xuống hàng
+    overflowX: "auto",           // ✅ cuộn ngang
+    overflowY: "hidden",
+    minWidth: 0,
+    maxWidth: "100%",
+    pb: 0.5,
 
-            {(selectedTrainer || suggestedTrainer) && (
-              <Alert severity="success">
-                Đã chọn huấn luyện viên: <strong>{selectedTrainer?.name || suggestedTrainer?.name}</strong>
-                {suggestedTrainer && selectedTrainer?.id !== suggestedTrainer.id && (
-                  <>
-                    {" "}
-                    — Gợi ý hệ thống: <strong>{suggestedTrainer.name}</strong>
-                  </>
-                )}
-              </Alert>
-            )}
-          </Stack>
-        );
-      }
+    // ✅ giúp scroll mượt trên mobile
+    WebkitOverflowScrolling: "touch",
+
+    // (tuỳ chọn) hiện scrollbar dễ nhìn
+    "&::-webkit-scrollbar": { height: 6 },
+    "&::-webkit-scrollbar-thumb": { backgroundColor: "#bbb", borderRadius: 3 },
+  }}
+>
+  {t.specialties.map((s) => (
+    <Chip
+      key={s}
+      size="small"
+      variant="outlined"
+      label={s}
+      sx={{
+        flexShrink: 0,            // ✅ chip không bị co
+        maxWidth: 180,
+        "& .MuiChip-label": {
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        },
+      }}
+    />
+  ))}
+</Box>
+
+
+
+            <Stack direction="row" spacing={1} sx={{ mt: "auto" }} alignItems="center">
+              {selected && <Chip size="small" color="primary" label="Đã chọn" />}
+              {isSuggestedCard && (
+                <Chip size="small" color="secondary" variant="outlined" label="Gợi ý hệ thống" />
+              )}
+            </Stack>
+          </CardContent>
+        </StyledCard>
+      </Grid>
+    );
+  })}
+</Grid>
+
+
+      {(selectedTrainer || suggestedTrainer) && (
+        <Alert severity="success">
+          Đã chọn huấn luyện viên:{" "}
+          <strong>{selectedTrainer?.name || suggestedTrainer?.name}</strong>
+          {suggestedTrainer && selectedTrainer?.id !== suggestedTrainer.id && (
+            <>
+              {" "}
+              — Gợi ý hệ thống: <strong>{suggestedTrainer.name}</strong>
+            </>
+          )}
+        </Alert>
+      )}
+    </Stack>
+  );
+}
+
 
       case "payment":
         return (
