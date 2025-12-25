@@ -112,6 +112,7 @@ export default function AdminPromotionGifts() {
         : [];
 
       const normalized = data.map(normalizeReward).filter((x) => x.id != null);
+      console.log("Fetched rewards:", normalized);
       setRewards(normalized);
     } catch (err) {
       console.error("GET /Reward error:", err?.response?.data || err);
@@ -289,7 +290,7 @@ export default function AdminPromotionGifts() {
             }}
             onError={(e) => {
               e.currentTarget.src =
-                "https://via.placeholder.com/100x100?text=Gift";
+                "/img/noimg.jpg";
             }}
           />
         </div>
