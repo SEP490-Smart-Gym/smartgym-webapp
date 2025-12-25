@@ -465,7 +465,7 @@ const RewardGifts = () => {
                                   }}
                                   onError={(e) => {
                                     e.currentTarget.src =
-                                      "https://via.placeholder.com/400x240?text=Gift";
+                                      "/img/noimg.jpg";
                                   }}
                                 />
                                 <Badge
