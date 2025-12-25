@@ -313,7 +313,6 @@ export default function Login() {
           aria-modal="true"
           aria-labelledby="forgotTitle"
           onMouseDown={(e) => {
-            // click ngoài modal để đóng
             if (e.target === e.currentTarget) closeForgotModal();
           }}
         >

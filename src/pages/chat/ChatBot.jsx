@@ -42,23 +42,16 @@ const MessageContainer = styled(Box)({
 
 const MessageBubble = styled(Paper)(({ isUser }) => ({
   padding: "8px 12px",
-
-
   inlineSize: "fit-content",
   maxInlineSize: "420px",
-
   alignSelf: isUser ? "flex-end" : "flex-start",
   backgroundColor: isUser ? "#0c1844" : "#ffffff",
   color: isUser ? "#ffffff" : "#000000",
   borderRadius: "18px",
   boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
 }));
-
-
-
 
 /* ======================= COMPONENT ======================= */
 
@@ -67,6 +60,10 @@ export default function ChatBot({ isPopup = false, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ GỢI Ý CHAT
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(true);
 
   const bottomRef = useRef(null);
 
@@ -80,15 +77,18 @@ export default function ChatBot({ isPopup = false, onClose }) {
         if (!isMounted) return;
 
         setConversationId(res.data.conversationId);
-      } catch (err) {
-        if (err.code !== "ECONNABORTED") {
-          console.error("Init AI conversation error", err);
+
+        // ✅ FETCH GỢI Ý CHAT
+        const sugRes = await api.get("/member-ai-chat/suggestions");
+        if (Array.isArray(sugRes.data?.suggestions)) {
+          setSuggestions(sugRes.data.suggestions);
         }
+      } catch (err) {
+        console.error("Init AI conversation error", err);
       }
     };
 
     initConversation();
-
     return () => {
       isMounted = false;
     };
@@ -103,7 +103,7 @@ export default function ChatBot({ isPopup = false, onClose }) {
 
       const mapped = res.data.map((m) => {
         const d = new Date(m.sentAt);
-        d.setHours(d.getHours() + 7); 
+        d.setHours(d.getHours() + 7); // ✅ FIX LỆCH GIỜ
 
         return {
           id: m.messageId,
@@ -114,8 +114,12 @@ export default function ChatBot({ isPopup = false, onClose }) {
         };
       });
 
-
       setMessages(mapped);
+
+      // ✅ nếu đã có tin nhắn thì ẩn gợi ý
+      if (mapped.length > 0) {
+        setShowSuggestions(false);
+      }
     } catch (err) {
       console.error("Fetch AI messages error", err);
     }
@@ -133,12 +137,15 @@ export default function ChatBot({ isPopup = false, onClose }) {
   }, [messages]);
 
   /* ======================= SEND MESSAGE ======================= */
-  const handleSend = async () => {
-    if (!input.trim() || !conversationId) return;
+  const handleSend = async (textOverride = null) => {
+    const textToSend = textOverride ?? input.trim();
+    if (!textToSend || !conversationId) return;
+
+    setShowSuggestions(false);
 
     const tempMessage = {
       id: Date.now(),
-      text: input.trim(),
+      text: textToSend,
       isUser: true,
       senderName: "You",
       timestamp: new Date(),
@@ -151,10 +158,9 @@ export default function ChatBot({ isPopup = false, onClose }) {
     try {
       await api.post("/member-ai-chat/messages", {
         conversationId,
-        messageText: tempMessage.text,
+        messageText: textToSend,
       });
 
-      // Fetch lại để lấy phản hồi AI
       await fetchMessages(conversationId);
     } catch (err) {
       console.error("Send AI message error", err);
@@ -217,104 +223,76 @@ export default function ChatBot({ isPopup = false, onClose }) {
                 alignItems: m.isUser ? "flex-end" : "flex-start",
               }}
             >
-              <Stack
-                direction="row"
-                spacing={0.5}
-                alignItems="flex-end"
-                justifyContent={m.isUser ? "flex-end" : "flex-start"}
-              >
-                {/* USER: copy bên TRÁI */}
+              <Stack direction="row" spacing={0.5} alignItems="flex-end">
                 {m.isUser && (
-                  <IconButton
-                    size="small"
-                    onClick={() => handleCopy(m.text)}
-                    sx={{
-                      color: "#64748b",
-                      opacity: 0.6,
-                      "&:hover": { opacity: 1 },
-                    }}
-                  >
+                  <IconButton size="small" onClick={() => handleCopy(m.text)}>
                     <IoCopy size={14} />
                   </IconButton>
                 )}
 
-                {/* AI AVATAR */}
                 {!m.isUser && (
-                  <Avatar
-                    sx={{
-                      width: 30,
-                      height: 30,
-                      bgcolor: "#0c1844",
-                      fontSize: 13,
-                    }}
-                  >
+                  <Avatar sx={{ width: 30, height: 30, bgcolor: "#0c1844" }}>
                     AI
                   </Avatar>
                 )}
 
-                {/* MESSAGE BUBBLE */}
                 <MessageBubble isUser={m.isUser}>
-                  <Typography
-                    sx={{
-                      fontSize: "0.88rem",
-                      lineHeight: 1.45,
-                      wordBreak: "break-word",
-                    }}
-                  >
+                  <Typography sx={{ fontSize: "0.88rem" }}>
                     {m.text}
                   </Typography>
-
                   <Typography
                     sx={{
                       fontSize: "0.7rem",
-                      opacity: 0.55,
+                      opacity: 0.6,
                       mt: 0.4,
                       textAlign: "right",
-                      display: "block",
                     }}
                   >
                     {format(m.timestamp, "HH:mm")}
                   </Typography>
                 </MessageBubble>
 
-                {/* AI: copy bên PHẢI */}
                 {!m.isUser && (
-                  <IconButton
-                    size="small"
-                    onClick={() => handleCopy(m.text)}
-                    sx={{
-                      color: "#64748b",
-                      opacity: 0.6,
-                      "&:hover": { opacity: 1 },
-                    }}
-                  >
+                  <IconButton size="small" onClick={() => handleCopy(m.text)}>
                     <IoCopy size={14} />
                   </IconButton>
                 )}
               </Stack>
-
-
             </Box>
           ))}
 
           {loading && (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 2 }}>
-              <CircularProgress size={20} sx={{ color: "#0c1844" }} />
-              <Typography variant="body2">AI đang suy nghĩ...</Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={20} />
+              <Typography variant="body2">
+                AI đang suy nghĩ...
+              </Typography>
             </Stack>
           )}
 
           <div ref={bottomRef} />
         </MessageContainer>
 
+        {/* ===== GỢI Ý CHAT ===== */}
+        {showSuggestions && suggestions.length > 0 && (
+          <Box sx={{ px: 2, pb: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {suggestions.map((s, i) => (
+              <Chip
+                key={i}
+                label={s}
+                onClick={() => handleSend(s)}
+                sx={{
+                  cursor: "pointer",
+                  backgroundColor: "#e0e7ff",
+                  fontSize: "0.75rem",
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
         {/* ===== INPUT ===== */}
-        <Box
-          sx={{
-            p: 2,
-            borderTop: "1px solid rgba(62, 65, 255, 0.1)",
-            backgroundColor: "#f8faff",
-          }}
-        >
+        <Box sx={{ p: 2, borderTop: "1px solid rgba(62, 65, 255, 0.1)" }}>
           <Stack direction="row" spacing={1}>
             <TextField
               fullWidth
@@ -333,7 +311,7 @@ export default function ChatBot({ isPopup = false, onClose }) {
               }}
             />
             <IconButton
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim()}
               sx={{
                 backgroundColor: "#0c1844",
