@@ -667,7 +667,7 @@ const CartComponent = () => {
                           <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }}>
                             {t.name}
                           </Typography>
-                          <Chip size="small" label="Rảnh" color="success" />
+                          {/* <Chip size="small" label="Rảnh" color="success" /> */}
                         </Stack>
 
                         {/* <Box
