@@ -593,10 +593,10 @@ const CartComponent = () => {
                         ? "Đang tải danh sách mã giảm giá..."
                         : selectedDiscount &&
                           calculateSubtotal < (selectedDiscount.minimumPurchaseAmount || 0)
-                        ? `Đơn hàng từ ${formatVND(
+                          ? `Đơn hàng từ ${formatVND(
                             selectedDiscount.minimumPurchaseAmount || 0
                           )} mới được áp dụng mã này.`
-                        : "Chọn mã giảm giá (nếu có)."
+                          : "Chọn mã giảm giá (nếu có)."
                     }
                   >
                     <MenuItem value="">Không sử dụng mã</MenuItem>
@@ -615,138 +615,138 @@ const CartComponent = () => {
           </Grid>
         );
 
-case "trainer": {
-  const sortedTrainers = [...trainers];
+      case "trainer": {
+        const sortedTrainers = [...trainers];
 
-  return (
-    <Stack spacing={2}>
-      <Typography variant="h6">Chọn huấn luyện viên</Typography>
+        return (
+          <Stack spacing={2}>
+            <Typography variant="h6">Chọn huấn luyện viên</Typography>
 
-      {trainerLoading && (
-        <Alert severity="info">Đang tải danh sách huấn luyện viên...</Alert>
-      )}
-      {trainerError && <Alert severity="warning">{trainerError}</Alert>}
+            {trainerLoading && (
+              <Alert severity="info">Đang tải danh sách huấn luyện viên...</Alert>
+            )}
+            {trainerError && <Alert severity="warning">{trainerError}</Alert>}
 
-      <Grid container spacing={2} alignItems="stretch">
-  {sortedTrainers.map((t) => {
-    const selected = selectedTrainer?.id === t.id;
-    const isSuggestedCard = suggestedTrainer?.id === t.id;
+            <Grid container spacing={2} alignItems="stretch">
+              {sortedTrainers.map((t) => {
+                const selected = selectedTrainer?.id === t.id;
+                const isSuggestedCard = suggestedTrainer?.id === t.id;
 
-    return (
-      <Grid item xs={12} md={4} key={t.id} sx={{ display: "flex", minWidth: 0 }}>
-        <StyledCard
-          onClick={() => {
-            setSelectedTrainer(t);
-            setUserTouchedTrainer(true);
-          }}
-          sx={{
-            width: "100%",
-            flex: 1,
-            minWidth: 0,
-            cursor: "pointer",
-            outline: selected ? `2px solid ${theme.palette.primary.main}` : "none",
-          }}
-        >
-          <CardMedia
-            component="img"
-            height="160"
-            image={t.avatar}
-            alt={t.name}
-            sx={{ width: "100%", objectFit: "cover" }}
-            onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
-          />
+                return (
+                  <Grid item xs={12} md={4} key={t.id} sx={{ display: "flex", minWidth: 0 }}>
+                    <StyledCard
+                      onClick={() => {
+                        setSelectedTrainer(t);
+                        setUserTouchedTrainer(true);
+                      }}
+                      sx={{
+                        width: "100%",
+                        flex: 1,
+                        minWidth: 0,
+                        cursor: "pointer",
+                        outline: selected ? `2px solid ${theme.palette.primary.main}` : "none",
+                      }}
+                    >
+                      <CardMedia
+                        component="img"
+                        height="160"
+                        image={t.avatar}
+                        alt={t.name}
+                        sx={{ width: "100%", objectFit: "cover" }}
+                        onError={(e) => (e.currentTarget.src = "/img/useravt.jpg")}
+                      />
 
-          <CardContent   sx={{
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    minWidth: 0,        // ⭐ BẮT BUỘC
-    overflow: "hidden" // giữ layout gọn
-  }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }}>
-                {t.name}
-              </Typography>
-              <Chip size="small" label="Rảnh" color="success" />
-            </Stack>
+                      <CardContent sx={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        minWidth: 0,        // ⭐ BẮT BUỘC
+                        overflow: "hidden" // giữ layout gọn
+                      }}>
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                          <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }}>
+                            {t.name}
+                          </Typography>
+                          <Chip size="small" label="Rảnh" color="success" />
+                        </Stack>
 
-            <Box
-  tabIndex={0}
-  onWheel={(e) => {
-    // ✅ chuyển wheel dọc thành scroll ngang
-    if (e.deltaY !== 0) {
-      e.currentTarget.scrollLeft += e.deltaY;
-      e.preventDefault();
-    }
-  }}
-  sx={{
-    display: "flex",
-    gap: 1,
-    flexWrap: "nowrap",          // ✅ KHÔNG cho xuống hàng
-    overflowX: "auto",           // ✅ cuộn ngang
-    overflowY: "hidden",
-    minWidth: 0,
-    maxWidth: "100%",
-    pb: 0.5,
+                        {/* <Box
+                          tabIndex={0}
+                          onWheel={(e) => {
+                            // ✅ chuyển wheel dọc thành scroll ngang
+                            if (e.deltaY !== 0) {
+                              e.currentTarget.scrollLeft += e.deltaY;
+                              e.preventDefault();
+                            }
+                          }}
+                          sx={{
+                            display: "flex",
+                            gap: 1,
+                            flexWrap: "nowrap",          // ✅ KHÔNG cho xuống hàng
+                            overflowX: "auto",           // ✅ cuộn ngang
+                            overflowY: "hidden",
+                            minWidth: 0,
+                            maxWidth: "100%",
+                            pb: 0.5,
 
-    // ✅ giúp scroll mượt trên mobile
-    WebkitOverflowScrolling: "touch",
+                            // ✅ giúp scroll mượt trên mobile
+                            WebkitOverflowScrolling: "touch",
 
-    // (tuỳ chọn) hiện scrollbar dễ nhìn
-    "&::-webkit-scrollbar": { height: 6 },
-    "&::-webkit-scrollbar-thumb": { backgroundColor: "#bbb", borderRadius: 3 },
-  }}
->
-  {t.specialties.map((s) => (
-    <Chip
-      key={s}
-      size="small"
-      variant="outlined"
-      label={s}
-      sx={{
-        flexShrink: 0,            // ✅ chip không bị co
-        maxWidth: 180,
-        "& .MuiChip-label": {
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        },
-      }}
-    />
-  ))}
-</Box>
-
-
-
-            <Stack direction="row" spacing={1} sx={{ mt: "auto" }} alignItems="center">
-              {selected && <Chip size="small" color="primary" label="Đã chọn" />}
-              {isSuggestedCard && (
-                <Chip size="small" color="secondary" variant="outlined" label="Gợi ý hệ thống" />
-              )}
-            </Stack>
-          </CardContent>
-        </StyledCard>
-      </Grid>
-    );
-  })}
-</Grid>
+                            // (tuỳ chọn) hiện scrollbar dễ nhìn
+                            "&::-webkit-scrollbar": { height: 6 },
+                            "&::-webkit-scrollbar-thumb": { backgroundColor: "#bbb", borderRadius: 3 },
+                          }}
+                        >
+                          {t.specialties.map((s) => (
+                            <Chip
+                              key={s}
+                              size="small"
+                              variant="outlined"
+                              label={s}
+                              sx={{
+                                flexShrink: 0,            // ✅ chip không bị co
+                                maxWidth: 180,
+                                "& .MuiChip-label": {
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                },
+                              }}
+                            />
+                          ))}
+                        </Box> */}
 
 
-      {(selectedTrainer || suggestedTrainer) && (
-        <Alert severity="success">
-          Đã chọn huấn luyện viên:{" "}
-          <strong>{selectedTrainer?.name || suggestedTrainer?.name}</strong>
-          {suggestedTrainer && selectedTrainer?.id !== suggestedTrainer.id && (
-            <>
-              {" "}
-              — Gợi ý hệ thống: <strong>{suggestedTrainer.name}</strong>
-            </>
-          )}
-        </Alert>
-      )}
-    </Stack>
-  );
-}
+
+                        <Stack direction="row" spacing={1} sx={{ mt: "auto" }} alignItems="center">
+                          {selected && <Chip size="small" color="primary" label="Đã chọn" />}
+                          {isSuggestedCard && (
+                            <Chip size="small" color="secondary" variant="outlined" label="Gợi ý hệ thống" />
+                          )}
+                        </Stack>
+                      </CardContent>
+                    </StyledCard>
+                  </Grid>
+                );
+              })}
+            </Grid>
+
+
+            {(selectedTrainer || suggestedTrainer) && (
+              <Alert severity="success">
+                Đã chọn huấn luyện viên:{" "}
+                <strong>{selectedTrainer?.name || suggestedTrainer?.name}</strong>
+                {suggestedTrainer && selectedTrainer?.id !== suggestedTrainer.id && (
+                  <>
+                    {" "}
+                    — Gợi ý hệ thống: <strong>{suggestedTrainer.name}</strong>
+                  </>
+                )}
+              </Alert>
+            )}
+          </Stack>
+        );
+      }
 
 
       case "payment":
