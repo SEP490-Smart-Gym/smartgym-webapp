@@ -319,11 +319,9 @@ const ProfileTrainer = () => {
   const validateTrainerUpdate = () => {
     const specialization = String(trainerInfo.specialization || "").trim();
     const bio = String(trainerInfo.trainerBio || "").trim();
-    const workingShift = String(trainerInfo.workingShift || "").trim();
 
     if (!specialization) return message.error("Vui lòng nhập Chuyên môn."), false;
     if (!bio) return message.error("Vui lòng nhập Giới thiệu huấn luyện viên."), false;
-    if (!workingShift) return message.error("Vui lòng nhập Ca làm việc."), false;
 
     const certs = Array.isArray(trainerInfo.certificates) ? trainerInfo.certificates : [];
     if (!certs.length) return message.error("Vui lòng thêm ít nhất 1 chứng chỉ."), false;
