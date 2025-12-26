@@ -116,6 +116,12 @@ const ProfileMember = () => {
     return age >= 0 ? age : "";
   };
 
+  const maxDobDate13 = new Date(
+    new Date().getFullYear() - 13,
+    new Date().getMonth(),
+    new Date().getDate()
+  );
+
   /** ================== BMI AUTO ================== */
   useEffect(() => {
     const { canNang, chieuCao } = userInfo;
@@ -316,8 +322,14 @@ const ProfileMember = () => {
       return false;
     }
 
-    if (dob > new Date()) {
-      message.error("Ngày sinh không được lớn hơn ngày hiện tại.");
+    const minAge = 13;
+    const today = new Date();
+    let calcAge = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) calcAge--;
+
+    if (calcAge < minAge) {
+      message.error("Tuổi phải từ 13 trở lên.");
       return false;
     }
 
@@ -760,7 +772,7 @@ const ProfileMember = () => {
                                   showYearDropdown
                                   dropdownMode="select"
                                   isClearable
-                                  maxDate={new Date()}
+                                  maxDate={maxDobDate13} 
                                   className="form-control"
                                   wrapperClassName="w-100"
                                 />
